@@ -1,5 +1,9 @@
+// settings.gradle.kts
+
 pluginManagement {
     repositories {
+        // המאגרים מוגדרים ישירות בתוך repositories{}
+        // כדי לוודא ש-Gradle יכול למצוא את פלאגין האנדרואיד (AGP)
         google()
         mavenCentral()
         gradlePluginPortal()
@@ -9,6 +13,7 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        // המאגרים ליחסי התלות (הספריות שהאפליקציה משתמשת בהן)
         google()
         mavenCentral()
     }
