@@ -25,6 +25,11 @@
             android:name=".ui.home.HomeActivity"
             android:exported="true" />
 
+        <!-- Activity Screen -->
+        <activity
+            android:name=".ui.activity.ActivityActivity"
+            android:exported="true" />
+
     </application>
 
 </manifest>
