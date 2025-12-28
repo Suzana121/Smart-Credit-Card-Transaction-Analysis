@@ -9,6 +9,7 @@
     <color name="primary_teal">#1B6B6B</color>
     <color name="primary_teal_dark">#0F4F4F</color>
     <color name="primary_teal_light">#2A8C8C</color>
+    <color name="secondary_light_teal">#00CED1</color>
     <color name="status_error">#F44336</color>
     <color name="status_success">#4CAF50</color>
     <color name="status_warning">#FF9800</color>

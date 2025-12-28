@@ -27,6 +27,22 @@ public final class ActivityLoginBinding implements ViewBinding {
   @NonNull
   public final MaterialButton btnLogin;
 
+  /**
+   * This binding is not available in all configurations.
+   * <p>
+   * Present:
+   * <ul>
+   *   <li>layout/</li>
+   * </ul>
+   *
+   * Absent:
+   * <ul>
+   *   <li>layout-land/</li>
+   * </ul>
+   */
+  @Nullable
+  public final MaterialButton btnRegister;
+
   @NonNull
   public final TextInputEditText etEmail;
 
@@ -58,34 +74,84 @@ public final class ActivityLoginBinding implements ViewBinding {
   @NonNull
   public final TextInputLayout tilPassword;
 
+  /**
+   * This binding is not available in all configurations.
+   * <p>
+   * Present:
+   * <ul>
+   *   <li>layout/</li>
+   * </ul>
+   *
+   * Absent:
+   * <ul>
+   *   <li>layout-land/</li>
+   * </ul>
+   */
+  @Nullable
+  public final TextView tvAppName;
+
   @NonNull
   public final TextView tvEmailLabel;
 
   @NonNull
   public final TextView tvForgotPassword;
 
-  @NonNull
+  /**
+   * This binding is not available in all configurations.
+   * <p>
+   * Present:
+   * <ul>
+   *   <li>layout/</li>
+   * </ul>
+   *
+   * Absent:
+   * <ul>
+   *   <li>layout-land/</li>
+   * </ul>
+   */
+  @Nullable
+  public final TextView tvLoginTitle;
+
+  /**
+   * This binding is not available in all configurations.
+   * <p>
+   * Present:
+   * <ul>
+   *   <li>layout-land/</li>
+   * </ul>
+   *
+   * Absent:
+   * <ul>
+   *   <li>layout/</li>
+   * </ul>
+   */
+  @Nullable
   public final TextView tvLogo;
 
   @NonNull
   public final TextView tvPasswordLabel;
 
   private ActivityLoginBinding(@NonNull ConstraintLayout rootView, @NonNull MaterialButton btnLogin,
-      @NonNull TextInputEditText etEmail, @NonNull TextInputEditText etPassword,
-      @Nullable CardView loginCard, @NonNull ProgressBar progressBar,
-      @NonNull TextInputLayout tilEmail, @NonNull TextInputLayout tilPassword,
-      @NonNull TextView tvEmailLabel, @NonNull TextView tvForgotPassword, @NonNull TextView tvLogo,
+      @Nullable MaterialButton btnRegister, @NonNull TextInputEditText etEmail,
+      @NonNull TextInputEditText etPassword, @Nullable CardView loginCard,
+      @NonNull ProgressBar progressBar, @NonNull TextInputLayout tilEmail,
+      @NonNull TextInputLayout tilPassword, @Nullable TextView tvAppName,
+      @NonNull TextView tvEmailLabel, @NonNull TextView tvForgotPassword,
+      @Nullable TextView tvLoginTitle, @Nullable TextView tvLogo,
       @NonNull TextView tvPasswordLabel) {
     this.rootView = rootView;
     this.btnLogin = btnLogin;
+    this.btnRegister = btnRegister;
     this.etEmail = etEmail;
     this.etPassword = etPassword;
     this.loginCard = loginCard;
     this.progressBar = progressBar;
     this.tilEmail = tilEmail;
     this.tilPassword = tilPassword;
+    this.tvAppName = tvAppName;
     this.tvEmailLabel = tvEmailLabel;
     this.tvForgotPassword = tvForgotPassword;
+    this.tvLoginTitle = tvLoginTitle;
     this.tvLogo = tvLogo;
     this.tvPasswordLabel = tvPasswordLabel;
   }
@@ -123,6 +189,9 @@ public final class ActivityLoginBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.btnRegister;
+      MaterialButton btnRegister = ViewBindings.findChildViewById(rootView, id);
+
       id = R.id.etEmail;
       TextInputEditText etEmail = ViewBindings.findChildViewById(rootView, id);
       if (etEmail == null) {
@@ -156,6 +225,9 @@ public final class ActivityLoginBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.tvAppName;
+      TextView tvAppName = ViewBindings.findChildViewById(rootView, id);
+
       id = R.id.tvEmailLabel;
       TextView tvEmailLabel = ViewBindings.findChildViewById(rootView, id);
       if (tvEmailLabel == null) {
@@ -168,11 +240,11 @@ public final class ActivityLoginBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.tvLoginTitle;
+      TextView tvLoginTitle = ViewBindings.findChildViewById(rootView, id);
+
       id = R.id.tvLogo;
       TextView tvLogo = ViewBindings.findChildViewById(rootView, id);
-      if (tvLogo == null) {
-        break missingId;
-      }
 
       id = R.id.tvPasswordLabel;
       TextView tvPasswordLabel = ViewBindings.findChildViewById(rootView, id);
@@ -180,9 +252,9 @@ public final class ActivityLoginBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ActivityLoginBinding((ConstraintLayout) rootView, btnLogin, etEmail, etPassword,
-          loginCard, progressBar, tilEmail, tilPassword, tvEmailLabel, tvForgotPassword, tvLogo,
-          tvPasswordLabel);
+      return new ActivityLoginBinding((ConstraintLayout) rootView, btnLogin, btnRegister, etEmail,
+          etPassword, loginCard, progressBar, tilEmail, tilPassword, tvAppName, tvEmailLabel,
+          tvForgotPassword, tvLoginTitle, tvLogo, tvPasswordLabel);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

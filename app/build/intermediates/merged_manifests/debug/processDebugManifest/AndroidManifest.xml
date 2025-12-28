@@ -36,9 +36,19 @@
             </intent-filter>
         </activity>
 
+        <!-- Register Activity -->
+        <activity
+            android:name="com.cardify.app.ui.login.RegisterActivity"
+            android:exported="false" />
+
         <!-- Home Activity -->
         <activity
             android:name="com.cardify.app.ui.home.HomeActivity"
+            android:exported="true" />
+
+        <!-- Activity Screen -->
+        <activity
+            android:name="com.cardify.app.ui.activity.ActivityActivity"
             android:exported="true" />
         <activity
             android:name="androidx.activity.ComponentActivity"

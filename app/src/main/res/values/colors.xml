@@ -30,4 +30,5 @@
     
     <!-- Transparent -->
     <color name="transparent">#00000000</color>
+    <color name="secondary_light_teal">#00CED1</color>
 </resources>

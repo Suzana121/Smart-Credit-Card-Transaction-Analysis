@@ -20,6 +20,11 @@
             </intent-filter>
         </activity>
 
+        <!-- Register Activity -->
+        <activity
+            android:name=".ui.login.RegisterActivity"
+            android:exported="false" />
+
         <!-- Home Activity -->
         <activity
             android:name=".ui.home.HomeActivity"
