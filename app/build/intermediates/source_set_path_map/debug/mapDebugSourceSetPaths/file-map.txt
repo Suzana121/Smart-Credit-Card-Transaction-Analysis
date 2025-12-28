@@ -1,0 +1,58 @@
+com.cardify.app-jetified-appcompat-resources-1.7.1-0 /Users/suzic/.gradle/caches/8.13/transforms/00601d250e72938dfe3ceeffa9e1b7c2/transformed/jetified-appcompat-resources-1.7.1/res
+com.cardify.app-fragment-1.5.4-1 /Users/suzic/.gradle/caches/8.13/transforms/036b6d98a6c353b3f2fa032372ad2dd9/transformed/fragment-1.5.4/res
+com.cardify.app-jetified-customview-poolingcontainer-1.0.0-2 /Users/suzic/.gradle/caches/8.13/transforms/0d07d4e5d08679f82c3f299239a7623b/transformed/jetified-customview-poolingcontainer-1.0.0/res
+com.cardify.app-jetified-lifecycle-viewmodel-3 /Users/suzic/.gradle/caches/8.13/transforms/107b8cecc31ed18e542009e01a0ecd7f/transformed/jetified-lifecycle-viewmodel/res
+com.cardify.app-jetified-startup-runtime-1.1.1-4 /Users/suzic/.gradle/caches/8.13/transforms/13f3146921e3bbd9a4dd6f3592d1579a/transformed/jetified-startup-runtime-1.1.1/res
+com.cardify.app-jetified-lifecycle-livedata-core-ktx-2.10.0-5 /Users/suzic/.gradle/caches/8.13/transforms/1d5b014427ccbff9c90872d18ccb6c58/transformed/jetified-lifecycle-livedata-core-ktx-2.10.0/res
+com.cardify.app-jetified-ui-text-6 /Users/suzic/.gradle/caches/8.13/transforms/2385bb1355398db70c0cbddaa11f8e74/transformed/jetified-ui-text/res
+com.cardify.app-transition-1.6.0-7 /Users/suzic/.gradle/caches/8.13/transforms/246cba55484519cdcb162ef53eb198d2/transformed/transition-1.6.0/res
+com.cardify.app-material-1.11.0-8 /Users/suzic/.gradle/caches/8.13/transforms/26e96e9a0e5d9c403723d4f9a5349096/transformed/material-1.11.0/res
+com.cardify.app-jetified-tracing-1.2.0-9 /Users/suzic/.gradle/caches/8.13/transforms/3fb389ce0ec95e1fb84db53154a2aee0/transformed/jetified-tracing-1.2.0/res
+com.cardify.app-jetified-viewpager2-1.0.0-10 /Users/suzic/.gradle/caches/8.13/transforms/44d61441cbe584c6553fc0d8997a9837/transformed/jetified-viewpager2-1.0.0/res
+com.cardify.app-jetified-profileinstaller-1.4.0-11 /Users/suzic/.gradle/caches/8.13/transforms/466daab3b80279d7124257628b1f721d/transformed/jetified-profileinstaller-1.4.0/res
+com.cardify.app-jetified-emoji2-1.4.0-12 /Users/suzic/.gradle/caches/8.13/transforms/48b462f735f3b074971442054e7c56f0/transformed/jetified-emoji2-1.4.0/res
+com.cardify.app-appcompat-1.7.1-13 /Users/suzic/.gradle/caches/8.13/transforms/4dda334360002a37406a9ff3bd291366/transformed/appcompat-1.7.1/res
+com.cardify.app-jetified-ui-graphics-14 /Users/suzic/.gradle/caches/8.13/transforms/51249ba49460469dbc9989aa8d5f4a58/transformed/jetified-ui-graphics/res
+com.cardify.app-coordinatorlayout-1.1.0-15 /Users/suzic/.gradle/caches/8.13/transforms/549dc0e38d489dc35b5056e0f684141b/transformed/coordinatorlayout-1.1.0/res
+com.cardify.app-constraintlayout-2.2.1-16 /Users/suzic/.gradle/caches/8.13/transforms/5744c38064f7d5894146f4dd3865ec86/transformed/constraintlayout-2.2.1/res
+com.cardify.app-jetified-runtime-saveable-17 /Users/suzic/.gradle/caches/8.13/transforms/5b4a4b929e826a43922507530b3fcf35/transformed/jetified-runtime-saveable/res
+com.cardify.app-lifecycle-livedata-core-2.10.0-18 /Users/suzic/.gradle/caches/8.13/transforms/5bb9812164ced83898eebcb257675f6b/transformed/lifecycle-livedata-core-2.10.0/res
+com.cardify.app-jetified-annotation-experimental-1.4.1-19 /Users/suzic/.gradle/caches/8.13/transforms/63507d731992d9df300de31e8f468187/transformed/jetified-annotation-experimental-1.4.1/res
+com.cardify.app-recyclerview-1.1.0-20 /Users/suzic/.gradle/caches/8.13/transforms/636ddba021dd64289578c451d1bb6cdc/transformed/recyclerview-1.1.0/res
+com.cardify.app-jetified-window-1.5.0-21 /Users/suzic/.gradle/caches/8.13/transforms/65bd012a04bb5dde41001c25867a14f7/transformed/jetified-window-1.5.0/res
+com.cardify.app-jetified-savedstate-22 /Users/suzic/.gradle/caches/8.13/transforms/6867bd696ca29fb6bf16bc4b264aa381/transformed/jetified-savedstate/res
+com.cardify.app-jetified-graphics-path-1.0.1-23 /Users/suzic/.gradle/caches/8.13/transforms/68d4e1f2093a38d7a76090530f5baa94/transformed/jetified-graphics-path-1.0.1/res
+com.cardify.app-jetified-ui-test-manifest-1.10.0-24 /Users/suzic/.gradle/caches/8.13/transforms/7e81bde5a0a4bb6638723ea8eecc9dba/transformed/jetified-ui-test-manifest-1.10.0/res
+com.cardify.app-jetified-foundation-25 /Users/suzic/.gradle/caches/8.13/transforms/8548e028f49c78b1356ca919216e5ae5/transformed/jetified-foundation/res
+com.cardify.app-jetified-navigationevent-26 /Users/suzic/.gradle/caches/8.13/transforms/900934097bb67802b2684c7b56f6d1d8/transformed/jetified-navigationevent/res
+com.cardify.app-jetified-core-ktx-1.17.0-27 /Users/suzic/.gradle/caches/8.13/transforms/9132308b2fed5413403f63c95821b17d/transformed/jetified-core-ktx-1.17.0/res
+com.cardify.app-cardview-1.0.0-28 /Users/suzic/.gradle/caches/8.13/transforms/94c6336f689c9a565960f9da149a24d4/transformed/cardview-1.0.0/res
+com.cardify.app-jetified-security-crypto-1.1.0-29 /Users/suzic/.gradle/caches/8.13/transforms/97650241ba2d51f30cbbb8ff740c45bb/transformed/jetified-security-crypto-1.1.0/res
+com.cardify.app-jetified-lifecycle-runtime-30 /Users/suzic/.gradle/caches/8.13/transforms/979d49d15dd86374da00b9c5478bc0ec/transformed/jetified-lifecycle-runtime/res
+com.cardify.app-jetified-material-icons-core-release-31 /Users/suzic/.gradle/caches/8.13/transforms/9d87aa2d78719c92d81702ea3eae6f3e/transformed/jetified-material-icons-core-release/res
+com.cardify.app-drawerlayout-1.1.1-32 /Users/suzic/.gradle/caches/8.13/transforms/9f40a691255080f172619620beec6723/transformed/drawerlayout-1.1.1/res
+com.cardify.app-jetified-ui-tooling-33 /Users/suzic/.gradle/caches/8.13/transforms/a4c270d37a7affc6b392f22a3b83463d/transformed/jetified-ui-tooling/res
+com.cardify.app-core-1.17.0-34 /Users/suzic/.gradle/caches/8.13/transforms/b1480ce440212d99e21ef72ac417c05d/transformed/core-1.17.0/res
+com.cardify.app-jetified-lifecycle-livedata-ktx-2.10.0-35 /Users/suzic/.gradle/caches/8.13/transforms/b9599c043cbe83c903530edecfe5fb40/transformed/jetified-lifecycle-livedata-ktx-2.10.0/res
+com.cardify.app-jetified-activity-compose-1.12.2-36 /Users/suzic/.gradle/caches/8.13/transforms/c649507f94f83a508a33da8149b70258/transformed/jetified-activity-compose-1.12.2/res
+com.cardify.app-jetified-lifecycle-process-2.10.0-37 /Users/suzic/.gradle/caches/8.13/transforms/d47c0e0fe99a6eaebcbac4534db0392f/transformed/jetified-lifecycle-process-2.10.0/res
+com.cardify.app-jetified-lifecycle-viewmodel-ktx-2.10.0-38 /Users/suzic/.gradle/caches/8.13/transforms/d93aa6eeb6f9b53263d4846967d0d607/transformed/jetified-lifecycle-viewmodel-ktx-2.10.0/res
+com.cardify.app-jetified-core-viewtree-1.0.0-39 /Users/suzic/.gradle/caches/8.13/transforms/dd527abf9c70b31fd1f94022e4d2b209/transformed/jetified-core-viewtree-1.0.0/res
+com.cardify.app-jetified-activity-1.12.2-40 /Users/suzic/.gradle/caches/8.13/transforms/de0e341ac3efbc9100cc1f2ddad8137c/transformed/jetified-activity-1.12.2/res
+com.cardify.app-lifecycle-livedata-2.10.0-41 /Users/suzic/.gradle/caches/8.13/transforms/e050be842310e67dd68bd26519f4ad60/transformed/lifecycle-livedata-2.10.0/res
+com.cardify.app-jetified-emoji2-views-helper-1.4.0-42 /Users/suzic/.gradle/caches/8.13/transforms/e23886e2574766734dfe3212abe8d8c5/transformed/jetified-emoji2-views-helper-1.4.0/res
+com.cardify.app-core-runtime-2.2.0-43 /Users/suzic/.gradle/caches/8.13/transforms/e6dd92b39636ab58a23a9708cd6bbc43/transformed/core-runtime-2.2.0/res
+com.cardify.app-jetified-activity-ktx-1.12.2-44 /Users/suzic/.gradle/caches/8.13/transforms/e73d240ff8c7a70cf0358daa7b5cda2a/transformed/jetified-activity-ktx-1.12.2/res
+com.cardify.app-jetified-ui-45 /Users/suzic/.gradle/caches/8.13/transforms/ea0666941a415e649d37316762e62f81/transformed/jetified-ui/res
+com.cardify.app-jetified-material3-46 /Users/suzic/.gradle/caches/8.13/transforms/eb430c1129f4563f13bf38f90d773392/transformed/jetified-material3/res
+com.cardify.app-jetified-savedstate-ktx-1.4.0-47 /Users/suzic/.gradle/caches/8.13/transforms/ecd90e9dab0e5e4bc335dea1bec51535/transformed/jetified-savedstate-ktx-1.4.0/res
+com.cardify.app-jetified-material-48 /Users/suzic/.gradle/caches/8.13/transforms/eee25af5d3bd6262d90cdda4176b629d/transformed/jetified-material/res
+com.cardify.app-jetified-material-icons-extended-release-49 /Users/suzic/.gradle/caches/8.13/transforms/fbd0e1e17bf8a8c55ec50243e4cd2fd5/transformed/jetified-material-icons-extended-release/res
+com.cardify.app-pngs-50 /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/build/generated/res/pngs/debug
+com.cardify.app-resValues-51 /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/build/generated/res/resValues/debug
+com.cardify.app-updated_navigation_xml-52 /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/build/generated/updated_navigation_xml/debug
+com.cardify.app-packageDebugResources-53 /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/build/intermediates/incremental/debug/packageDebugResources/merged.dir
+com.cardify.app-packageDebugResources-54 /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/build/intermediates/incremental/debug/packageDebugResources/stripped.dir
+com.cardify.app-debug-55 /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/build/intermediates/merged_res/debug/mergeDebugResources
+com.cardify.app-debug-56 /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/debug/res
+com.cardify.app-main-57 /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/res

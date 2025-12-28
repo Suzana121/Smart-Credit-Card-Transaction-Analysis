@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import com.cardify.app.R
 import com.cardify.app.databinding.ActivityLoginBinding
+import com.cardify.app.ui.home.HomeActivity // וודאי שהייבוא הזה תקין
 import com.cardify.app.utils.PreferencesManager
 import com.google.android.material.snackbar.Snackbar
 
@@ -43,9 +44,6 @@ class LoginActivity : AppCompatActivity() {
         observeViewModel()
     }
     
-    /**
-     * Setup UI components and listeners
-     */
     private fun setupUI() {
         // Login button click
         binding.btnLogin.setOnClickListener {
@@ -56,30 +54,19 @@ class LoginActivity : AppCompatActivity() {
         
         // Forgot password click
         binding.tvForgotPassword.setOnClickListener {
-            // TODO: Navigate to forgot password screen
             Toast.makeText(this, "Forgot Password - Coming soon!", Toast.LENGTH_SHORT).show()
         }
     }
     
-    /**
-     * Observe ViewModel state changes
-     */
     private fun observeViewModel() {
         viewModel.loginState.observe(this) { state ->
             when (state) {
-                is LoginState.Idle -> {
-                    hideLoading()
-                }
-                
-                is LoginState.Loading -> {
-                    showLoading()
-                }
-                
+                is LoginState.Idle -> hideLoading()
+                is LoginState.Loading -> showLoading()
                 is LoginState.Success -> {
                     hideLoading()
                     handleLoginSuccess(state)
                 }
-                
                 is LoginState.Error -> {
                     hideLoading()
                     showError(state.message)
@@ -88,9 +75,6 @@ class LoginActivity : AppCompatActivity() {
         }
     }
     
-    /**
-     * Handle successful login
-     */
     private fun handleLoginSuccess(state: LoginState.Success) {
         val response = state.response
         
@@ -104,34 +88,25 @@ class LoginActivity : AppCompatActivity() {
             preferencesManager.saveUserData(
                 userId = user.id,
                 email = user.email,
-                name = user.name
+                name = user.name ?: "User" // הוספנו מגן מפני null
             )
         }
         
-        // Show success message
         Toast.makeText(this, "Login successful!", Toast.LENGTH_SHORT).show()
-        
-        // Navigate to home
         navigateToHome()
     }
     
     /**
-     * Navigate to home screen
+     * ניווט לעמוד הבית וסגירת עמוד הלוגין
      */
     private fun navigateToHome() {
-        // TODO: Replace with your actual home activity
-        Toast.makeText(this, "Navigating to Home...", Toast.LENGTH_SHORT).show()
-        
-        // Example:
-        // val intent = Intent(this, HomeActivity::class.java)
-        // intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        // startActivity(intent)
-        // finish()
+        val intent = Intent(this, HomeActivity::class.java)
+        // מנקה את היסטוריית המסכים כדי שלא יהיה ניתן לחזור ללוגין
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish() // סוגר את האקטיביטי הנוכחית
     }
     
-    /**
-     * Show loading state
-     */
     private fun showLoading() {
         binding.progressBar.visibility = View.VISIBLE
         binding.btnLogin.isEnabled = false
@@ -139,9 +114,6 @@ class LoginActivity : AppCompatActivity() {
         binding.etPassword.isEnabled = false
     }
     
-    /**
-     * Hide loading state
-     */
     private fun hideLoading() {
         binding.progressBar.visibility = View.GONE
         binding.btnLogin.isEnabled = true
@@ -149,9 +121,6 @@ class LoginActivity : AppCompatActivity() {
         binding.etPassword.isEnabled = true
     }
     
-    /**
-     * Show error message
-     */
     private fun showError(message: String) {
         Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG)
             .setBackgroundTint(getColor(R.color.status_error))
