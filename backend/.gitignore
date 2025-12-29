@@ -1,38 +1,28 @@
-# --- Python & Backend ---
+# --- System / IDE Files ---
+.DS_Store
+.idea/
+.vscode/
+*.iml
+local.properties
+
+# --- Android / Gradle ---
+.gradle/
+build/
+app/build/
+*.bin
+*.lock
+*.apk
+*.aab
+
+# --- Python / Backend ---
 __pycache__/
 *.pyc
 venv/
 env/
 .env
-.pytest_cache/
-.mypy_cache/
-dist/
-*.egg-info/
+db/
+firebase-debug.log
+serviceAccountKey.json
 
-# --- Android / Kotlin Specific ---
-build/
-app/build/
-captures/
-.externalNativeBuild/
-.cxx/
-local.properties
-
-# --- Android Studio / IntelliJ ---
-# הגדרות אישיות של עורך הקוד שלא צריכות לעבור ב-Git
-.idea/
-*.iml
-*.iws
-*.ipr
-.navigation/
-
-# --- Gradle ---
-.gradle/
-/build/
-gradle-app.setting
-!gradle-wrapper.jar
-
-# --- OS Specific ---
-.DS_Store
-.vscode/
-*.swp
-Thumbs.db
+# --- General ---
+*.log
