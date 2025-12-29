@@ -1,20 +1,38 @@
-
-.env
-
-# 2. ספריות וקבצים שנוצרים אוטומטית ע"י Python/Pip
-# אלה קבצים שנוצרים מחדש בכל התקנה, ולא צריכים להיות ב-Git.
+# --- Python & Backend ---
 __pycache__/
 *.pyc
 venv/
 env/
+.env
 .pytest_cache/
 .mypy_cache/
-.tox/
 dist/
 *.egg-info/
-build/
 
-# 3. קבצים שנוצרים אוטומטית ע"י מערכות הפעלה/עורכי קוד
+# --- Android / Kotlin Specific ---
+build/
+app/build/
+captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+
+# --- Android Studio / IntelliJ ---
+# הגדרות אישיות של עורך הקוד שלא צריכות לעבור ב-Git
+.idea/
+*.iml
+*.iws
+*.ipr
+.navigation/
+
+# --- Gradle ---
+.gradle/
+/build/
+gradle-app.setting
+!gradle-wrapper.jar
+
+# --- OS Specific ---
 .DS_Store
 .vscode/
 *.swp
+Thumbs.db

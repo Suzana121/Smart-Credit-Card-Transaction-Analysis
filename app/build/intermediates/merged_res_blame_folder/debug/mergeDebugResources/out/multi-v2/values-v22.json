@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.cardify.app-mergeDebugResources-61:/values-v22/values-v22.xml",
+            "outputFile": "com.cardify.app-mergeDebugResources-52:/values-v22/values-v22.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\1\\.gradle\\caches\\8.13\\transforms\\0db150b69778453b8b5a087e40f8d598\\transformed\\appcompat-1.6.1\\res\\values-v22\\values-v22.xml",
+                    "source": "/Users/suzic/.gradle/caches/8.13/transforms/4dda334360002a37406a9ff3bd291366/transformed/appcompat-1.7.1/res/values-v22/values-v22.xml",
                     "from": {
                         "startLines": "2,3,4,9",
                         "startColumns": "4,4,4,4",

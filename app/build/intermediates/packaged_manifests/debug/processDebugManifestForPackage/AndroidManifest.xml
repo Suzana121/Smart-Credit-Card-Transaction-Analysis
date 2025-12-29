@@ -25,37 +25,30 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:testOnly="true"
-        android:theme="@style/Theme.Cardify" >
+        android:theme="@style/Theme.Cardify"
+        android:usesCleartextTraffic="true" >
         <activity
             android:name="com.cardify.app.ui.login.LoginActivity"
             android:exported="true" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
-                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LAUNCHer" />
             </intent-filter>
         </activity>
-
-        <!-- Register Activity -->
-        <activity
-            android:name="com.cardify.app.ui.login.RegisterActivity"
-            android:exported="false" />
-
-        <!-- Home Activity -->
         <activity
             android:name="com.cardify.app.ui.home.HomeActivity"
-            android:exported="true" />
-
-        <!-- Activity Screen -->
-        <activity
-            android:name="com.cardify.app.ui.activity.ActivityActivity"
-            android:exported="true" />
-        <activity
-            android:name="androidx.activity.ComponentActivity"
             android:exported="true" />
         <activity
             android:name="androidx.compose.ui.tooling.PreviewActivity"
             android:exported="true" />
+
+        <uses-library
+            android:name="androidx.window.extensions"
+            android:required="false" />
+        <uses-library
+            android:name="androidx.window.sidecar"
+            android:required="false" />
 
         <provider
             android:name="androidx.startup.InitializationProvider"
@@ -71,6 +64,11 @@
                 android:name="androidx.profileinstaller.ProfileInstallerInitializer"
                 android:value="androidx.startup" />
         </provider>
+
+        <activity
+            android:name="androidx.activity.ComponentActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
 
         <receiver
             android:name="androidx.profileinstaller.ProfileInstallReceiver"

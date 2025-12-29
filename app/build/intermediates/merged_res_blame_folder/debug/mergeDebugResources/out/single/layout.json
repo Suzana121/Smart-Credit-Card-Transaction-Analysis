@@ -1,14 +1,6 @@
 [
     {
-        "merged": "com.cardify.app-mergeDebugResources-62:/layout/scroll_view.xml",
-        "source": "com.cardify.app-main-65:/layout/scroll_view.xml"
-    },
-    {
-        "merged": "com.cardify.app-mergeDebugResources-62:/layout/activity_register.xml",
-        "source": "com.cardify.app-main-65:/layout/activity_register.xml"
-    },
-    {
-        "merged": "C:\\Users\\1\\.gradle\\daemon\\8.13\\com.cardify.app-mergeDebugResources-62:\\layout\\activity_login.xml",
-        "source": "C:\\Users\\1\\.gradle\\daemon\\8.13\\com.cardify.app-main-65:\\layout\\activity_login.xml"
+        "merged": "com.cardify.app-mergeDebugResources-53:/layout/activity_login.xml",
+        "source": "com.cardify.app-main-56:/layout/activity_login.xml"
     }
 ]

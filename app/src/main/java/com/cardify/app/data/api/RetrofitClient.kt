@@ -12,8 +12,8 @@ import java.util.concurrent.TimeUnit
 object RetrofitClient {
     
     // TODO: Replace with your actual backend URL
-    private const val BASE_URL = "http://10.0.2.2:5000/api/" // For Android Emulator
-    // For physical device use: "http://YOUR_COMPUTER_IP:5000/api/"
+    private const val BASE_URL = "http://10.0.2.2:5001/auth/" // For Android Emulator
+    // For physical device use: "http://YOUR_COMPUTER_IP:5000/auth/"
     
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
