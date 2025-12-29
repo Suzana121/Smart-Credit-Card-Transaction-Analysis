@@ -1,0 +1,28 @@
+# --- System / IDE Files ---
+.DS_Store
+.idea/
+.vscode/
+*.iml
+local.properties
+
+# --- Android / Gradle ---
+.gradle/
+build/
+app/build/
+*.bin
+*.lock
+*.apk
+*.aab
+
+# --- Python / Backend ---
+__pycache__/
+*.pyc
+venv/
+env/
+.env
+db/
+firebase-debug.log
+serviceAccountKey.json
+
+# --- General ---
+*.log
