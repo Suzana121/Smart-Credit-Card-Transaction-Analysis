@@ -10,7 +10,6 @@ dist/
 *.egg-info/
 
 # --- Android / Kotlin Specific ---
-# התעלמות מכל תיקיות ה-build של האפליקציה (שם נוצרים ה-700 קבצים)
 build/
 app/build/
 captures/

@@ -9,6 +9,7 @@ color card_visa_yellow
 color primary_teal
 color primary_teal_dark
 color primary_teal_light
+color secondary_light_teal
 color status_error
 color status_success
 color status_warning

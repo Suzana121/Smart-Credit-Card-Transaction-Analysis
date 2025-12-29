@@ -2131,6 +2131,7 @@ color primary_text_disabled_material_dark
 color primary_text_disabled_material_light
 color ripple_material_dark
 color ripple_material_light
+color secondary_light_teal
 color secondary_text_default_material_dark
 color secondary_text_default_material_light
 color secondary_text_disabled_material_dark
