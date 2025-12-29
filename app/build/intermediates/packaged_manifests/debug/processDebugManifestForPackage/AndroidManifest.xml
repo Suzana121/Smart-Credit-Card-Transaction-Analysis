@@ -33,9 +33,12 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
-                <category android:name="android.intent.category.LAUNCHer" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name="com.cardify.app.ui.login.RegisterActivity"
+            android:exported="false" />
         <activity
             android:name="com.cardify.app.ui.home.HomeActivity"
             android:exported="true" />

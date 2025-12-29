@@ -60,3 +60,16 @@ data class ErrorResponse(
     @SerializedName("errors")
     val errors: Map<String, String>? = null
 )
+data class RegisterRequest(
+    @SerializedName("username")
+    val username: String,
+
+    @SerializedName("email")
+    val email: String,
+
+    @SerializedName("phone")
+    val phone: String,
+
+    @SerializedName("password")
+    val password: String
+)

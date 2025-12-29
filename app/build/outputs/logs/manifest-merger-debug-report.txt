@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:2:1-28:12
-INJECTED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:2:1-28:12
-INJECTED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:2:1-28:12
-INJECTED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:2:1-28:12
+ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:2:1-31:12
+INJECTED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:2:1-31:12
+INJECTED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:2:1-31:12
+INJECTED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:2:1-31:12
 MERGED from [androidx.databinding:viewbinding:8.13.1] /Users/suzic/.gradle/caches/8.13/transforms/7d3c8ad5e9f2659d1c9f6cf65a28731b/transformed/jetified-viewbinding-8.13.1/AndroidManifest.xml:2:1-7:12
 MERGED from [com.google.android.material:material:1.11.0] /Users/suzic/.gradle/caches/8.13/transforms/26e96e9a0e5d9c403723d4f9a5349096/transformed/material-1.11.0/AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.constraintlayout:constraintlayout:2.2.1] /Users/suzic/.gradle/caches/8.13/transforms/5744c38064f7d5894146f4dd3865ec86/transformed/constraintlayout-2.2.1/AndroidManifest.xml:2:1-9:12
@@ -108,8 +108,8 @@ ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמ�
 	android:name
 		ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:6:22-76
 application
-ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:8:5-26:19
-INJECTED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:8:5-26:19
+ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:8:5-29:19
+INJECTED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:8:5-29:19
 MERGED from [com.google.android.material:material:1.11.0] /Users/suzic/.gradle/caches/8.13/transforms/26e96e9a0e5d9c403723d4f9a5349096/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
 MERGED from [com.google.android.material:material:1.11.0] /Users/suzic/.gradle/caches/8.13/transforms/26e96e9a0e5d9c403723d4f9a5349096/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
 MERGED from [androidx.constraintlayout:constraintlayout:2.2.1] /Users/suzic/.gradle/caches/8.13/transforms/5744c38064f7d5894146f4dd3865ec86/transformed/constraintlayout-2.2.1/AndroidManifest.xml:7:5-20
@@ -152,22 +152,28 @@ ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמ�
 		ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:15:13-36
 	android:name
 		ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:14:13-51
-intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHer
+intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
 ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:16:13-19:29
 action#android.intent.action.MAIN
 ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:17:17-69
 	android:name
 		ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:17:25-66
-category#android.intent.category.LAUNCHer
+category#android.intent.category.LAUNCHER
 ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:18:17-77
 	android:name
 		ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:18:27-74
-activity#com.cardify.app.ui.home.HomeActivity
-ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:22:9-24:39
+activity#com.cardify.app.ui.login.RegisterActivity
+ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:22:9-24:40
 	android:exported
-		ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:24:13-36
+		ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:24:13-37
 	android:name
-		ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:23:13-49
+		ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:23:13-54
+activity#com.cardify.app.ui.home.HomeActivity
+ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:25:9-27:39
+	android:exported
+		ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:27:13-36
+	android:name
+		ADDED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml:26:13-49
 uses-sdk
 INJECTED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from /Users/suzic/Documents/פרוייקט גמר FSD/פרוייקט גמר- מעודכן/app/src/main/AndroidManifest.xml
