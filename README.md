@@ -26,8 +26,8 @@ Smart-Credit-Card-Transaction-Analysis/
 ## Tech Stack
 
 - Backend: Flask (Python)
-- Database: MongoDB (planned for later phase)
-- Frontend: React (planned)
+- Database: FireBase 
+- Frontend: Kotlin - Android Studio (planned)
 - Version Control: Git + GitHub
 - Deployment: Render / Heroku (planned)
 
@@ -72,13 +72,3 @@ Smart-Credit-Card-Transaction-Analysis/
    ```
 
 ---
-
-## Notes
-
-- This is the first stage of the backend setup.
-- Future steps will include:
-  - Authentication system (login/register)
-  - Database integration
-  - ML model connection
-  - API endpoints for file upload and analysis
-````
