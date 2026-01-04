@@ -1,4 +1,5 @@
-package com.cardify.app.ui.home
+package com.cardify.app
+
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -7,9 +8,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import com.cardify.app.ui.navigation.AppNavigation
 import com.cardify.app.ui.theme.CardifyTheme
 
-class HomeActivity : ComponentActivity() {
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -19,12 +21,7 @@ class HomeActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    HomeScreen(
-                        onNavigate = { route ->
-                            // כאן נכתוב בעתיד את הקוד שעובר מסכים באמת
-                            println("User clicked to navigate to: $route")
-                        }
-                    )
+                    AppNavigation(startDestination = "home")
                 }
             }
         }

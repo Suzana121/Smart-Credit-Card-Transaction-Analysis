@@ -3,7 +3,6 @@ package com.cardify.app.ui.home
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,14 +19,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+// יש לוודא שה-import הזה תואם לחבילה שבה שמרת את השלד:
+import com.cardify.app.ui.components.AppScaffold
+import com.cardify.app.ui.components.NavigationItem
 
 // ========================================
 // צבעי Cardify
@@ -45,24 +45,24 @@ object CardifyColors {
 // מסך ראשי
 // ========================================
 @Composable
-fun HomeScreen() {
+fun HomeScreen(
+    onNavigate: (String) -> Unit // הוספנו קולבק לניווט
+) {
     var selectedFile by remember { mutableStateOf<Uri?>(null) }
-    var selectedTab by remember { mutableStateOf(4) } // Home is at index 4
 
-    Scaffold(
-        topBar = { TopBar() },
-        bottomBar = {
-            BottomNav(
-                selectedTab = selectedTab,
-                onTabSelected = { selectedTab = it }
-            )
-        }
+    // שימוש בשלד החדש
+    AppScaffold(
+        title = "Home",
+        currentRoute = NavigationItem.Home.route, // מגדיר שאנחנו בבית
+        onNavigate = onNavigate,
+        useCustomTopBar = true, // אומר לשלד להשתמש בטופ בר שלנו
+        topBarContent = { TopBar() } // מעביר את הטופ בר המעוצב
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.White)
-                .padding(padding)
+                .padding(padding) // שימוש בפדינג שה-Scaffold נותן
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(28.dp)
@@ -83,7 +83,7 @@ fun HomeScreen() {
 }
 
 // ========================================
-// כותרת עליונה
+// כותרת עליונה (מותאמת אישית)
 // ========================================
 @Composable
 fun TopBar() {
@@ -92,6 +92,8 @@ fun TopBar() {
             .fillMaxWidth()
             .background(CardifyColors.Primary)
             .padding(horizontal = 24.dp, vertical = 20.dp)
+            // הוספת סטטוס בר פדינג אם צריך (תלוי ב-WindowInsets של האפליקציה)
+            .statusBarsPadding()
     ) {
         // משתמש - צד שמאל
         Row(
@@ -365,40 +367,9 @@ fun HistorySection() {
 }
 
 // ========================================
-// תפריט תחתון
-// ========================================
-@Composable
-fun BottomNav(
-    selectedTab: Int,
-    onTabSelected: (Int) -> Unit
-) {
-    NavigationBar(
-        containerColor = Color.White,
-        tonalElevation = 8.dp
-    ) {
-        navItems.forEachIndexed { index, item ->
-            NavigationBarItem(
-                icon = { Icon(item.icon, contentDescription = item.label) },
-                label = { Text(item.label, fontSize = 11.sp) },
-                selected = selectedTab == index,
-                onClick = { onTabSelected(index) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = CardifyColors.Primary,
-                    selectedTextColor = CardifyColors.Primary,
-                    unselectedIconColor = CardifyColors.TextSecondary.copy(0.6f),
-                    unselectedTextColor = CardifyColors.TextSecondary.copy(0.6f),
-                    indicatorColor = Color.Transparent
-                )
-            )
-        }
-    }
-}
-
-// ========================================
 // נתונים לדוגמה
 // ========================================
 data class Contact(val name: String, val surname: String)
-data class NavItem(val icon: ImageVector, val label: String)
 
 val mockContacts = listOf(
     Contact("Daniyal", "Mcknight"),
@@ -408,10 +379,4 @@ val mockContacts = listOf(
     Contact("Doug", "Horn")
 )
 
-val navItems = listOf(
-    NavItem(Icons.Default.TrendingUp, "Activity"),
-    NavItem(Icons.Default.Wallet, "Wallet"),
-    NavItem(Icons.Default.BarChart, "Stats"),
-    NavItem(Icons.Default.Person, "Account"),
-    NavItem(Icons.Default.Home, "Home")
-)
+// הסרנו את BottomNav ואת navItems מכאן כי הם מנוהלים עכשיו ב-AppScaffold
