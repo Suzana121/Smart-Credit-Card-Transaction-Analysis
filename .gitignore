@@ -36,3 +36,8 @@ gradle-app.setting
 .vscode/
 *.swp
 Thumbs.db
+
+# Firebase Specific
+firebase-debug.log
+serviceAccountKey.json
+google-services.json
