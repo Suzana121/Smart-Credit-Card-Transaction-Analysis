@@ -36,3 +36,5 @@ gradle-app.setting
 .vscode/
 *.swp
 Thumbs.db
+
+backend/serviceAccountKey.json
