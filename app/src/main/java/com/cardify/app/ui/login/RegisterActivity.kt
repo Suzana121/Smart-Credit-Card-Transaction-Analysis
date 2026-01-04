@@ -1,36 +1,37 @@
 package com.cardify.app.ui.login
 
-
-import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import com.cardify.app.databinding.ActivityRegisterBinding
-import com.google.android.material.snackbar.Snackbar
 
 /**
- * Register Activity
+ * Register Activity - מעודכן עם חיבור ל-ViewModel
  */
 class RegisterActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityRegisterBinding
 
+    // חיבור ל-ViewModel (דורש implementation "androidx.activity:activity-ktx" ב-build.gradle)
+    private val viewModel: RegisterViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Initialize ViewBinding
+        // אתחול ViewBinding
         binding = ActivityRegisterBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         setupUI()
+        observeViewModel()
     }
 
     /**
-     * Setup UI components and listeners
+     * הגדרת כפתורים ומאזינים
      */
     private fun setupUI() {
-        // Register button click
         binding.btnRegister.setOnClickListener {
             val username = binding.etUsername.text.toString().trim()
             val email = binding.etEmail.text.toString().trim()
@@ -39,18 +40,39 @@ class RegisterActivity : AppCompatActivity() {
             val confirmPassword = binding.etConfirmPassword.text.toString()
 
             if (validateInputs(username, email, phone, password, confirmPassword)) {
-                performRegistration(username, email, phone, password)
+                // שליחה ל-ViewModel לביצוע הרישום האמיתי בשרת
+                viewModel.register(username, email, phone, password)
             }
         }
 
-        // Already have account - go to login
         binding.tvAlreadyHaveAccount.setOnClickListener {
-            finish() // Go back to login screen
+            finish() // חזרה למסך הלוגין
         }
     }
 
     /**
-     * Validate user inputs
+     * האזנה לשינויים במצב הרישום מה-ViewModel
+     */
+    private fun observeViewModel() {
+        viewModel.registerState.observe(this) { state ->
+            when (state) {
+                is RegisterState.Loading -> showLoading()
+                is RegisterState.Success -> {
+                    hideLoading()
+                    Toast.makeText(this, "Registration successful!", Toast.LENGTH_LONG).show()
+                    finish() // סגירת המסך וחזרה ללוגין
+                }
+                is RegisterState.Error -> {
+                    hideLoading()
+                    Toast.makeText(this, "Error: ${state.message}", Toast.LENGTH_LONG).show()
+                }
+                is RegisterState.Idle -> hideLoading()
+            }
+        }
+    }
+
+    /**
+     * בדיקת תקינות קלטים
      */
     private fun validateInputs(
         username: String,
@@ -59,109 +81,43 @@ class RegisterActivity : AppCompatActivity() {
         password: String,
         confirmPassword: String
     ): Boolean {
+        var isValid = true
 
-        // Validate username
         if (username.isEmpty()) {
             binding.tilUsername.error = "Username is required"
-            return false
-        }
-        binding.tilUsername.error = null
+            isValid = false
+        } else binding.tilUsername.error = null
 
-        // Validate email
-        if (email.isEmpty()) {
-            binding.tilEmail.error = "Email is required"
-            return false
-        }
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            binding.tilEmail.error = "Invalid email format"
-            return false
-        }
-        binding.tilEmail.error = null
+        if (email.isEmpty() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            binding.tilEmail.error = "Valid email is required"
+            isValid = false
+        } else binding.tilEmail.error = null
 
-        // Validate phone
         if (phone.isEmpty()) {
             binding.tilPhone.error = "Phone number is required"
-            return false
-        }
-        binding.tilPhone.error = null
+            isValid = false
+        } else binding.tilPhone.error = null
 
-        // Validate password
-        if (password.isEmpty()) {
-            binding.tilPassword.error = "Password is required"
-            return false
-        }
         if (password.length < 6) {
             binding.tilPassword.error = "Password must be at least 6 characters"
-            return false
-        }
-        binding.tilPassword.error = null
+            isValid = false
+        } else binding.tilPassword.error = null
 
-        // Validate confirm password
-        if (confirmPassword.isEmpty()) {
-            binding.tilConfirmPassword.error = "Please confirm your password"
-            return false
-        }
         if (password != confirmPassword) {
             binding.tilConfirmPassword.error = "Passwords do not match"
-            return false
-        }
-        binding.tilConfirmPassword.error = null
+            isValid = false
+        } else binding.tilConfirmPassword.error = null
 
-        return true
+        return isValid
     }
 
-    /**
-     * Perform registration
-     */
-    private fun performRegistration(
-        username: String,
-        email: String,
-        phone: String,
-        password: String
-    ) {
-        showLoading()
-
-        // TODO: Implement actual registration API call
-        // For now, just show success message
-
-        // Simulate network delay
-        binding.root.postDelayed({
-            hideLoading()
-
-            Toast.makeText(
-                this,
-                "Registration successful! Please login.",
-                Toast.LENGTH_LONG
-            ).show()
-
-            // Go back to login screen
-            finish()
-        }, 1500)
-    }
-
-    /**
-     * Show loading state
-     */
     private fun showLoading() {
         binding.progressBar.visibility = View.VISIBLE
         binding.btnRegister.isEnabled = false
-        binding.etUsername.isEnabled = false
-        binding.etEmail.isEnabled = false
-        binding.etPhone.isEnabled = false
-        binding.etPassword.isEnabled = false
-        binding.etConfirmPassword.isEnabled = false
     }
 
-    /**
-     * Hide loading state
-     */
     private fun hideLoading() {
         binding.progressBar.visibility = View.GONE
         binding.btnRegister.isEnabled = true
-        binding.etUsername.isEnabled = true
-        binding.etEmail.isEnabled = true
-        binding.etPhone.isEnabled = true
-        binding.etPassword.isEnabled = true
-        binding.etConfirmPassword.isEnabled = true
     }
 }

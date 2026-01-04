@@ -41,27 +41,29 @@ def register():
     username = data.get("username")
     email = data.get("email")
     password = data.get("password")
+    phone = data.get("phone") # <--- הוספת השורה הזו כדי לקלוט את הטלפון מהאפליקציה
 
-    # בדיקה אם המשתמש כבר קיים (באמצעות Firestore)
+    # בדיקה אם המשתמש כבר קיים
     if find_user_by_email(email):
         return jsonify({"error": "User already exists"}), 400
 
     # הצפנת סיסמה
     hashed_pw = bcrypt.generate_password_hash(password).decode("utf-8")
 
+    # יצירת אובייקט המשתמש לשמירה ב-Firestore
     user_doc = {
         "username": username, 
         "email": email, 
-        "password": hashed_pw
+        "phone": phone,
+        "password": hashed_pw,
     }
     
     try:
-        # שמירת המשתמש ב-Firestore (נותנים ל-Firestore ליצור ID אוטומטי)
+        # שמירת המשתמש
         users_ref.add(user_doc)
     except Exception as e:
         print(f"Firestore add error: {e}")
         return jsonify({"error": "Database write failed"}), 500
-
 
     return jsonify({"message": "User registered successfully"}), 201
 
@@ -92,3 +94,5 @@ def login():
             "name": user.get("username") or user.get("name") or "User" # בדיקה כפולה למניעת null
         }
     }), 200
+
+
