@@ -1,44 +1,34 @@
 from flask import Blueprint, request, jsonify
-from services.file_service import validate_and_process_csv
-from firebase_config import db # ייבוא ה-Client של פיירבייס שלך
-import datetime
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from services.file_service import validate_and_process_file # השם החדש
 
 upload_bp = Blueprint('upload', __name__)
 
 @upload_bp.route('/upload', methods=['POST'])
+@jwt_required()
 def upload_file():
+    # בדיקה אם הקובץ קיים בבקשה
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
     
     file = request.files['file']
-    is_valid, result = validate_and_process_csv(file)
+    
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
 
-    if not is_valid:
+    # קריאה לפונקציה המשודרגת (תומכת ב-CSV ו-Excel)
+    success, result = validate_and_process_file(file)
+
+    if not success:
         return jsonify({"error": result}), 400
 
-    # 1. ניקוי שמות העמודות (הורדת ירידות שורה \n)
-    result.columns = [col.replace('\n', ' ').strip() for col in result.columns]
+    df = result # אם הצליח, ה-result הוא ה-DataFrame
+    user_id = get_jwt_identity()
 
-    # 2. המרה לפורמט ש-Firestore אוהב (רשימה של דיקשנריז)
-    transactions = result.to_dict(orient='records')
+    # כאן מגיע השלב של השמירה ל-Firestore (ה-Batch שעשינו)
+    # ... (הקוד של ה-batch commit) ...
 
-    try:
-        # 3. שמירה ל-Firebase
-        # אנחנו יוצרים "Batch" כדי לשמור הרבה שורות בבת אחת (יותר מהיר)
-        batch = db.batch()
-        for txn in transactions:
-            # יצירת מסמך חדש בתוך אוסף שנקרא transactions
-            doc_ref = db.collection('transactions').document()
-            # מוסיפים לנתונים גם חותמת זמן של ההעלאה
-            txn['upload_date'] = datetime.datetime.now()
-            batch.set(doc_ref, txn)
-        
-        batch.commit()
-
-        return jsonify({
-            "message": "הנתונים נשמרו בהצלחה ב-Firebase!",
-            "count": len(transactions)
-        }), 200
-
-    except Exception as e:
-        return jsonify({"error": f"שגיאה בשמירה ל-DB: {str(e)}"}), 500
+    return jsonify({
+        "message": f"Successfully processed {len(df)} transactions",
+        "format": "Excel" if file.filename.lower().endswith(('.xlsx', '.xls')) else "CSV"
+    }), 200
