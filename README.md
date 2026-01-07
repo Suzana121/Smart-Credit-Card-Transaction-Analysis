@@ -37,7 +37,7 @@ Smart-Credit-Card-Transaction-Analysis/
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/Smart-Credit-Card-Transaction-Analysis.git
+   git clone https://github.com/Suzana121/Smart-Credit-Card-Transaction-Analysis.git
    cd Smart-Credit-Card-Transaction-Analysis/backend
    ```
 
@@ -68,7 +68,7 @@ Smart-Credit-Card-Transaction-Analysis/
 
 6. Open the app in your browser:
    ```
-   http://localhost:5000
+   http://localhost:5001
    ```
 
 ---
