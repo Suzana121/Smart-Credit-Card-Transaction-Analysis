@@ -38,3 +38,7 @@ gradle-app.setting
 Thumbs.db
 
 backend/serviceAccountKey.json
+# Firebase Specific
+firebase-debug.log
+serviceAccountKey.json
+google-services.json

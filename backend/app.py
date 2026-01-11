@@ -1,5 +1,6 @@
 from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
+from routes.upload import upload_bp
 from auth import auth_bp
 
 app = Flask(__name__)
@@ -14,6 +15,8 @@ jwt = JWTManager(app)
 
 # רישום ה-blueprint של האותנטיקציה
 app.register_blueprint(auth_bp, url_prefix="/auth")
+# הוספת הרישום של ה-Upload:
+app.register_blueprint(upload_bp, url_prefix="/api")
 
 @app.route("/")
 def home():
