@@ -8,10 +8,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import com.cardify.app.R
 import com.cardify.app.databinding.ActivityLoginBinding
-import com.cardify.app.ui.home.HomeActivity
 import com.cardify.app.utils.PreferencesManager
 import com.google.android.material.snackbar.Snackbar
-
+import com.cardify.app.MainActivity
 /**
  * Login Activity - מעודכן עם קישור למסך הרשמה
  */
@@ -108,7 +107,7 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun navigateToHome() {
-        val intent = Intent(this, HomeActivity::class.java)
+        val intent = Intent(this, MainActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
         finish()

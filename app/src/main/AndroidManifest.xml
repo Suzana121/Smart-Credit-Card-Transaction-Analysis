@@ -28,6 +28,12 @@
         <activity
             android:name=".ui.activity.ActivityActivity"
             android:exported="true" />
+        <activity
+            android:name=".MainActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.stats.StatsActivity"
+            android:exported="true" />
     </application>
 
 </manifest>
