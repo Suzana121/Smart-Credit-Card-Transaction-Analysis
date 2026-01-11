@@ -45,8 +45,9 @@ object CardifyColors {
 // מסך ראשי
 // ========================================
 @Composable
-fun HomeScreen() {
-    var selectedFile by remember { mutableStateOf<Uri?>(null) }
+fun HomeScreen(
+    onNavigate: (String) -> Unit = {}
+) {    var selectedFile by remember { mutableStateOf<Uri?>(null) }
     var selectedTab by remember { mutableStateOf(4) } // Home is at index 4
 
     Scaffold(
