@@ -37,6 +37,7 @@ gradle-app.setting
 *.swp
 Thumbs.db
 
+backend/serviceAccountKey.json
 # Firebase Specific
 firebase-debug.log
 serviceAccountKey.json
