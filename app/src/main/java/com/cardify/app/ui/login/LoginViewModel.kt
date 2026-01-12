@@ -12,32 +12,34 @@ import kotlinx.coroutines.launch
  * ViewModel for Login Screen
  */
 class LoginViewModel : ViewModel() {
-    
+
     private val repository = AuthRepository()
-    
+
     // LiveData for UI state
     private val _loginState = MutableLiveData<LoginState>()
     val loginState: LiveData<LoginState> = _loginState
-    
+
     /**
      * Perform login
+     * שיניתי כאן את הפרמטר מ-email ל-username
      */
-    fun login(email: String, password: String) {
+    fun login(username: String, password: String) {
         // Validate input
-        val validationError = validateInput(email, password)
+        val validationError = validateInput(username, password)
         if (validationError != null) {
             _loginState.value = LoginState.Error(validationError)
             return
         }
-        
+
         // Show loading
         _loginState.value = LoginState.Loading
-        
+
         // Make API call
         viewModelScope.launch {
             try {
-                val response = repository.login(email, password)
-                
+                // שים לב: עליך לוודא שגם הפונקציה ב-AuthRepository מקבלת username
+                val response = repository.login(username, password)
+
                 if (response.isSuccessful) {
                     val loginResponse = response.body()
                     if (loginResponse?.success == true && loginResponse.token != null) {
@@ -59,21 +61,20 @@ class LoginViewModel : ViewModel() {
             }
         }
     }
-    
+
     /**
      * Validate input fields
+     * הוסרה הבדיקה של תבנית אימייל
      */
-    private fun validateInput(email: String, password: String): String? {
+    private fun validateInput(username: String, password: String): String? {
         return when {
-            email.isBlank() -> "Email cannot be empty"
-            !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> 
-                "Please enter a valid email"
+            username.isBlank() -> "Username cannot be empty" // הודעה מעודכנת
             password.isBlank() -> "Password cannot be empty"
             password.length < 6 -> "Password must be at least 6 characters"
             else -> null
         }
     }
-    
+
     /**
      * Reset state
      */

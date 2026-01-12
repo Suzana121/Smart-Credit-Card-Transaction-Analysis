@@ -3,7 +3,7 @@ package com.cardify.app.data.repository
 import com.cardify.app.data.api.RetrofitClient
 import com.cardify.app.data.model.LoginRequest
 import com.cardify.app.data.model.LoginResponse
-import com.cardify.app.data.model.RegisterRequest // ייבוא המודל החדש
+import com.cardify.app.data.model.RegisterRequest
 import retrofit2.Response
 
 /**
@@ -14,24 +14,25 @@ class AuthRepository {
     private val authApi = RetrofitClient.authApi
 
     /**
-     * Login user with email and password
+     * Login user with username and password
+     * שינינו כאן את הפרמטר מ-email ל-username
      */
-    suspend fun login(email: String, password: String): Response<LoginResponse> {
-        val loginRequest = LoginRequest(email, password)
+    suspend fun login(username: String, password: String): Response<LoginResponse> {
+        // כאן אנחנו יוצרים את בקשת ההתחברות עם השם משתמש החדש
+        val loginRequest = LoginRequest(username, password)
         return authApi.login(loginRequest)
     }
 
     /**
-     * Register new user - מעודכן לשימוש ב-RegisterRequest
+     * Register new user
      */
     suspend fun register(
-        username: String, // שינינו מ-name ל-username כדי להתאים לשרת
+        username: String,
         email: String,
         phone: String,
         password: String
     ): Response<LoginResponse> {
 
-        // יצירת האובייקט החדש במקום Map
         val registerRequest = RegisterRequest(
             username = username,
             email = email,
@@ -39,7 +40,6 @@ class AuthRepository {
             password = password
         )
 
-        // שליחה דרך ה-API
         return authApi.register(registerRequest)
     }
 }
