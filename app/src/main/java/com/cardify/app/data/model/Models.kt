@@ -4,11 +4,10 @@ import com.google.gson.annotations.SerializedName
 
 /**
  * Login Request Model
- * שינינו כאן כדי לשלוח username במקום email
  */
 data class LoginRequest(
-    @SerializedName("username") // זה המפתח שהשרת יקבל
-    val username: String,       // זה השם בקוד שלנו
+    @SerializedName("username")
+    val username: String,
 
     @SerializedName("password")
     val password: String
@@ -33,6 +32,7 @@ data class LoginResponse(
 
 /**
  * User Model
+ * התיקון כאן: שינינו את SerializedName ל-"username" כדי שיתאים למה שהשרת שולח
  */
 data class User(
     @SerializedName("id")
@@ -41,7 +41,8 @@ data class User(
     @SerializedName("email")
     val email: String,
 
-    @SerializedName("name")
+    // כאן התיקון! אומרים לו לחפש "username" בג'ייסון, ולשמור אותו כ-"name" בקוד
+    @SerializedName("username")
     val name: String,
 
     @SerializedName("phone")

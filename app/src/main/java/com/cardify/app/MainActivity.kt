@@ -1,6 +1,5 @@
 package com.cardify.app
 
-
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -15,12 +14,17 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // מחקנו את כל הבדיקות והקפיצות.
+        // עכשיו האפליקציה פשוט תפתח את מסך הבית וזהו.
+        // זה יעצור את הלולאה האינסופית.
+
         setContent {
             CardifyTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    // מתחילים תמיד בבית באופן נקי
                     AppNavigation(startDestination = "home")
                 }
             }

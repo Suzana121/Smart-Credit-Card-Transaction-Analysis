@@ -13,20 +13,6 @@
         android:layout_height="wrap_content"
         android:paddingBottom="24dp">
 
-        <!-- Small "Cardify" title at top -->
-        <TextView
-            android:id="@+id/tvAppName"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Cardify"
-            android:textColor="@color/text_white"
-            android:textSize="20sp"
-            android:layout_marginStart="24dp"
-            android:layout_marginTop="32dp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <!-- Large "Register" title -->
         <TextView
             android:id="@+id/tvRegisterTitle"
             android:layout_width="wrap_content"
@@ -38,9 +24,7 @@
             android:layout_marginStart="24dp"
             android:layout_marginTop="32dp"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvAppName" />
-
-        <!-- Username Label -->
+            app:layout_constraintTop_toTopOf="parent" />
         <TextView
             android:id="@+id/tvUsernameLabel"
             android:layout_width="wrap_content"
@@ -51,10 +35,9 @@
             android:textStyle="bold"
             android:layout_marginStart="24dp"
             android:layout_marginTop="48dp"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tvRegisterTitle"/>
 
-        <!-- Username Input -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/tilUsername"
             android:layout_width="0dp"
@@ -81,13 +64,15 @@
                 android:layout_height="wrap_content"
                 android:hint="Enter your username"
                 android:inputType="text"
+                android:gravity="left|center_vertical"
+                android:textDirection="ltr"
+                android:textAlignment="viewStart"
                 android:textColor="@color/text_primary"
                 android:textColorHint="@color/text_hint"
                 android:textSize="16sp"
                 android:padding="16dp"/>
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Email Label -->
         <TextView
             android:id="@+id/tvEmailLabel"
             android:layout_width="wrap_content"
@@ -98,10 +83,9 @@
             android:textStyle="bold"
             android:layout_marginStart="24dp"
             android:layout_marginTop="16dp"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tilUsername"/>
 
-        <!-- Email Input -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/tilEmail"
             android:layout_width="0dp"
@@ -128,13 +112,15 @@
                 android:layout_height="wrap_content"
                 android:hint="user@example.com"
                 android:inputType="textEmailAddress"
+                android:gravity="left|center_vertical"
+                android:textDirection="ltr"
+                android:textAlignment="viewStart"
                 android:textColor="@color/text_primary"
                 android:textColorHint="@color/text_hint"
                 android:textSize="16sp"
                 android:padding="16dp"/>
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Phone Label -->
         <TextView
             android:id="@+id/tvPhoneLabel"
             android:layout_width="wrap_content"
@@ -145,10 +131,9 @@
             android:textStyle="bold"
             android:layout_marginStart="24dp"
             android:layout_marginTop="16dp"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tilEmail"/>
 
-        <!-- Phone Input -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/tilPhone"
             android:layout_width="0dp"
@@ -175,13 +160,15 @@
                 android:layout_height="wrap_content"
                 android:hint="+972 50-123-4567"
                 android:inputType="phone"
+                android:gravity="left|center_vertical"
+                android:textDirection="ltr"
+                android:textAlignment="viewStart"
                 android:textColor="@color/text_primary"
                 android:textColorHint="@color/text_hint"
                 android:textSize="16sp"
                 android:padding="16dp"/>
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Password Label -->
         <TextView
             android:id="@+id/tvPasswordLabel"
             android:layout_width="wrap_content"
@@ -192,10 +179,9 @@
             android:textStyle="bold"
             android:layout_marginStart="24dp"
             android:layout_marginTop="16dp"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tilPhone"/>
 
-        <!-- Password Input -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/tilPassword"
             android:layout_width="0dp"
@@ -224,13 +210,15 @@
                 android:layout_height="wrap_content"
                 android:hint="shhh its a secret..."
                 android:inputType="textPassword"
+                android:gravity="left|center_vertical"
+                android:textDirection="ltr"
+                android:textAlignment="viewStart"
                 android:textColor="@color/text_primary"
                 android:textColorHint="@color/text_hint"
                 android:textSize="16sp"
                 android:padding="16dp"/>
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Confirm Password Label -->
         <TextView
             android:id="@+id/tvConfirmPasswordLabel"
             android:layout_width="wrap_content"
@@ -241,10 +229,9 @@
             android:textStyle="bold"
             android:layout_marginStart="24dp"
             android:layout_marginTop="16dp"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tilPassword"/>
 
-        <!-- Confirm Password Input -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/tilConfirmPassword"
             android:layout_width="0dp"
@@ -273,13 +260,15 @@
                 android:layout_height="wrap_content"
                 android:hint="Confirm your password"
                 android:inputType="textPassword"
+                android:gravity="left|center_vertical"
+                android:textDirection="ltr"
+                android:textAlignment="viewStart"
                 android:textColor="@color/text_primary"
                 android:textColorHint="@color/text_hint"
                 android:textSize="16sp"
                 android:padding="16dp"/>
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Register Button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnRegister"
             android:layout_width="0dp"
@@ -297,7 +286,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tilConfirmPassword"/>
 
-        <!-- Already have account link -->
         <TextView
             android:id="@+id/tvAlreadyHaveAccount"
             android:layout_width="wrap_content"
@@ -308,11 +296,11 @@
             android:layout_marginTop="16dp"
             android:clickable="true"
             android:focusable="true"
+            android:padding="16dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/btnRegister"/>
 
-        <!-- Progress Bar -->
         <ProgressBar
             android:id="@+id/progressBar"
             android:layout_width="wrap_content"

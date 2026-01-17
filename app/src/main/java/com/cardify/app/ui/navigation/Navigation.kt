@@ -17,38 +17,33 @@ fun AppNavigation(
         navController = navController,
         startDestination = startDestination
     ) {
+        // === מסך הבית ===
         composable("home") {
             HomeScreen(
                 onNavigate = { route ->
-                    navController.navigate(route) {
-                        popUpTo("home") { inclusive = false }
-                        launchSingleTop = true
+                    if (route != "home") { // מונע טעינה מחדש אם אנחנו כבר בבית
+                        navController.navigate(route) {
+                            popUpTo("home") { inclusive = false }
+                            launchSingleTop = true
+                        }
                     }
                 }
             )
         }
 
+        // === מסך הטרנזקציות (Activity) - התיקון כאן ===
         composable("activity") {
             ActivityScreen(
-                onNavigateToHome = {
-                    navController.navigate("home") {
-                        popUpTo("home") { inclusive = true }
-                        launchSingleTop = true
-                    }
-                },
-                onNavigateToWallet = {
-                    navController.navigate("wallet") {
-                        launchSingleTop = true
-                    }
-                },
-                onNavigateToStats = {
-                    navController.navigate("stats") {
-                        launchSingleTop = true
-                    }
-                },
-                onNavigateToAccount = {
-                    navController.navigate("account") {
-                        launchSingleTop = true
+                // עכשיו מעבירים רק פונקציה אחת שמקבלת את שם המסך (route)
+                onNavigate = { route ->
+                    if (route != "activity") {
+                        navController.navigate(route) {
+                            // כשחוזרים לבית, לא משאירים את ההיסטוריה פתוחה
+                            if (route == "home") {
+                                popUpTo("home") { inclusive = false }
+                            }
+                            launchSingleTop = true
+                        }
                     }
                 }
             )

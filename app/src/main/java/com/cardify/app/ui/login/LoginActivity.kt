@@ -11,6 +11,8 @@ import com.cardify.app.databinding.ActivityLoginBinding
 import com.cardify.app.utils.PreferencesManager
 import com.google.android.material.snackbar.Snackbar
 import com.cardify.app.MainActivity
+import com.cardify.app.data.UserSession
+
 /**
  * Login Activity - מעודכן עם קישור למסך הרשמה
  */
@@ -88,12 +90,11 @@ class LoginActivity : AppCompatActivity() {
     private fun handleLoginSuccess(state: LoginState.Success) {
         val response = state.response
 
-        // שמירת הטוקן
+        // 1. שמירה בדיסק (כמו שהיה לך)
         response.token?.let { token ->
             preferencesManager.saveToken(token)
         }
 
-        // שמירת נתוני המשתמש
         response.user?.let { user ->
             preferencesManager.saveUserData(
                 userId = user.id,
@@ -102,10 +103,19 @@ class LoginActivity : AppCompatActivity() {
             )
         }
 
+        // ====================================================
+        // 2. התיקון: שמירה בזיכרון המיידי עבור מסך הבית!
+        // ====================================================
+        UserSession.token = response.token
+        // כאן אנחנו אומרים: קח את השם, אם אין קח את האימייל, אם אין כתוב User
+        UserSession.username = response.user?.name ?: response.user?.email ?: "User"
+        UserSession.email = response.user?.email
+        UserSession.id = response.user?.id
+        // ====================================================
+
         Toast.makeText(this, "Login successful!", Toast.LENGTH_SHORT).show()
         navigateToHome()
     }
-
     private fun navigateToHome() {
         val intent = Intent(this, MainActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
