@@ -59,6 +59,7 @@ def get_transactions():
     except Exception as e:
         print(f"Error: {e}")
         return jsonify({"error": str(e)}), 500
+
 '''
 from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity

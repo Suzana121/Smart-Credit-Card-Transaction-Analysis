@@ -13,33 +13,41 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cardify.app.data.UserSession
 import com.cardify.app.data.model.Transaction
 import com.cardify.app.ui.components.AppScaffold
+import androidx.compose.ui.text.font.Font
+import com.cardify.app.R
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 
-// צבעים
+// --- עדכון צבעים לפי הפיגמה ---
 object CardifyColors {
-    val Primary = Color(0xFF0D7377)
-    val PrimaryLight = Color(0xFF14FFEC)
-    val ScanButton = Color(0xFFA0FF9D)
-    val Grey = Color(0xFFE8E8E8)
+    val DarkGreen = Color(0xFF004469) // הצבע החדש מהפיגמה!
+    val LightGreenText = Color(0xFF9FE88D) // צבע משוער ל-Good Morning (ירוק בהיר)
+    val ButtonGreen = Color(0xFFA0FF9D) // כפתור Upload
+    val GreyBackground = Color(0xFFF5F5F5)
     val TextPrimary = Color(0xFF1A1A1A)
-    val TextSecondary = Color(0xFF666666)
     val IrregularRed = Color(0xFFD32F2F)
 }
 
@@ -48,24 +56,24 @@ fun HomeScreen(
     onNavigate: (String) -> Unit = {},
     viewModel: HomeViewModel = viewModel()
 ) {
-    // משתנים לשמירת המצב
     var selectedFile by remember { mutableStateOf<Uri?>(null) }
     val currentUserName = remember { UserSession.username ?: "Guest" }
 
-    // הקשבה לנתונים מה-ViewModel
     val transactions by viewModel.transactions.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val isUploading by viewModel.isUploading.collectAsState()
     val uploadMessage by viewModel.uploadMessage.collectAsState()
 
-    // הקשר (Context) נדרש כדי לגשת לקבצים ולהציג הודעות
     val context = LocalContext.current
 
-    // הצגת הודעה קופצת (Toast) כשיש תשובה מהשרת על ההעלאה
+    val ibmPlexSans = FontFamily(
+        Font(R.font.ibm_plex_sans_regular, FontWeight.Normal),
+        Font(R.font.ibm_plex_sans_semibold, FontWeight.SemiBold)
+    )
+
     LaunchedEffect(uploadMessage) {
         uploadMessage?.let {
             Toast.makeText(context, it, Toast.LENGTH_LONG).show()
-            // אם ההעלאה הצליחה, מנקים את הקובץ שנבחר
             if (it.contains("Success")) {
                 selectedFile = null
             }
@@ -77,45 +85,99 @@ fun HomeScreen(
         currentRoute = "home",
         onNavigate = onNavigate,
         useCustomTopBar = true,
-        topBarContent = { TopBar(userName = currentUserName) }
+        topBarContent = { CleanTopBar(onAccountClick = { onNavigate("account") }) }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.White)
                 .padding(padding)
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(horizontal = 24.dp), // מרווח צדדי כמו בעיצוב
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // --- חלק 1: אזור ההעלאה ---
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // --- אזור הברכה המעודכן ---
+            // --- את החלק הזה תחליפי בקוד הבא ---
+            // --- הבלוק עם התיקון האגרסיבי (Offset) ---
+
+            val ibmPlexSans = FontFamily(
+                Font(R.font.ibm_plex_sans_regular, FontWeight.Normal),
+                Font(R.font.ibm_plex_sans_semibold, FontWeight.SemiBold)
+            )
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Good Morning!",
+                    color = CardifyColors.LightGreenText,
+                    fontSize = 21.sp,
+                    fontFamily = ibmPlexSans,
+                    fontWeight = FontWeight.Normal,
+                    lineHeight = 18.sp, // גובה שורה צפוף
+                    style = TextStyle(
+                        platformStyle = PlatformTextStyle(
+                            includeFontPadding = false
+                        )
+                    )
+                )
+
+                Text(
+                    text = currentUserName,
+                    modifier = Modifier.offset(y = (-17).dp), // <--- הנה הפטיש: דוחף את הטקסט 10 פיקסלים למעלה
+                    color = CardifyColors.DarkGreen,
+                    fontSize = 40.sp,
+                    fontFamily = ibmPlexSans,
+                    fontWeight = FontWeight.SemiBold,
+                    lineHeight = 40.sp,
+                    style = TextStyle(
+                        platformStyle = PlatformTextStyle(
+                            includeFontPadding = false
+                        )
+                    )
+                )
+            }
+            // --- אזור ההעלאה ---
             UploadSection(
                 selectedFile = selectedFile,
                 isUploading = isUploading,
                 onFileSelected = { uri -> selectedFile = uri },
                 onUploadClicked = {
-                    // כאן הקסם קורה! שליחה ל-ViewModel
-                    selectedFile?.let { uri ->
-                        viewModel.uploadFile(uri, context)
-                    }
+                    selectedFile?.let { uri -> viewModel.uploadFile(uri, context) }
                 }
             )
 
-            // --- חלק 2: רשימת הקניות ---
-            Text(
-                text = "Your Last Purchases",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = CardifyColors.TextPrimary
-            )
+            // --- רשימת הקניות ---
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Your Last Purchases",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = CardifyColors.TextPrimary
+                )
+
+                // כפתור View limit קטן
+                Surface(
+                    color = Color(0xFFE0F2F1),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        text = "View limit >",
+                        fontSize = 10.sp,
+                        color = CardifyColors.DarkGreen,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
 
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = CardifyColors.Primary)
+                    CircularProgressIndicator(color = CardifyColors.DarkGreen)
                 }
             } else {
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(bottom = 20.dp)
                 ) {
                     items(transactions) { transaction ->
                         TransactionCard(transaction)
@@ -127,193 +189,200 @@ fun HomeScreen(
 }
 
 @Composable
+fun CleanTopBar(onAccountClick: () -> Unit) {
+    // כאן אנחנו טוענים את הפונט מהקובץ ששמת בתיקייה
+    val kellySlabFont = FontFamily(Font(R.font.kelly_slab))
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(100.dp)
+            .background(CardifyColors.DarkGreen)
+            .padding(horizontal = 24.dp)
+            .padding(top = 40.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        // הלוגו עם הפונט החדש!
+        Text(
+            text = "Cardify",
+            color = Color.White,
+            fontSize = 42.sp, // גודל גדול כמו בפיגמה
+            fontFamily = kellySlabFont, // <--- הנה השינוי הקסום
+            fontWeight = FontWeight.Normal,
+            letterSpacing = 1.sp // ריווח קטן בין האותיות למראה יוקרתי
+        )
+
+        IconButton(onClick = onAccountClick) {
+            Icon(
+                imageVector = Icons.Default.AccountCircle,
+                contentDescription = "Account",
+                tint = Color.White,
+                modifier = Modifier.size(34.dp)
+            )
+        }
+    }
+}
+@Composable
 fun UploadSection(
     selectedFile: Uri?,
     isUploading: Boolean,
     onFileSelected: (Uri?) -> Unit,
     onUploadClicked: () -> Unit
 ) {
-    // המשגר שפותח את גלריית הקבצים
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri -> onFileSelected(uri) }
 
-    Card(
+    val ibmPlexSans = FontFamily(
+        Font(R.font.ibm_plex_sans_regular, FontWeight.Normal),
+        Font(R.font.ibm_plex_sans_semibold, FontWeight.SemiBold),
+        Font(R.font.ibm_plex_sans_bold, FontWeight.Bold)
+    )
+
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(4.dp)
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(15.dp) // הרווח בין הכותרת למלבן ובין המלבן לכפתור התחתון
     ) {
-        Column(
-            modifier = Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Upload Your Transaction CSV",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = CardifyColors.TextPrimary,
-                modifier = Modifier.align(Alignment.Start)
-            )
+        Text(
+            text = "Upload Your Latest Transactions",
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = ibmPlexSans,
+            color = Color.Black,
+            modifier = Modifier.align(Alignment.Start)
+        )
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (isUploading) {
-                // מצב טעינה (כמו בפיגמה)
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = CardifyColors.Primary)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Processing your file...", color = CardifyColors.Primary)
+        // המלבן המקווקו
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(250.dp) // גובה שמתאים לטאבלט ולנייד
+                .clip(RoundedCornerShape(10.dp)) //
+                .background(Color(0xFFE0F2F1).copy(alpha = 0.5f))
+                .drawBehind {
+                    val stroke = Stroke(
+                        width = 1.dp.toPx(), //
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
+                    )
+                    drawRoundRect(
+                        color = Color(0xFF006769).copy(alpha = 0.4f),
+                        style = stroke,
+                        cornerRadius = CornerRadius(10.dp.toPx())
+                    )
                 }
+                .clickable { launcher.launch("*/*") },
+            contentAlignment = Alignment.Center
+        ) {
+            if (isUploading) {
+                CircularProgressIndicator(color = Color(0xFF006769))
             } else {
-                // מצב רגיל - בחירת קובץ
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(CardifyColors.Grey)
-                        .border(1.dp, CardifyColors.Primary, RoundedCornerShape(16.dp)) // מסגרת ירוקה
-                        .clickable { launcher.launch("*/*") } // לחיצה פותחת את הקבצים
-                        .padding(vertical = 32.dp),
-                    contentAlignment = Alignment.Center
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(15.dp), // ה-Gap הפנימי
+                    modifier = Modifier.padding(bottom = 36.dp) // Padding תחתון
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CloudUpload,
-                            contentDescription = "Upload",
-                            tint = CardifyColors.Primary,
-                            modifier = Modifier.size(40.dp)
-                        )
+                    // האייקון
+                    Icon(
+                        imageVector = Icons.Default.CloudUpload, // <--- זה מה שיש לך עכשיו
+                        contentDescription = null,
+                        tint = Color(0xFF006769),
+                        modifier = Modifier.size(38.dp)
+                    )
 
+                    // טקסטים מרכזיים
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = if (selectedFile != null) "File Selected!" else "Click to Browse Files",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = CardifyColors.TextPrimary
+                            text = "Choose a file",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = ibmPlexSans,
+                            color = Color(0xFF1A1A1A)
                         )
+                        Text(
+                            text = "CSV, XLS, and XLSL up to 10MB",
+                            fontSize = 12.sp,
+                            fontFamily = ibmPlexSans,
+                            color = Color.Gray
+                        )
+                    }
 
-                        // הצגת שם הקובץ שנבחר (אם יש)
-                        if (selectedFile != null) {
+                    // כפתור Browse Files המדויק מהפיגמה
+                    Surface(
+                        shape = RoundedCornerShape(5.dp), //
+                        border = BorderStroke(1.dp, Color(0xFF006769).copy(alpha = 0.49f)), //
+                        color = Color.Transparent, // הרקע שקוף או לבן עדין
+                        modifier = Modifier
+                            .width(100.dp) // מעט רחב יותר מה-86 כדי שיכיל טקסט בנוחות בכל מסך
+                            .height(30.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
                             Text(
-                                text = "Ready to upload",
-                                fontSize = 12.sp,
-                                color = CardifyColors.Primary,
-                                fontWeight = FontWeight.Bold
+                                text = "Browse Files",
+                                fontSize = 11.sp, // גודל קטן כפי שרואים בעיצוב
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = ibmPlexSans,
+                                color = Color(0xFF006769) //
                             )
                         }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // כפתור ההעלאה (מופיע רק אם נבחר קובץ)
-                Button(
-                    onClick = onUploadClicked,
-                    enabled = selectedFile != null, // הכפתור פעיל רק אם נבחר קובץ
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (selectedFile != null) CardifyColors.ScanButton else Color.Gray
-                    )
-                ) {
-                    Text(
-                        text = "UPLOAD NOW",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1A5C1A)
-                    )
-                }
             }
+        }
+
+        // כפתור ה-Upload הגדול למטה
+        Button(
+            onClick = onUploadClicked,
+            enabled = selectedFile != null,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF9FE88D), // הירוק הבהיר מהפיגמה
+                disabledContainerColor = Color(0xFFE0E0E0)
+            )
+        ) {
+            Text(
+                text = "Upload",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = ibmPlexSans,
+                color = Color.Black
+            )
         }
     }
 }
-
-// --- שאר הרכיבים (TopBar, TransactionCard) נשארים אותו דבר ---
-
-@Composable
-fun TopBar(userName: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CardifyColors.Primary)
-            .padding(horizontal = 24.dp, vertical = 20.dp)
-    ) {
-        Row(
-            modifier = Modifier.align(Alignment.CenterStart),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(CardifyColors.PrimaryLight),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = userName.take(1).uppercase(),
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp
-                )
-            }
-            Column {
-                Text(
-                    text = "Good Morning!",
-                    color = Color.White.copy(alpha = 0.9f),
-                    fontSize = 13.sp
-                )
-                Text(
-                    text = userName,
-                    color = Color.White,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-        Row(
-            modifier = Modifier.align(Alignment.CenterEnd),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            IconButton(onClick = {}) { Icon(Icons.Default.Notifications, "", tint = CardifyColors.PrimaryLight) }
-            IconButton(onClick = {}) { Icon(Icons.Default.Email, "", tint = CardifyColors.PrimaryLight) }
-        }
-    }
-}
-
 @Composable
 fun TransactionCard(transaction: Transaction) {
-    // בודקים אם הסטטוס הוא IRREGULAR. אם הסטטוס ריק, נניח שזה רגיל.
     val isIrregular = transaction.status == "IRREGULAR"
-    val statusColor = if (isIrregular) CardifyColors.IrregularRed else CardifyColors.Primary
+    val statusColor = if (isIrregular) CardifyColors.IrregularRed else CardifyColors.LightGreenText
     val statusText = if (isIrregular) "Irregular" else "Regular"
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(2.dp),
-        border = if (isIrregular) BorderStroke(1.dp, Color(0xFFFFCDD2)) else null
+        elevation = CardDefaults.cardElevation(1.dp),
+        border = BorderStroke(1.dp, Color(0xFFEEEEEE))
     ) {
         Row(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // תיקון 1: אם אין תאריך, נציג טקסט ריק
+            // תאריך
             Text(
                 text = transaction.date ?: "",
                 fontSize = 12.sp,
                 color = Color.Gray,
-                modifier = Modifier.width(70.dp)
+                modifier = Modifier.width(80.dp)
             )
 
-            // תיקון 2: אם אין שם עסק, נכתוב Unknown
+            // שם העסק
             Text(
                 text = transaction.businessName ?: "Unknown",
                 fontSize = 14.sp,
@@ -322,21 +391,22 @@ fun TransactionCard(transaction: Transaction) {
                 modifier = Modifier.weight(1f)
             )
 
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                // תיקון 3: אם אין סכום, נציג 0.0
-                Text(
-                    text = "₪${transaction.amount ?: 0.0}",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = CardifyColors.TextPrimary
-                )
-                Text(
-                    text = statusText,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = statusColor
-                )
-            }
+            // סכום
+            Text(
+                text = "₪${transaction.amount ?: 0.0}",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = CardifyColors.TextPrimary,
+                modifier = Modifier.padding(end = 8.dp)
+            )
+
+            // סטטוס
+            Text(
+                text = statusText,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = statusColor
+            )
         }
     }
 }
