@@ -11,35 +11,24 @@ import retrofit2.Response
  */
 class AuthRepository {
 
-    private val authApi = RetrofitClient.authApi
+    // התיקון: שינינו כאן ל-apiService כדי שיתאים למה ששינינו קודם
+    private val apiService = RetrofitClient.apiService
 
     /**
      * Login user with username and password
-     * שינינו כאן את הפרמטר מ-email ל-username
      */
     suspend fun login(username: String, password: String): Response<LoginResponse> {
-        // כאן אנחנו יוצרים את בקשת ההתחברות עם השם משתמש החדש
         val loginRequest = LoginRequest(username, password)
-        return authApi.login(loginRequest)
+        // התיקון: משתמשים ב-apiService
+        return apiService.login(loginRequest)
     }
 
     /**
      * Register new user
      */
-    suspend fun register(
-        username: String,
-        email: String,
-        phone: String,
-        password: String
-    ): Response<LoginResponse> {
-
-        val registerRequest = RegisterRequest(
-            username = username,
-            email = email,
-            phone = phone,
-            password = password
-        )
-
-        return authApi.register(registerRequest)
+    suspend fun register(username: String, email: String, phone: String, password: String): Response<LoginResponse> {
+        val registerRequest = RegisterRequest(username, email, phone, password)
+        // התיקון: משתמשים ב-apiService
+        return apiService.register(registerRequest)
     }
 }

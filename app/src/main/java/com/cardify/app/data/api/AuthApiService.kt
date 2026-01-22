@@ -2,18 +2,24 @@ package com.cardify.app.data.api
 
 import com.cardify.app.data.model.LoginRequest
 import com.cardify.app.data.model.LoginResponse
-import com.cardify.app.data.model.RegisterRequest // ייבוא של המודל החדש
+import com.cardify.app.data.model.RegisterRequest
+import com.cardify.app.data.model.Transaction
+import okhttp3.MultipartBody
 import retrofit2.Response
-import retrofit2.http.Body
-import retrofit2.http.POST
+import retrofit2.http.*
 
-/**
- * API Interface for Authentication endpoints
- */
 interface AuthApiService {
-    @POST("login")
+    @POST("auth/login")
     suspend fun login(@Body loginRequest: LoginRequest): Response<LoginResponse>
 
-    @POST("register")
+    @POST("auth/register")
     suspend fun register(@Body registerRequest: RegisterRequest): Response<LoginResponse>
+
+    @GET("api/transactions")
+    suspend fun getTransactions(): Response<List<Transaction>>
+
+    // הוספנו: פונקציה מיוחדת להעלאת קבצים
+    @Multipart
+    @POST("api/upload")
+    suspend fun uploadFile(@Part file: MultipartBody.Part): Response<Map<String, String>>
 }
