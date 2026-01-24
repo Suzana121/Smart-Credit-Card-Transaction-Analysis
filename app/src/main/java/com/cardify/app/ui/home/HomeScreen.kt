@@ -16,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -244,7 +246,7 @@ fun HomeScreen(
                 }
             } else {
                 items(displayList) { transaction ->
-                    TransactionCard(transaction)
+                    TransactionCard(transaction = transaction, viewModel = viewModel)
                     Spacer(modifier = Modifier.height(8.dp))
                 }
             }
@@ -424,56 +426,107 @@ fun UploadSection(
 }
 
 @Composable
-fun TransactionCard(transaction: Transaction) {
-    val isIrregular = transaction.status == "IRREGULAR"
-    val statusColor = if (isIrregular) CardifyColors.IrregularRed else CardifyColors.LightGreenText
-    val statusText = if (isIrregular) "Irregular" else "Regular"
+fun TransactionCard(transaction: Transaction, viewModel: HomeViewModel) {
+    // 1. הגדרות סביבה (פונטים ו-Context לשיתוף)
+    val context = LocalContext.current
+    val ibmPlexSans = FontFamily(
+        Font(R.font.ibm_plex_sans_regular, FontWeight.Normal),
+        Font(R.font.ibm_plex_sans_semibold, FontWeight.SemiBold)
+    )
 
-    // ניתן להוסיף כאן המרה בטוחה יותר לתאריך או שם עסק אם צריך
+    // 2. ניהול מצב הכרטיס
+    var isExpanded by remember { mutableStateOf(false) }
+    // לוקחים את הסטטוס מהעסקה, ואם אין - ברירת מחדל REGULAR
+    var currentStatus by remember { mutableStateOf(transaction.status ?: "REGULAR") }
+
+    val isIrregular = currentStatus == "IRREGULAR"
+    val statusColor = if (isIrregular) Color(0xFFE23125) else Color(0xFF38D325)
+    val statusText = if (isIrregular) "Irregular" else "Regular"
+    val borderColor = if (isIrregular) Color(0xFFE23125) else Color(0xFFEEEEEE)
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { isExpanded = !isExpanded },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(1.dp),
-        border = BorderStroke(1.dp, Color(0xFFEEEEEE))
+        elevation = CardDefaults.cardElevation(if (isExpanded) 4.dp else 1.dp),
+        border = BorderStroke(1.dp, borderColor)
     ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = transaction.date ?: "",
-                fontSize = 12.sp,
-                color = Color.Gray,
-                modifier = Modifier.width(80.dp)
-            )
+        Column {
+            // --- שורה ראשית (תמיד גלויה) ---
+            Row(
+                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = transaction.date ?: "", fontSize = 12.sp, fontFamily = ibmPlexSans, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.width(80.dp))
+                Text(text = transaction.businessName ?: "Unknown", fontSize = 14.sp, fontFamily = ibmPlexSans, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.weight(1f))
+                Text(text = "₪${transaction.amount ?: 0.0}", fontSize = 14.sp, fontFamily = ibmPlexSans, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.padding(end = 16.dp))
+                Text(text = statusText, fontSize = 12.sp, fontFamily = ibmPlexSans, fontWeight = FontWeight.Bold, color = statusColor)
+            }
 
-            Text(
-                text = transaction.businessName ?: "Unknown",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = CardifyColors.TextPrimary,
-                modifier = Modifier.weight(1f)
-            )
+            // --- חלק נפתח (מופיע בלחיצה) ---
+            AnimatedVisibility(visible = isExpanded) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFEEEEEE), thickness = 1.dp)
 
-            Text(
-                text = "₪${transaction.amount ?: 0.0}",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = CardifyColors.TextPrimary,
-                modifier = Modifier.padding(end = 8.dp)
-            )
+                    if (isIrregular) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                            Text(text = "Please Notice: Unrecognizable Transaction!", color = Color.Red, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = ibmPlexSans, modifier = Modifier.padding(vertical = 12.dp))
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFEEEEEE), thickness = 1.dp)
+                        }
+                    }
 
-            Text(
-                text = statusText,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = statusColor
-            )
+                    // שורת כפתורים: שיתוף ודיווח
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // כפתור שיתוף (פותח את התפריט של הטלפון)
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFE8FCE8))
+                                .clickable {
+                                    val shareMsg = "Check out this transaction: ${transaction.businessName} - ₪${transaction.amount}"
+                                    val sendIntent = android.content.Intent().apply {
+                                        action = android.content.Intent.ACTION_SEND
+                                        putExtra(android.content.Intent.EXTRA_TEXT, shareMsg)
+                                        type = "text/plain"
+                                    }
+                                    context.startActivity(android.content.Intent.createChooser(sendIntent, "Share via"))
+                                }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(imageVector = Icons.Default.Share, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = "Share with your friends", fontSize = 11.sp, fontFamily = ibmPlexSans, color = Color.Black)
+                        }
+
+                        // כפתור דיווח (מעדכן את השרת)
+                        Button(
+                            onClick = {
+                                val newStatus = if (isIrregular) "REGULAR" else "IRREGULAR"
+                                // קריאה לשרת לעדכון הסטטוס (משתמשים ב-id מהמודל החדש שלך)
+                                transaction.id?.let { id ->
+                                    viewModel.updateTransactionStatus(id, newStatus)
+                                    currentStatus = newStatus // משנה צבע מיד במסך
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006769)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.height(38.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.Warning, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = if (isIrregular) "Report as \"Regular\"" else "Report as \"Irregular\"", fontSize = 11.sp, fontFamily = ibmPlexSans, color = Color.White)
+                        }
+                    }
+                }
+            }
         }
     }
 }

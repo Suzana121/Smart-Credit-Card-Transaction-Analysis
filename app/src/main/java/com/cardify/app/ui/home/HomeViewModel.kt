@@ -114,4 +114,22 @@ class HomeViewModel : ViewModel() {
             null
         }
     }
+    fun updateTransactionStatus(transactionId: String, newStatus: String) {
+        viewModelScope.launch {
+            try {
+                val statusUpdate = mapOf("status" to newStatus)
+                val response = RetrofitClient.apiService.updateTransactionStatus(transactionId, statusUpdate)
+
+                if (response.isSuccessful) {
+                    // מרעננים את הרשימה כדי שהשינוי יופיע מול המשתמש
+                    fetchTransactions()
+                    Log.d("HomeViewModel", "Status updated successfully")
+                } else {
+                    Log.e("HomeViewModel", "Failed to update status: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error updating status", e)
+            }
+        }
+    }
 }

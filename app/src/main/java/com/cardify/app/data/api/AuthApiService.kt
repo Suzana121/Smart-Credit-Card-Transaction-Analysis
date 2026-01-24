@@ -18,8 +18,14 @@ interface AuthApiService {
     @GET("api/transactions")
     suspend fun getTransactions(): Response<List<Transaction>>
 
-    // הוספנו: פונקציה מיוחדת להעלאת קבצים
     @Multipart
     @POST("api/upload")
     suspend fun uploadFile(@Part file: MultipartBody.Part): Response<Map<String, String>>
+
+    // פונקציה חדשה לעדכון סטטוס עסקה
+    @PUT("api/transactions/{id}")
+    suspend fun updateTransactionStatus(
+        @Path("id") transactionId: String,
+        @Body statusUpdate: Map<String, String>
+    ): Response<Transaction>
 }

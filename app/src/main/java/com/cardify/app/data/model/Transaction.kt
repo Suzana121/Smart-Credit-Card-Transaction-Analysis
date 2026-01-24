@@ -17,4 +17,5 @@ data class Transaction(
 
     @SerializedName("status", alternate = ["Status"])
     val status: String? = "REGULAR"
+
 )
