@@ -47,9 +47,14 @@ class LoginActivity : AppCompatActivity() {
 
     private fun setupUI() {
         // כפתור התחברות
-        binding.btnLogin.setOnClickListener {
-            val email = binding.etEmail.text.toString().trim()
-            val password = binding.etPassword.text.toString()
+        binding.btnLogin?.setOnClickListener {
+            // אנחנו אומרים לקוד: "התייחס לרכיב הזה כאל EditText"
+            val etEmail = binding.etEmail as? android.widget.EditText
+            val etPassword = binding.etPassword as? android.widget.EditText
+
+            val email = etEmail?.text?.toString()?.trim() ?: ""
+            val password = etPassword?.text?.toString() ?: ""
+
             if (email.isNotEmpty() && password.isNotEmpty()) {
                 viewModel.login(email, password)
             } else {
@@ -57,16 +62,15 @@ class LoginActivity : AppCompatActivity() {
             }
         }
 
-        // --- התיקון: מעבר למסך הרשמה ---
-        // ודאי שה-ID ב-XML הוא tvSignUp או שנו אותו בהתאם
+        // מעבר למסך הרשמה - וודאי שה-ID ב-XML הוא btnRegister
         binding.btnRegister?.setOnClickListener {
             val intent = Intent(this, RegisterActivity::class.java)
             startActivity(intent)
         }
 
         // Forgot password click
-        binding.tvForgotPassword.setOnClickListener {
-            Toast.makeText(this, "Forgot Password - Coming soon!", Toast.LENGTH_SHORT).show()
+        binding.tvForgotPassword?.setOnClickListener {
+            android.widget.Toast.makeText(this, "Forgot Password - Coming soon!", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -124,13 +128,14 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun showLoading() {
-        binding.progressBar.visibility = View.VISIBLE
-        binding.btnLogin.isEnabled = false
+        // הוספת !! אומרת לקומפיילר "אני מבטיחה שה-View הזה קיים"
+        binding.progressBar!!.visibility = View.VISIBLE
+        binding.btnLogin!!.isEnabled = false
     }
 
     private fun hideLoading() {
-        binding.progressBar.visibility = View.GONE
-        binding.btnLogin.isEnabled = true
+        binding.progressBar!!.visibility = View.GONE
+        binding.btnLogin!!.isEnabled = true
     }
 
     private fun showError(message: String) {
