@@ -76,3 +76,26 @@ data class RegisterRequest(
     @SerializedName("password")
     val password: String
 )
+
+/**
+ * מודל לתשובת הסטטיסטיקה מהשרת
+ */
+data class StatsResponse(
+    @SerializedName("totalSpend") val totalSpend: Double,
+    @SerializedName("regularTransactionsCount") val regularTransactionsCount: Int,
+    @SerializedName("irregularTransactionsCount") val irregularTransactionsCount: Int,
+    @SerializedName("expensesByCategory") val expensesByCategory: List<CategorySpend>,
+    @SerializedName("monthlyExpenses") val monthlyExpenses: List<MonthlySpend>
+)
+
+data class CategorySpend(
+    @SerializedName("category") val category: String,
+    @SerializedName("amount") val amount: Double,
+    @SerializedName("percentage") val percentage: Float
+)
+
+data class MonthlySpend(
+    @SerializedName("month") val month: String,
+    @SerializedName("amount") val amount: Double,
+    @SerializedName("isHighlighted") val isHighlighted: Boolean = false
+)

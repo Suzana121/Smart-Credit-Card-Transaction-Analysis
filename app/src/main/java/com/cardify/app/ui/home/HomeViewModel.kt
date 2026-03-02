@@ -37,9 +37,6 @@ class HomeViewModel : ViewModel() {
     private val _uploadMessage = MutableStateFlow<String?>(null)
     val uploadMessage: StateFlow<String?> = _uploadMessage.asStateFlow()
 
-    init {
-        fetchTransactions()
-    }
 
     // משיכת נתונים (כמו קודם)
     fun fetchTransactions() {

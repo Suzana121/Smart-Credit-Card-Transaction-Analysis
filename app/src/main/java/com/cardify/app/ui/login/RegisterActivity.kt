@@ -48,6 +48,9 @@ class RegisterActivity : AppCompatActivity() {
                 is RegisterState.Loading -> showLoading()
                 is RegisterState.Success -> {
                     hideLoading()
+                    // ניקוי נתונים ישנים כדי למנוע ערבוב עסקאות
+                    com.cardify.app.utils.PreferencesManager.getInstance(this).clearAll()
+
                     Toast.makeText(this, "Sign up successful!", Toast.LENGTH_SHORT).show()
                     finish()
                 }
@@ -59,7 +62,6 @@ class RegisterActivity : AppCompatActivity() {
             }
         }
     }
-
     private fun showLoading() {
         binding.progressBar.visibility = View.VISIBLE
         binding.btnRegister.isEnabled = false

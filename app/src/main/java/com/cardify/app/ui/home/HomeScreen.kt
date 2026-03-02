@@ -65,7 +65,7 @@ fun HomeScreen(
     var selectedLimit by remember { mutableStateOf("5") }
     var selectedFile by remember { mutableStateOf<Uri?>(null) }
 
-    val currentUserName = remember { UserSession.username ?: "Guest" }
+    val currentUserName = UserSession.username ?: "Guest"
 
     // Data from ViewModel
     val transactions by viewModel.transactions.collectAsState()
@@ -264,6 +264,7 @@ fun HomeScreen(
 @Composable
 fun CleanTopBar(onAccountClick: () -> Unit) {
     val kellySlabFont = FontFamily(Font(R.font.kelly_slab))
+    val context = LocalContext.current
 
     Row(
         modifier = Modifier
@@ -284,17 +285,26 @@ fun CleanTopBar(onAccountClick: () -> Unit) {
             letterSpacing = 1.sp
         )
 
-        IconButton(onClick = onAccountClick) {
+        IconButton(onClick = {
+            // 1. ניקוי ה-SharedPreferences (שים לב לנקודה בסוף השורה)
+            com.cardify.app.utils.PreferencesManager.getInstance(context).clearAll()
+
+            // 2. ניקוי הסשן (מוודאים שהשמות תואמים למה שיש ב-UserSession.kt)
+            com.cardify.app.data.UserSession.id = null
+            com.cardify.app.data.UserSession.username = null
+
+            // 3. חזרה למסך הלוגין
+            onAccountClick()
+        }) {
             Icon(
                 imageVector = Icons.Default.AccountCircle,
-                contentDescription = "Account",
+                contentDescription = "Logout",
                 tint = Color.White,
                 modifier = Modifier.size(34.dp)
             )
         }
     }
 }
-
 @Composable
 fun UploadSection(
     selectedFile: Uri?,

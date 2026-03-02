@@ -4,6 +4,7 @@ import com.cardify.app.data.model.LoginRequest
 import com.cardify.app.data.model.LoginResponse
 import com.cardify.app.data.model.RegisterRequest
 import com.cardify.app.data.model.Transaction
+import com.cardify.app.data.model.StatsResponse // ייבוא המודל החדש שהוספת
 import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.*
@@ -28,4 +29,8 @@ interface AuthApiService {
         @Path("id") transactionId: String,
         @Body statusUpdate: Map<String, String>
     ): Response<Transaction>
+
+    // פונקציה חדשה למשיכת סטטיסטיקות עבור עמוד ה-Stats
+    @GET("api/stats")
+    suspend fun getStats(): Response<StatsResponse>
 }
