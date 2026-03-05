@@ -4,18 +4,15 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.cardify.app.data.model.RegisterRequest
+import com.cardify.app.data.UserSession // ייבוא הקובץ שהעלית לי
+
 import com.cardify.app.data.repository.AuthRepository
 import kotlinx.coroutines.launch
 
-// מצבים של המסך (טעינה, הצלחה, שגיאה)
-sealed class RegisterState {
-    object Idle : RegisterState()
-    object Loading : RegisterState()
-    object Success : RegisterState()
-    data class Error(val message: String) : RegisterState()
-}
-
+/**
+ * ViewModel for Registration Screen
+ * מעודכן עם שמירת נתונים ב-UserSession
+ */
 class RegisterViewModel : ViewModel() {
 
     private val repository = AuthRepository()
@@ -28,18 +25,43 @@ class RegisterViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // קריאה ל-Repository לביצוע הרישום
+                // שליחת קריאת ההרשמה לשרת
                 val response = repository.register(username, email, phone, password)
 
                 if (response.isSuccessful) {
-                    _registerState.value = RegisterState.Success
+                    val registerResponse = response.body()
+
+                    if (registerResponse?.success == true) {
+
+                        // ====================================================
+                        // עדכון ה-UserSession - זה מה שפותר את הבעיה ב-Account!
+                        // ====================================================
+                        UserSession.username = username
+                        UserSession.email = email
+                        // אם השרת מחזיר טוקן כבר בהרשמה, אפשר להוסיף:
+                        // UserSession.token = registerResponse.token
+                        // ====================================================
+
+                        _registerState.value = RegisterState.Success
+                    } else {
+                        _registerState.value = RegisterState.Error(
+                            registerResponse?.message ?: "Registration failed"
+                        )
+                    }
                 } else {
-                    val errorMsg = "Registration failed: ${response.code()}"
-                    _registerState.value = RegisterState.Error(errorMsg)
+                    _registerState.value = RegisterState.Error("Server error: ${response.code()}")
                 }
             } catch (e: Exception) {
-                _registerState.value = RegisterState.Error(e.message ?: "Connection error")
+                _registerState.value = RegisterState.Error("Network error: ${e.localizedMessage}")
             }
         }
     }
+}
+
+// ניהול המצבים של המסך
+sealed class RegisterState {
+    object Idle : RegisterState()
+    object Loading : RegisterState()
+    object Success : RegisterState()
+    data class Error(val message: String) : RegisterState()
 }

@@ -1,0 +1,29 @@
+* [33m680f9e2[m[33m ([m[1;31morigin/feature/front[m[33m, [m[1;32mfeature/front[m[33m)[m יצרתי עמוד נוסף
+*   [33m794eb9f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mdevelop[m[33m, [m[1;31morigin/develop[m[33m, [m[1;32mfeature/nav[m[33m)[m Merge branch 'main' of https://github.com/Suzana121/Smart-Credit-Card-Transaction-Analysis
+[32m|[m[33m\[m  
+[32m|[m * [33mb6664e8[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m Revise tech stack in README.md
+* [33m|[m [33m25d27b2[m שינוי מיקום gitignore
+[33m|[m [33m|[m * [33mddc392d[m[33m ([m[1;32mfeature/register-ui[m[33m)[m Update build config
+[33m|[m [33m|[m[33m/[m  
+[33m|[m * [33m902b9f9[m Merge pull request #1 from Suzana121/feature/register-ui
+[33m|[m[33m/[m[36m|[m 
+[33m|[m * [33md9c1d52[m[33m ([m[1;31morigin/feature/register-ui[m[33m)[m Fix: move gitignore to root and cleanup repo
+[33m|[m * [33m6e3d76a[m Fix: connect login to register and cleanup build artifacts
+[33m|[m * [33m5f47734[m Final cleanup: project is running and git is clean
+* [36m|[m [33ma72e9c6[m Permanently ignore build folders
+[36m|[m[36m/[m  
+* [33mc8086ba[m signup is connected to the server
+*   [33mfcfb21f[m Merge branch 'main' into feature/register-ui
+[1;31m|[m[1;32m\[m  
+[1;31m|[m * [33mf53497c[m תיקונים קטנים נוספים במיין
+[1;31m|[m * [33m197f80e[m Fix: apply updated gitignore and remove build artifacts
+[1;31m|[m * [33m5cb4a8e[m Finish register UI and logic v3
+[1;31m|[m * [33m21534c1[m chore: cleanup system files and ignore build artifacts
+[1;31m|[m * [33mdebb44c[m Cleanup: removed build files and system files from git
+[1;31m|[m * [33mfd692a5[m Finalizing login and logout features
+[1;31m|[m [1;32m|[m * [33mfe45cfe[m[33m ([m[1;35mrefs/stash[m[33m)[m WIP on feature/register-ui: c3892f6 Created register page
+[1;31m|[m [1;32m|[m[1;31m/[m[1;34m|[m 
+[1;31m|[m[1;31m/[m[1;32m|[m [1;34m|[m 
+[1;31m|[m [1;32m|[m * [33m6584e7d[m index on feature/register-ui: c3892f6 Created register page
+[1;31m|[m [1;32m|[m[1;31m/[m  
+[1;31m|[m[1;31m/[m[1;32m|[m   

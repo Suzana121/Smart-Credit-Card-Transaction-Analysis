@@ -32,4 +32,9 @@
     <color name="transparent">#00000000</color>
 
     <color name="secondary_light_teal">#80CBC4</color>
+
+    <color name="cardify_bg_dark">#004469</color>
+    <color name="cardify_accent_lime">#A0FF9D</color>
+    <color name="cardify_stroke_gray">#DADBDD</color>
+    <color name="text_black">#000000</color>
 </resources>

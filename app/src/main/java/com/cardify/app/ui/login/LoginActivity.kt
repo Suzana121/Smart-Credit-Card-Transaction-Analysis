@@ -8,9 +8,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import com.cardify.app.R
 import com.cardify.app.databinding.ActivityLoginBinding
-import com.cardify.app.ui.home.HomeActivity
 import com.cardify.app.utils.PreferencesManager
 import com.google.android.material.snackbar.Snackbar
+import com.cardify.app.MainActivity
+import com.cardify.app.data.UserSession
 
 /**
  * Login Activity - מעודכן עם קישור למסך הרשמה
@@ -46,9 +47,14 @@ class LoginActivity : AppCompatActivity() {
 
     private fun setupUI() {
         // כפתור התחברות
-        binding.btnLogin.setOnClickListener {
-            val email = binding.etEmail.text.toString().trim()
-            val password = binding.etPassword.text.toString()
+        binding.btnLogin?.setOnClickListener {
+            // אנחנו אומרים לקוד: "התייחס לרכיב הזה כאל EditText"
+            val etEmail = binding.etEmail as? android.widget.EditText
+            val etPassword = binding.etPassword as? android.widget.EditText
+
+            val email = etEmail?.text?.toString()?.trim() ?: ""
+            val password = etPassword?.text?.toString() ?: ""
+
             if (email.isNotEmpty() && password.isNotEmpty()) {
                 viewModel.login(email, password)
             } else {
@@ -56,16 +62,15 @@ class LoginActivity : AppCompatActivity() {
             }
         }
 
-        // --- התיקון: מעבר למסך הרשמה ---
-        // ודאי שה-ID ב-XML הוא tvSignUp או שנו אותו בהתאם
+        // מעבר למסך הרשמה - וודאי שה-ID ב-XML הוא btnRegister
         binding.btnRegister?.setOnClickListener {
             val intent = Intent(this, RegisterActivity::class.java)
             startActivity(intent)
         }
 
         // Forgot password click
-        binding.tvForgotPassword.setOnClickListener {
-            Toast.makeText(this, "Forgot Password - Coming soon!", Toast.LENGTH_SHORT).show()
+        binding.tvForgotPassword?.setOnClickListener {
+            android.widget.Toast.makeText(this, "Forgot Password - Coming soon!", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -89,12 +94,11 @@ class LoginActivity : AppCompatActivity() {
     private fun handleLoginSuccess(state: LoginState.Success) {
         val response = state.response
 
-        // שמירת הטוקן
+        // 1. שמירה בדיסק (כמו שהיה לך)
         response.token?.let { token ->
             preferencesManager.saveToken(token)
         }
 
-        // שמירת נתוני המשתמש
         response.user?.let { user ->
             preferencesManager.saveUserData(
                 userId = user.id,
@@ -103,25 +107,35 @@ class LoginActivity : AppCompatActivity() {
             )
         }
 
+        // ====================================================
+        // 2. התיקון: שמירה בזיכרון המיידי עבור מסך הבית!
+        // ====================================================
+        UserSession.token = response.token
+        // כאן אנחנו אומרים: קח את השם, אם אין קח את האימייל, אם אין כתוב User
+        UserSession.username = response.user?.name ?: response.user?.email ?: "User"
+        UserSession.email = response.user?.email
+        UserSession.id = response.user?.id
+        // ====================================================
+
         Toast.makeText(this, "Login successful!", Toast.LENGTH_SHORT).show()
         navigateToHome()
     }
-
     private fun navigateToHome() {
-        val intent = Intent(this, HomeActivity::class.java)
+        val intent = Intent(this, MainActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
         finish()
     }
 
     private fun showLoading() {
-        binding.progressBar.visibility = View.VISIBLE
-        binding.btnLogin.isEnabled = false
+        // הוספת !! אומרת לקומפיילר "אני מבטיחה שה-View הזה קיים"
+        binding.progressBar!!.visibility = View.VISIBLE
+        binding.btnLogin!!.isEnabled = false
     }
 
     private fun hideLoading() {
-        binding.progressBar.visibility = View.GONE
-        binding.btnLogin.isEnabled = true
+        binding.progressBar!!.visibility = View.GONE
+        binding.btnLogin!!.isEnabled = true
     }
 
     private fun showError(message: String) {
