@@ -1,417 +1,542 @@
 package com.cardify.app.ui.home
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.cardify.app.R
+import com.cardify.app.data.UserSession
+import com.cardify.app.data.model.Transaction
+import com.cardify.app.ui.components.AppScaffold
 
-// ========================================
-// צבעי Cardify
-// ========================================
+// --- הגדרת צבעים גלובלית למסך זה ---
 object CardifyColors {
-    val Primary = Color(0xFF0D7377)          // ירוק כהה
-    val PrimaryLight = Color(0xFF14FFEC)     // ירוק זורח
-    val ScanButton = Color(0xFFA0FF9D)       // כפתור ירוק בהיר
-    val Grey = Color(0xFFE8E8E8)             // אפור
-    val TextPrimary = Color(0xFF1A1A1A)      // טקסט שחור
-    val TextSecondary = Color(0xFF666666)    // טקסט אפור
+    val DarkGreen = Color(0xFF004469) // הצבע החדש מהפיגמה
+    val LightGreenText = Color(0xFF9FE88D) // ירוק בהיר לבוקר טוב
+    val ButtonGreen = Color(0xFFA0FF9D) // כפתור Upload
+    val GreyBackground = Color(0xFFF5F5F5)
+    val TextPrimary = Color(0xFF1A1A1A)
+    val IrregularRed = Color(0xFFD32F2F)
+    val TurquoiseBox = Color(0xFFE6F7F7) // רקע לפילטר
+    val DashedBorder = Color(0xFF006769)
 }
 
-// ========================================
-// מסך ראשי
-// ========================================
 @Composable
-fun HomeScreen() {
+fun HomeScreen(
+    onNavigate: (String) -> Unit = {},
+    viewModel: HomeViewModel = viewModel()
+) {
+    // State Variables
+    var expanded by remember { mutableStateOf(false) }
+    var selectedLimit by remember { mutableStateOf("5") }
     var selectedFile by remember { mutableStateOf<Uri?>(null) }
-    var selectedTab by remember { mutableStateOf(4) } // Home is at index 4
 
-    Scaffold(
-        topBar = { TopBar() },
-        bottomBar = {
-            BottomNav(
-                selectedTab = selectedTab,
-                onTabSelected = { selectedTab = it }
-            )
+    val currentUserName = UserSession.username ?: "Guest"
+
+    // Data from ViewModel
+    val transactions by viewModel.transactions.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val isUploading by viewModel.isUploading.collectAsState()
+    val uploadMessage by viewModel.uploadMessage.collectAsState()
+
+    val context = LocalContext.current
+
+    // Font Setup
+    val ibmPlexSans = FontFamily(
+        Font(R.font.ibm_plex_sans_regular, FontWeight.Normal),
+        Font(R.font.ibm_plex_sans_semibold, FontWeight.SemiBold)
+    )
+
+    // Handle Toast Messages
+    LaunchedEffect(uploadMessage) {
+        uploadMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            if (it.contains("Success")) {
+                selectedFile = null
+            }
         }
+    }
+
+    AppScaffold(
+        title = "Home",
+        currentRoute = "home",
+        onNavigate = onNavigate,
+        useCustomTopBar = true,
+        topBarContent = { CleanTopBar(onAccountClick = { onNavigate("account") }) }
     ) { padding ->
-        Column(
+
+        // שימוש ב-LazyColumn מאפשר גלילה של כל המסך ביחד
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.White)
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(28.dp)
+                .padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // סקשן העלאת CSV
-            UploadSection(
-                selectedFile = selectedFile,
-                onFileSelected = { selectedFile = it }
-            )
 
-            // סקשן שליחה מהירה
-            QuickSendSection()
-
-            // סקשן היסטוריה
-            HistorySection()
-        }
-    }
-}
-
-// ========================================
-// כותרת עליונה
-// ========================================
-@Composable
-fun TopBar() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CardifyColors.Primary)
-            .padding(horizontal = 24.dp, vertical = 20.dp)
-    ) {
-        // משתמש - צד שמאל
-        Row(
-            modifier = Modifier.align(Alignment.CenterStart),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            // תמונת פרופיל
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                CardifyColors.PrimaryLight,
-                                CardifyColors.Primary
-                            )
-                        )
-                    )
-            )
-
-            // ברכה ושם
-            Column {
-                Text(
-                    text = "Good Morning!",
-                    color = Color.White.copy(alpha = 0.9f),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Light
-                )
-                Text(
-                    text = "Hailey David",
-                    color = Color.White,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        // אייקונים - צד ימין
-        Row(
-            modifier = Modifier.align(Alignment.CenterEnd),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            IconButton(onClick = { /* התראות */ }) {
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = "Notifications",
-                    tint = CardifyColors.PrimaryLight,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            IconButton(onClick = { /* הודעות */ }) {
-                Icon(
-                    imageVector = Icons.Default.Email,
-                    contentDescription = "Email",
-                    tint = CardifyColors.PrimaryLight,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-        }
-    }
-}
-
-// ========================================
-// סקשן העלאת קובץ
-// ========================================
-@Composable
-fun UploadSection(
-    selectedFile: Uri?,
-    onFileSelected: (Uri?) -> Unit
-) {
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri -> onFileSelected(uri) }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(4.dp)
-    ) {
-        Column(modifier = Modifier.padding(24.dp)) {
-            // כותרת
-            Text(
-                text = "Upload Your Transaction CSV",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = CardifyColors.TextPrimary
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // אזור העלאה
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(CardifyColors.Grey)
-                    .clickable { launcher.launch("*/*") }
-                    .padding(vertical = 32.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CloudUpload,
-                        contentDescription = "Upload",
-                        tint = CardifyColors.Primary,
-                        modifier = Modifier.size(40.dp)
+            // --- 1. Header Item: Greeting & Name ---
+            item {
+                Spacer(modifier = Modifier.height(10.dp))
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Good Morning!",
+                        color = CardifyColors.LightGreenText,
+                        fontSize = 21.sp,
+                        fontFamily = ibmPlexSans,
+                        fontWeight = FontWeight.Normal,
+                        lineHeight = 18.sp,
+                        style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
                     )
 
                     Text(
-                        text = if (selectedFile != null)
-                            "File selected!"
-                        else
-                            "Drag & drop CSV file here",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = CardifyColors.TextPrimary
-                    )
-
-                    Text(
-                        text = "or click to browse",
-                        fontSize = 13.sp,
-                        color = CardifyColors.TextSecondary
-                    )
-
-                    Text(
-                        text = "Supported: .csv, .xlsx up to 10MB",
-                        fontSize = 11.sp,
-                        color = CardifyColors.TextSecondary.copy(alpha = 0.7f)
+                        text = currentUserName,
+                        modifier = Modifier.offset(y = (-17).dp), // התיקון האגרסיבי
+                        color = CardifyColors.DarkGreen,
+                        fontSize = 40.sp,
+                        fontFamily = ibmPlexSans,
+                        fontWeight = FontWeight.SemiBold,
+                        lineHeight = 40.sp,
+                        style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // קישור לדוגמה
-            Text(
-                text = "Need a sample? (Download Sample CSV)",
-                fontSize = 12.sp,
-                color = CardifyColors.Primary,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { /* הורדת דוגמה */ }
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // כפתור סריקה
-            Button(
-                onClick = { /* סריקה */ },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = CardifyColors.ScanButton
-                )
-            ) {
-                Text(
-                    text = "SCAN",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1A5C1A)
+            // --- 2. Item: Upload Section ---
+            item {
+                UploadSection(
+                    selectedFile = selectedFile,
+                    isUploading = isUploading,
+                    ibmPlexSans = ibmPlexSans,
+                    onFileSelected = { uri -> selectedFile = uri },
+                    onUploadClicked = {
+                        selectedFile?.let { uri -> viewModel.uploadFile(uri, context) }
+                    }
                 )
             }
+
+            // --- 3. Item: Last Transactions Title & Filter ---
+            item {
+                Column(modifier = Modifier.fillMaxWidth().padding(top = 20.dp)) {
+                    Text(
+                        text = "Your Last Transactions",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = ibmPlexSans,
+                        color = Color.Black
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // רכיב הפילטר (Dropdown)
+                    Column(
+                        modifier = Modifier
+                            .width(118.dp)
+                            .background(
+                                color = CardifyColors.TurquoiseBox,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .clickable { expanded = !expanded }
+                    ) {
+                        // כותרת הפילטר
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "View limit: $selectedLimit",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                fontFamily = ibmPlexSans,
+                                color = Color.Black
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            Icon(
+                                imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = Color.Black,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+
+                        // רשימה נפתחת
+                        AnimatedVisibility(visible = expanded) {
+                            Column {
+                                listOf("5", "10", "15").forEach { limit ->
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                selectedLimit = limit
+                                                expanded = false
+                                                // כאן אפשר להוסיף קריאה ל-ViewModel לעדכן את הלימיט אם צריך
+                                            }
+                                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                                    ) {
+                                        HorizontalDivider(color = Color.Black.copy(alpha = 0.1f), thickness = 0.5.dp)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = limit,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = ibmPlexSans,
+                                            color = Color.Black
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- 4. Items: רשימת הטרנזקציות עצמה ---
+            // לוקחים את כמות הטרנזקציות לפי הלימיט שנבחר
+            val limitInt = selectedLimit.toIntOrNull() ?: 5
+            val displayList = transactions.take(limitInt)
+
+            if (isLoading) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = CardifyColors.DarkGreen)
+                    }
+                }
+            } else if (displayList.isEmpty()) {
+                item {
+                    Text(
+                        text = "No transactions found.",
+                        modifier = Modifier.padding(top = 16.dp),
+                        color = Color.Gray,
+                        fontFamily = ibmPlexSans
+                    )
+                }
+            } else {
+                items(displayList) { transaction ->
+                    TransactionCard(transaction = transaction, viewModel = viewModel)
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+
+            // מרווח תחתון לסיום
+            item { Spacer(modifier = Modifier.height(20.dp)) }
         }
     }
 }
 
-// ========================================
-// סקשן שליחה מהירה
-// ========================================
+// ----------------------------------------------------------------
+// --- Composable Components (מופרדים לקריאות) ---
+// ----------------------------------------------------------------
+
 @Composable
-fun QuickSendSection() {
-    Column {
+fun CleanTopBar(onAccountClick: () -> Unit) {
+    val kellySlabFont = FontFamily(Font(R.font.kelly_slab))
+    val context = LocalContext.current
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(100.dp)
+            .background(CardifyColors.DarkGreen)
+            .padding(horizontal = 24.dp)
+            .padding(top = 40.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
         Text(
-            text = "Quick Send",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = CardifyColors.TextPrimary
+            text = "Cardify",
+            color = Color.White,
+            fontSize = 42.sp,
+            fontFamily = kellySlabFont,
+            fontWeight = FontWeight.Normal,
+            letterSpacing = 1.sp
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        IconButton(onClick = {
+            // 1. ניקוי ה-SharedPreferences (שים לב לנקודה בסוף השורה)
+            com.cardify.app.utils.PreferencesManager.getInstance(context).clearAll()
 
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(mockContacts) { contact ->
-                ContactItem(contact)
-            }
+            // 2. ניקוי הסשן (מוודאים שהשמות תואמים למה שיש ב-UserSession.kt)
+            com.cardify.app.data.UserSession.id = null
+            com.cardify.app.data.UserSession.username = null
+
+            // 3. חזרה למסך הלוגין
+            onAccountClick()
+        }) {
+            Icon(
+                imageVector = Icons.Default.AccountCircle,
+                contentDescription = "Logout",
+                tint = Color.White,
+                modifier = Modifier.size(34.dp)
+            )
         }
     }
 }
-
 @Composable
-fun ContactItem(contact: Contact) {
+fun UploadSection(
+    selectedFile: Uri?,
+    isUploading: Boolean,
+    ibmPlexSans: FontFamily,
+    onFileSelected: (Uri?) -> Unit,
+    onUploadClicked: () -> Unit
+) {
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri -> onFileSelected(uri) }
+
     Column(
-        modifier = Modifier
-            .width(80.dp)
-            .clickable { /* פתח דיאלוג שליחה */ },
+        modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(15.dp)
     ) {
-        // אווטאר
+        Text(
+            text = "Upload Your Latest Transactions",
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = ibmPlexSans,
+            color = Color.Black,
+            modifier = Modifier.align(Alignment.Start)
+        )
+
+        // המלבן המקווקו
         Box(
             modifier = Modifier
-                .size(64.dp)
-                .clip(CircleShape)
-                .background(CardifyColors.Grey),
+                .fillMaxWidth()
+                .height(250.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xFFE0F2F1).copy(alpha = 0.5f))
+                .drawBehind {
+                    val stroke = Stroke(
+                        width = 1.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
+                    )
+                    drawRoundRect(
+                        color = CardifyColors.DashedBorder.copy(alpha = 0.4f),
+                        style = stroke,
+                        cornerRadius = CornerRadius(10.dp.toPx())
+                    )
+                }
+                .clickable { launcher.launch("*/*") },
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = contact.name.first().toString(),
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = CardifyColors.TextSecondary
-            )
+            if (isUploading) {
+                CircularProgressIndicator(color = CardifyColors.DashedBorder)
+            } else {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(15.dp),
+                    modifier = Modifier.padding(bottom = 36.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_upload_custom),
+                        contentDescription = "Upload Icon",
+                        tint = CardifyColors.DashedBorder,
+                        modifier = Modifier.size(28.dp)
+                    )
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = if (selectedFile != null) "File Selected!" else "Choose a file",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = ibmPlexSans,
+                            color = CardifyColors.TextPrimary
+                        )
+                        Text(
+                            text = if (selectedFile != null) selectedFile!!.lastPathSegment ?: "Unknown" else "CSV, XLS, and XLSL up to 10MB",
+                            fontSize = 12.sp,
+                            fontFamily = ibmPlexSans,
+                            color = Color.Gray,
+                            maxLines = 1
+                        )
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(5.dp),
+                        border = BorderStroke(1.dp, CardifyColors.DashedBorder.copy(alpha = 0.49f)),
+                        color = Color.Transparent,
+                        modifier = Modifier
+                            .width(100.dp)
+                            .height(30.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "Browse Files",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = ibmPlexSans,
+                                color = CardifyColors.DashedBorder
+                            )
+                        }
+                    }
+                }
+            }
         }
 
-        // שם
-        Text(
-            text = "${contact.name}\n${contact.surname}",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Medium,
-            color = CardifyColors.TextPrimary,
-            textAlign = TextAlign.Center,
-            lineHeight = 14.sp
-        )
+        Button(
+            onClick = {
+                if (selectedFile != null) {
+                    onUploadClicked()
+                } else {
+                    Toast.makeText(context, "Please select a file first", Toast.LENGTH_SHORT).show()
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = CardifyColors.LightGreenText,
+                contentColor = Color.Black
+            )
+        ) {
+            Text(
+                text = "Upload",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = ibmPlexSans,
+                color = Color.Black
+            )
+        }
     }
 }
 
-// ========================================
-// סקשן היסטוריה
-// ========================================
 @Composable
-fun HistorySection() {
-    Column {
-        Text(
-            text = "Your Upload History",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = CardifyColors.TextPrimary
-        )
+fun TransactionCard(transaction: Transaction, viewModel: HomeViewModel) {
+    // 1. הגדרות סביבה (פונטים ו-Context לשיתוף)
+    val context = LocalContext.current
+    val ibmPlexSans = FontFamily(
+        Font(R.font.ibm_plex_sans_regular, FontWeight.Normal),
+        Font(R.font.ibm_plex_sans_semibold, FontWeight.SemiBold)
+    )
 
-        Spacer(modifier = Modifier.height(16.dp))
+    // 2. ניהול מצב הכרטיס
+    var isExpanded by remember { mutableStateOf(false) }
+    // לוקחים את הסטטוס מהעסקה, ואם אין - ברירת מחדל REGULAR
+    var currentStatus by remember { mutableStateOf(transaction.status ?: "REGULAR") }
 
-        // 3 ריבועים אפורים (skeleton)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            repeat(3) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(120.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(CardifyColors.Grey)
-                        .clickable { /* פתח היסטוריה */ }
-                )
+    val isIrregular = currentStatus == "IRREGULAR"
+    val statusColor = if (isIrregular) Color(0xFFE23125) else Color(0xFF38D325)
+    val statusText = if (isIrregular) "Irregular" else "Regular"
+    val borderColor = if (isIrregular) Color(0xFFE23125) else Color(0xFFEEEEEE)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { isExpanded = !isExpanded },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(if (isExpanded) 4.dp else 1.dp),
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Column {
+            // --- שורה ראשית (תמיד גלויה) ---
+            Row(
+                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = transaction.date ?: "", fontSize = 12.sp, fontFamily = ibmPlexSans, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.width(80.dp))
+                Text(text = transaction.businessName ?: "Unknown", fontSize = 14.sp, fontFamily = ibmPlexSans, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.weight(1f))
+                Text(text = "₪${transaction.amount ?: 0.0}", fontSize = 14.sp, fontFamily = ibmPlexSans, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.padding(end = 16.dp))
+                Text(text = statusText, fontSize = 12.sp, fontFamily = ibmPlexSans, fontWeight = FontWeight.Bold, color = statusColor)
+            }
+
+            // --- חלק נפתח (מופיע בלחיצה) ---
+            AnimatedVisibility(visible = isExpanded) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFEEEEEE), thickness = 1.dp)
+
+                    if (isIrregular) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                            Text(text = "Please Notice: Unrecognizable Transaction!", color = Color.Red, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = ibmPlexSans, modifier = Modifier.padding(vertical = 12.dp))
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFEEEEEE), thickness = 1.dp)
+                        }
+                    }
+
+                    // שורת כפתורים: שיתוף ודיווח
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // כפתור שיתוף (פותח את התפריט של הטלפון)
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFE8FCE8))
+                                .clickable {
+                                    val shareMsg = "Check out this transaction: ${transaction.businessName} - ₪${transaction.amount}"
+                                    val sendIntent = android.content.Intent().apply {
+                                        action = android.content.Intent.ACTION_SEND
+                                        putExtra(android.content.Intent.EXTRA_TEXT, shareMsg)
+                                        type = "text/plain"
+                                    }
+                                    context.startActivity(android.content.Intent.createChooser(sendIntent, "Share via"))
+                                }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(imageVector = Icons.Default.Share, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = "Share with your friends", fontSize = 11.sp, fontFamily = ibmPlexSans, color = Color.Black)
+                        }
+
+                        // כפתור דיווח (מעדכן את השרת)
+                        Button(
+                            onClick = {
+                                val newStatus = if (isIrregular) "REGULAR" else "IRREGULAR"
+                                // קריאה לשרת לעדכון הסטטוס (משתמשים ב-id מהמודל החדש שלך)
+                                transaction.id?.let { id ->
+                                    viewModel.updateTransactionStatus(id, newStatus)
+                                    currentStatus = newStatus // משנה צבע מיד במסך
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006769)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.height(38.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.Warning, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = if (isIrregular) "Report as \"Regular\"" else "Report as \"Irregular\"", fontSize = 11.sp, fontFamily = ibmPlexSans, color = Color.White)
+                        }
+                    }
+                }
             }
         }
     }
 }
-
-// ========================================
-// תפריט תחתון
-// ========================================
-@Composable
-fun BottomNav(
-    selectedTab: Int,
-    onTabSelected: (Int) -> Unit
-) {
-    NavigationBar(
-        containerColor = Color.White,
-        tonalElevation = 8.dp
-    ) {
-        navItems.forEachIndexed { index, item ->
-            NavigationBarItem(
-                icon = { Icon(item.icon, contentDescription = item.label) },
-                label = { Text(item.label, fontSize = 11.sp) },
-                selected = selectedTab == index,
-                onClick = { onTabSelected(index) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = CardifyColors.Primary,
-                    selectedTextColor = CardifyColors.Primary,
-                    unselectedIconColor = CardifyColors.TextSecondary.copy(0.6f),
-                    unselectedTextColor = CardifyColors.TextSecondary.copy(0.6f),
-                    indicatorColor = Color.Transparent
-                )
-            )
-        }
-    }
-}
-
-// ========================================
-// נתונים לדוגמה
-// ========================================
-data class Contact(val name: String, val surname: String)
-data class NavItem(val icon: ImageVector, val label: String)
-
-val mockContacts = listOf(
-    Contact("Daniyal", "Mcknight"),
-    Contact("Mattie", "Osborne"),
-    Contact("Aleeza", "Hensley"),
-    Contact("Jordanne", "Cohen"),
-    Contact("Doug", "Horn")
-)
-
-val navItems = listOf(
-    NavItem(Icons.Default.TrendingUp, "Activity"),
-    NavItem(Icons.Default.Wallet, "Wallet"),
-    NavItem(Icons.Default.BarChart, "Stats"),
-    NavItem(Icons.Default.Person, "Account"),
-    NavItem(Icons.Default.Home, "Home")
-)

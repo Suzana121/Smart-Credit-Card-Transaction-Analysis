@@ -1,4 +1,4 @@
-package com.cardify.app.ui.home
+package com.cardify.app.ui.stats
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -9,7 +9,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.cardify.app.ui.theme.CardifyTheme
 
-class HomeActivity : ComponentActivity() {
+class StatsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -19,10 +19,14 @@ class HomeActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    HomeScreen(
+                    StatsScreen(
+                        currentRoute = "stats",
                         onNavigate = { route ->
-                            // כאן נכתוב בעתיד את הקוד שעובר מסכים באמת
-                            println("User clicked to navigate to: $route")
+                            // ניווט בין מסכים
+                            println("Navigate to: $route")
+                        },
+                        onBackClick = {
+                            finish()
                         }
                     )
                 }

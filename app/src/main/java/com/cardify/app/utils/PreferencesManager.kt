@@ -9,11 +9,11 @@ import androidx.security.crypto.MasterKey
  * Manager for secure storage of authentication tokens and user data
  */
 class PreferencesManager(context: Context) {
-    
+
     private val masterKey = MasterKey.Builder(context)
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()
-    
+
     private val sharedPreferences: SharedPreferences = EncryptedSharedPreferences.create(
         context,
         PREFS_NAME,
@@ -21,7 +21,7 @@ class PreferencesManager(context: Context) {
         EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
     )
-    
+
     companion object {
         private const val PREFS_NAME = "cardify_prefs"
         private const val KEY_TOKEN = "auth_token"
@@ -29,10 +29,10 @@ class PreferencesManager(context: Context) {
         private const val KEY_USER_EMAIL = "user_email"
         private const val KEY_USER_NAME = "user_name"
         private const val KEY_IS_LOGGED_IN = "is_logged_in"
-        
+
         @Volatile
         private var instance: PreferencesManager? = null
-        
+
         fun getInstance(context: Context): PreferencesManager {
             return instance ?: synchronized(this) {
                 instance ?: PreferencesManager(context.applicationContext).also {
@@ -41,24 +41,13 @@ class PreferencesManager(context: Context) {
             }
         }
     }
-    
-    /**
-     * Save authentication token
-     */
+
     fun saveToken(token: String) {
         sharedPreferences.edit().putString(KEY_TOKEN, token).apply()
     }
-    
-    /**
-     * Get authentication token
-     */
-    fun getToken(): String? {
-        return sharedPreferences.getString(KEY_TOKEN, null)
-    }
-    
-    /**
-     * Save user data
-     */
+
+    fun getToken(): String? = sharedPreferences.getString(KEY_TOKEN, null)
+
     fun saveUserData(userId: String, email: String, name: String) {
         sharedPreferences.edit().apply {
             putString(KEY_USER_ID, userId)
@@ -68,38 +57,13 @@ class PreferencesManager(context: Context) {
             apply()
         }
     }
-    
-    /**
-     * Get user ID
-     */
-    fun getUserId(): String? {
-        return sharedPreferences.getString(KEY_USER_ID, null)
-    }
-    
-    /**
-     * Get user email
-     */
-    fun getUserEmail(): String? {
-        return sharedPreferences.getString(KEY_USER_EMAIL, null)
-    }
-    
-    /**
-     * Get user name
-     */
-    fun getUserName(): String? {
-        return sharedPreferences.getString(KEY_USER_NAME, null)
-    }
-    
-    /**
-     * Check if user is logged in
-     */
-    fun isLoggedIn(): Boolean {
-        return sharedPreferences.getBoolean(KEY_IS_LOGGED_IN, false)
-    }
-    
-    /**
-     * Clear all data (logout)
-     */
+
+    fun getUserId(): String? = sharedPreferences.getString(KEY_USER_ID, null)
+    fun getUserEmail(): String? = sharedPreferences.getString(KEY_USER_EMAIL, null)
+    fun getUserName(): String? = sharedPreferences.getString(KEY_USER_NAME, null)
+    fun isLoggedIn(): Boolean = sharedPreferences.getBoolean(KEY_IS_LOGGED_IN, false)
+
+    // הפונקציה החשובה לפתרון הבאג שלך:
     fun clearAll() {
         sharedPreferences.edit().clear().apply()
     }
