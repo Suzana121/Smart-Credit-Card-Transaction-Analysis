@@ -1,5 +1,6 @@
 package com.cardify.app.ui.account
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import com.cardify.app.data.UserSession
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,8 +14,17 @@ class AccountViewModel : ViewModel() {
     private val _email = MutableStateFlow(UserSession.email ?: "No Email")
     val email: StateFlow<String> = _email
 
-    fun logout(onLogoutSuccess: () -> Unit) {
+    // פונקציית התנתקות מלאה
+    fun logout(context: Context, onLogoutSuccess: () -> Unit) {
+        // 1. ניקוי הזיכרון המיידי של האפליקציה (RAM)
         UserSession.clear()
+
+        // 2. ניקוי הזיכרון הקבוע של הטלפון (SharedPreferences)
+        // ודאי שהשם "auth_prefs" תואם למה שהגדרת ב-Login
+        val prefs = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
+        prefs.edit().clear().apply()
+
+        // 3. ביצוע הניווט חזרה למסך ההתחברות
         onLogoutSuccess()
     }
 }

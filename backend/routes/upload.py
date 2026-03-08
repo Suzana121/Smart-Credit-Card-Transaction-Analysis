@@ -1,9 +1,30 @@
-import pandas as pd
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from firebase_config import db
+from services.file_service import FileService
+import pandas as pd
 
 upload_bp = Blueprint('upload', __name__)
+
+@upload_bp.route('/transactions', methods=['GET'])
+@jwt_required() # <--- זה מה שיחסום גישה למי שלא מחובר
+def get_transactions():
+    try:
+        user_id = get_jwt_identity() # מחלץ את ה-ID מהטוקן
+
+        # שליפת עסקאות ששייכות אך ורק למשתמש הזה
+        docs = db.collection('transactions').where('userId', '==', user_id).stream()
+
+        transactions = []
+        for doc in docs:
+            t = doc.to_dict()
+            t['id'] = doc.id # מוסיפים את ה-ID של המסמך
+            transactions.append(t)
+
+        return jsonify(transactions), 200
+    except Exception as e:
+        print(f"Error fetching transactions: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @upload_bp.route('/upload', methods=['POST'])
 @jwt_required()
@@ -13,90 +34,64 @@ def upload_file():
 
     file = request.files['file']
 
-    if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
-
     try:
-        # 1. קריאת הקובץ (תומך גם ב-CSV וגם ב-Excel)
-        if file.filename.endswith('.csv'):
-            df = pd.read_csv(file)
-        else:
-            df = pd.read_excel(file)
+        df = FileService.validate_and_process_file(file)
 
-        # נקיון רווחים בשמות העמודות (למשל " Amount " יהפוך ל-"Amount")
-        df.columns = df.columns.str.strip()
+        # הדפסה לטרמינל כדי לראות מה pandas באמת רואה
+        print("Columns found in Excel:", df.columns.tolist())
 
         user_id = get_jwt_identity()
         batch = db.batch()
-
-        # 2. לולאה שעוברת שורה-שורה ושומרת לפיירבייס
         count = 0
+
         for index, row in df.iterrows():
-            doc_ref = db.collection('transactions').document()
-
-            # כאן הקסם: אנחנו מחפשים את השמות בכל הוריאציות האפשריות
-            # שימי לב שאנחנו ממירים את הסכום למספר (float) כדי שלא יהיה 0
             try:
-                amount_val = float(row.get('Amount') or row.get('amount') or row.get('סכום') or 0)
-            except:
-                amount_val = 0.0
+                # שימוש ב-.get() עם ערך ברירת מחדל None
+                amount_val = row.get('סכום חיוב') or row.get('Amount') or row.get('סכום')
+                business_name = row.get('שם בית העסק') or row.get('BusinessName') or row.get('שם עסק')
+                date_val = row.get('תאריך עסקה') or row.get('Date') or row.get('תאריך')
 
-            record = {
-                "userId": user_id,
-                "BusinessName": str(row.get('BusinessName') or row.get('business_name') or row.get('שם בית עסק') or 'Unknown'),
-                "Amount": amount_val,
-                "Date": str(row.get('Date') or row.get('date') or row.get('תאריך') or ''),
-                "Status": str(row.get('Status') or 'REGULAR'),
-                "Description": str(row.get('BusinessName') or row.get('business_name') or 'Unknown') # תוספת ליתר ביטחון
-            }
+                # אם השורה ריקה לגמרי, פשוט נמשיך הלאה בלי לקרוס
+                if pd.isna(business_name) or (isinstance(business_name, str) and not business_name.strip()):
+                    continue
 
-            batch.set(doc_ref, record)
-            count += 1
+                # ניקוי סכום בטוח
+                clean_amount = 0.0
+                if amount_val is not None and not pd.isna(amount_val):
+                    try:
+                        if isinstance(amount_val, str):
+                            amount_str = amount_val.replace('₪', '').replace(',', '').strip()
+                            clean_amount = float(amount_str) if amount_str else 0.0
+                        else:
+                            clean_amount = float(amount_val)
+                    except:
+                        clean_amount = 0.0
 
-        batch.commit()
+                doc_ref = db.collection('transactions').document()
+                record = {
+                    "userId": user_id,
+                    "businessName": str(business_name).strip(),
+                    "amount": clean_amount,
+                    "date": str(date_val).strip() if not pd.isna(date_val) else "",
+                    "status": "REGULAR"
+                }
 
-        return jsonify({
-            "message": f"Successfully processed {count} transactions",
-            "format": "CSV/Excel"
-        }), 200
+                batch.set(doc_ref, record)
+                count += 1
+
+                if count % 500 == 0:
+                    batch.commit()
+                    batch = db.batch()
+            except Exception as row_error:
+                print(f"Error processing row {index}: {row_error}")
+                continue
+
+        if count > 0:
+            batch.commit()
+            return jsonify({"message": f"Successfully processed {count} transactions"}), 200
+        else:
+            return jsonify({"error": "No valid data found in file. Check column names."}), 400
 
     except Exception as e:
-        print(f"Upload Error: {e}")
-        return jsonify({"error": str(e)}), 500
-
-''''
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from services.file_service import validate_and_process_file # השם החדש
-
-upload_bp = Blueprint('upload', __name__)
-
-@upload_bp.route('/upload', methods=['POST'])
-@jwt_required()
-def upload_file():
-    # בדיקה אם הקובץ קיים בבקשה
-    if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
-    
-    file = request.files['file']
-    
-    if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
-
-    # קריאה לפונקציה המשודרגת (תומכת ב-CSV ו-Excel)
-    success, result = validate_and_process_file(file)
-
-    if not success:
-        return jsonify({"error": result}), 400
-
-    df = result # אם הצליח, ה-result הוא ה-DataFrame
-    user_id = get_jwt_identity()
-
-    # כאן מגיע השלב של השמירה ל-Firestore (ה-Batch שעשינו)
-    # ... (הקוד של ה-batch commit) ...
-
-    return jsonify({
-        "message": f"Successfully processed {len(df)} transactions",
-        "format": "Excel" if file.filename.lower().endswith(('.xlsx', '.xls')) else "CSV"
-    }), 200
-    '''
+        print(f"FATAL Server Error: {e}")
+        return jsonify({"error": f"Server error: {str(e)}"}), 500

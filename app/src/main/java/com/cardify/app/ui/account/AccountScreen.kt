@@ -26,6 +26,7 @@ fun AccountScreen(
     // שליפת הנתונים מה-Session דרך ה-ViewModel
     val username by viewModel.username.collectAsState()
     val email by viewModel.email.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     AppScaffold(
         title = "Account",
@@ -63,7 +64,7 @@ fun AccountScreen(
             // --- כפתור התנתקות ---
             item {
                 Button(
-                    onClick = { viewModel.logout(onLogout) },
+                    onClick = { viewModel.logout(context, onLogout) },
                     modifier = Modifier
                         .fillMaxWidth(0.9f)
                         .height(50.dp),

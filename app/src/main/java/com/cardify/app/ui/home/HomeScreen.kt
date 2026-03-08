@@ -13,11 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,8 +26,6 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.PlatformTextStyle
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -43,16 +37,15 @@ import com.cardify.app.data.UserSession
 import com.cardify.app.data.model.Transaction
 import com.cardify.app.ui.components.AppScaffold
 
-// --- הגדרת צבעים גלובלית למסך זה ---
+// --- ניהול צבעים נקי ---
 object CardifyColors {
-    val DarkGreen = Color(0xFF004469) // הצבע החדש מהפיגמה
-    val LightGreenText = Color(0xFF9FE88D) // ירוק בהיר לבוקר טוב
-    val ButtonGreen = Color(0xFFA0FF9D) // כפתור Upload
-    val GreyBackground = Color(0xFFF5F5F5)
-    val TextPrimary = Color(0xFF1A1A1A)
-    val IrregularRed = Color(0xFFD32F2F)
-    val TurquoiseBox = Color(0xFFE6F7F7) // רקע לפילטר
+    val DarkGreen = Color(0xFF006769)
+    val LightGreenText = Color(0xFF9FE88D)
+    val TurquoiseBox = Color(0xFFE6F7F7)
     val DashedBorder = Color(0xFF006769)
+    val IrregularRed = Color(0xFFE23125)
+    val RegularGreen = Color(0xFF38D325)
+    val TextPrimary = Color(0xFF1A1A1A)
 }
 
 @Composable
@@ -60,32 +53,31 @@ fun HomeScreen(
     onNavigate: (String) -> Unit = {},
     viewModel: HomeViewModel = viewModel()
 ) {
-    // State Variables
+    val context = LocalContext.current
     var expanded by remember { mutableStateOf(false) }
     var selectedLimit by remember { mutableStateOf("5") }
     var selectedFile by remember { mutableStateOf<Uri?>(null) }
 
-    val currentUserName = UserSession.username ?: "Guest"
-
-    // Data from ViewModel
     val transactions by viewModel.transactions.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val isUploading by viewModel.isUploading.collectAsState()
     val uploadMessage by viewModel.uploadMessage.collectAsState()
 
-    val context = LocalContext.current
-
-    // Font Setup
     val ibmPlexSans = FontFamily(
         Font(R.font.ibm_plex_sans_regular, FontWeight.Normal),
         Font(R.font.ibm_plex_sans_semibold, FontWeight.SemiBold)
     )
 
-    // Handle Toast Messages
+    // טעינה ראשונית
+    LaunchedEffect(Unit) {
+        viewModel.fetchTransactions()
+    }
+
+    // ניהול הודעות הצלחה/שגיאה
     LaunchedEffect(uploadMessage) {
         uploadMessage?.let {
             Toast.makeText(context, it, Toast.LENGTH_LONG).show()
-            if (it.contains("Success")) {
+            if (it.contains("Success", ignoreCase = true)) {
                 selectedFile = null
             }
         }
@@ -99,7 +91,6 @@ fun HomeScreen(
         topBarContent = { CleanTopBar(onAccountClick = { onNavigate("account") }) }
     ) { padding ->
 
-        // שימוש ב-LazyColumn מאפשר גלילה של כל המסך ביחד
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -108,203 +99,144 @@ fun HomeScreen(
                 .padding(horizontal = 24.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-
-            // --- 1. Header Item: Greeting & Name ---
+            // 1. Header
             item {
                 Spacer(modifier = Modifier.height(10.dp))
                 Column(modifier = Modifier.fillMaxWidth()) {
+                    Text("Good Morning!", color = CardifyColors.LightGreenText, fontSize = 21.sp, fontFamily = ibmPlexSans)
                     Text(
-                        text = "Good Morning!",
-                        color = CardifyColors.LightGreenText,
-                        fontSize = 21.sp,
-                        fontFamily = ibmPlexSans,
-                        fontWeight = FontWeight.Normal,
-                        lineHeight = 18.sp,
-                        style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
-                    )
-
-                    Text(
-                        text = currentUserName,
-                        modifier = Modifier.offset(y = (-17).dp), // התיקון האגרסיבי
+                        text = UserSession.username ?: "Guest",
+                        modifier = Modifier.offset(y = (-17).dp),
                         color = CardifyColors.DarkGreen,
                         fontSize = 40.sp,
                         fontFamily = ibmPlexSans,
-                        fontWeight = FontWeight.SemiBold,
-                        lineHeight = 40.sp,
-                        style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
 
-            // --- 2. Item: Upload Section ---
+            // 2. Upload Section
             item {
                 UploadSection(
                     selectedFile = selectedFile,
                     isUploading = isUploading,
                     ibmPlexSans = ibmPlexSans,
-                    onFileSelected = { uri -> selectedFile = uri },
-                    onUploadClicked = {
-                        selectedFile?.let { uri -> viewModel.uploadFile(uri, context) }
-                    }
+                    onFileSelected = { selectedFile = it },
+                    onUploadClicked = { selectedFile?.let { viewModel.uploadFile(it, context) } }
                 )
             }
 
-            // --- 3. Item: Last Transactions Title & Filter ---
+            // 3. Transactions Title & Filter
             item {
-                Column(modifier = Modifier.fillMaxWidth().padding(top = 20.dp)) {
-                    Text(
-                        text = "Your Last Transactions",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        fontFamily = ibmPlexSans,
-                        color = Color.Black
-                    )
-
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text("Your Last Transactions", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, fontFamily = ibmPlexSans)
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // רכיב הפילטר (Dropdown)
-                    Column(
-                        modifier = Modifier
-                            .width(118.dp)
-                            .background(
-                                color = CardifyColors.TurquoiseBox,
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .clickable { expanded = !expanded }
-                    ) {
-                        // כותרת הפילטר
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                        ) {
-                            Text(
-                                text = "View limit: $selectedLimit",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                fontFamily = ibmPlexSans,
-                                color = Color.Black
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            Icon(
-                                imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                contentDescription = null,
-                                tint = Color.Black,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-
-                        // רשימה נפתחת
-                        AnimatedVisibility(visible = expanded) {
-                            Column {
-                                listOf("5", "10", "15").forEach { limit ->
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                selectedLimit = limit
-                                                expanded = false
-                                                // כאן אפשר להוסיף קריאה ל-ViewModel לעדכן את הלימיט אם צריך
-                                            }
-                                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                                    ) {
-                                        HorizontalDivider(color = Color.Black.copy(alpha = 0.1f), thickness = 0.5.dp)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = limit,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            fontFamily = ibmPlexSans,
-                                            color = Color.Black
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    FilterDropdown(
+                        selectedLimit = selectedLimit,
+                        expanded = expanded,
+                        onExpandChange = { expanded = it },
+                        onLimitSelect = { selectedLimit = it; expanded = false },
+                        ibmPlexSans = ibmPlexSans
+                    )
                 }
             }
 
-            // --- 4. Items: רשימת הטרנזקציות עצמה ---
-            // לוקחים את כמות הטרנזקציות לפי הלימיט שנבחר
+            // 4. Transactions List
             val limitInt = selectedLimit.toIntOrNull() ?: 5
             val displayList = transactions.take(limitInt)
 
             if (isLoading) {
-                item {
-                    Box(modifier = Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = CardifyColors.DarkGreen)
-                    }
-                }
+                item { Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = CardifyColors.DarkGreen) } }
             } else if (displayList.isEmpty()) {
-                item {
-                    Text(
-                        text = "No transactions found.",
-                        modifier = Modifier.padding(top = 16.dp),
-                        color = Color.Gray,
-                        fontFamily = ibmPlexSans
-                    )
-                }
+                item { Text("No transactions found.", color = Color.Gray, fontFamily = ibmPlexSans) }
             } else {
                 items(displayList) { transaction ->
                     TransactionCard(transaction = transaction, viewModel = viewModel)
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
-
-            // מרווח תחתון לסיום
             item { Spacer(modifier = Modifier.height(20.dp)) }
         }
     }
 }
 
-// ----------------------------------------------------------------
-// --- Composable Components (מופרדים לקריאות) ---
-// ----------------------------------------------------------------
-
 @Composable
-fun CleanTopBar(onAccountClick: () -> Unit) {
-    val kellySlabFont = FontFamily(Font(R.font.kelly_slab))
+fun TransactionCard(transaction: Transaction, viewModel: HomeViewModel) {
     val context = LocalContext.current
+    var isExpanded by remember { mutableStateOf(false) }
+    val currentStatus = transaction.status ?: "REGULAR"
+    val isIrregular = currentStatus == "IRREGULAR"
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(100.dp)
-            .background(CardifyColors.DarkGreen)
-            .padding(horizontal = 24.dp)
-            .padding(top = 40.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+    val ibmPlexSans = FontFamily(Font(R.font.ibm_plex_sans_regular))
+
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { isExpanded = !isExpanded },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, if (isIrregular) CardifyColors.IrregularRed else Color(0xFFEEEEEE))
     ) {
-        Text(
-            text = "Cardify",
-            color = Color.White,
-            fontSize = 42.sp,
-            fontFamily = kellySlabFont,
-            fontWeight = FontWeight.Normal,
-            letterSpacing = 1.sp
-        )
+        Column {
+            Row(
+                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(transaction.date ?: "", fontSize = 12.sp, modifier = Modifier.width(80.dp), fontWeight = FontWeight.Bold)
+                Text(transaction.businessName ?: "Unknown", fontSize = 14.sp, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                Text("₪${transaction.amount}", fontSize = 14.sp, modifier = Modifier.padding(end = 16.dp), fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (isIrregular) "Irregular" else "Regular",
+                    color = if (isIrregular) CardifyColors.IrregularRed else CardifyColors.RegularGreen,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
-        IconButton(onClick = {
-            // 1. ניקוי ה-SharedPreferences (שים לב לנקודה בסוף השורה)
-            com.cardify.app.utils.PreferencesManager.getInstance(context).clearAll()
+            AnimatedVisibility(visible = isExpanded) {
+                Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
+                    if (isIrregular) {
+                        Text(
+                            "Please Notice: Unrecognizable Transaction!",
+                            color = Color.Red,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(vertical = 8.dp).align(Alignment.CenterHorizontally)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        // Share
+                        Row(
+                            modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color(0xFFE8FCE8))
+                                .clickable { /* Share Logic */ }.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Share, null, tint = Color(0xFF2E7D32), modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Share", fontSize = 11.sp)
+                        }
 
-            // 2. ניקוי הסשן (מוודאים שהשמות תואמים למה שיש ב-UserSession.kt)
-            com.cardify.app.data.UserSession.id = null
-            com.cardify.app.data.UserSession.username = null
-
-            // 3. חזרה למסך הלוגין
-            onAccountClick()
-        }) {
-            Icon(
-                imageVector = Icons.Default.AccountCircle,
-                contentDescription = "Logout",
-                tint = Color.White,
-                modifier = Modifier.size(34.dp)
-            )
+                        // Report Button
+                        Button(
+                            onClick = {
+                                val nextStatus = if (isIrregular) "REGULAR" else "IRREGULAR"
+                                transaction.id?.let { viewModel.updateTransactionStatus( it, nextStatus) }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = CardifyColors.DarkGreen),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.height(38.dp)
+                        ) {
+                            Icon(Icons.Default.Warning, null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(if (isIrregular) "Mark Regular" else "Mark Irregular", fontSize = 11.sp)
+                        }
+                    }
+                }
+            }
         }
     }
 }
+
 @Composable
 fun UploadSection(
     selectedFile: Uri?,
@@ -313,230 +245,85 @@ fun UploadSection(
     onFileSelected: (Uri?) -> Unit,
     onUploadClicked: () -> Unit
 ) {
-    val context = LocalContext.current
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri -> onFileSelected(uri) }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { onFileSelected(it) }
 
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(15.dp)
-    ) {
-        Text(
-            text = "Upload Your Latest Transactions",
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = ibmPlexSans,
-            color = Color.Black,
-            modifier = Modifier.align(Alignment.Start)
-        )
+    Column(verticalArrangement = Arrangement.spacedBy(15.dp)) {
+        Text("Upload Your Latest Transactions", fontSize = 17.sp, fontWeight = FontWeight.Bold, fontFamily = ibmPlexSans)
 
-        // המלבן המקווקו
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(250.dp)
-                .clip(RoundedCornerShape(10.dp))
+                .fillMaxWidth().height(200.dp).clip(RoundedCornerShape(10.dp))
                 .background(Color(0xFFE0F2F1).copy(alpha = 0.5f))
                 .drawBehind {
-                    val stroke = Stroke(
-                        width = 1.dp.toPx(),
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
-                    )
                     drawRoundRect(
                         color = CardifyColors.DashedBorder.copy(alpha = 0.4f),
-                        style = stroke,
+                        style = Stroke(width = 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)),
                         cornerRadius = CornerRadius(10.dp.toPx())
                     )
-                }
-                .clickable { launcher.launch("*/*") },
+                }.clickable { launcher.launch("*/*") },
             contentAlignment = Alignment.Center
         ) {
-            if (isUploading) {
-                CircularProgressIndicator(color = CardifyColors.DashedBorder)
-            } else {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(15.dp),
-                    modifier = Modifier.padding(bottom = 36.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_upload_custom),
-                        contentDescription = "Upload Icon",
-                        tint = CardifyColors.DashedBorder,
-                        modifier = Modifier.size(28.dp)
-                    )
-
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = if (selectedFile != null) "File Selected!" else "Choose a file",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            fontFamily = ibmPlexSans,
-                            color = CardifyColors.TextPrimary
-                        )
-                        Text(
-                            text = if (selectedFile != null) selectedFile!!.lastPathSegment ?: "Unknown" else "CSV, XLS, and XLSL up to 10MB",
-                            fontSize = 12.sp,
-                            fontFamily = ibmPlexSans,
-                            color = Color.Gray,
-                            maxLines = 1
-                        )
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(5.dp),
-                        border = BorderStroke(1.dp, CardifyColors.DashedBorder.copy(alpha = 0.49f)),
-                        color = Color.Transparent,
-                        modifier = Modifier
-                            .width(100.dp)
-                            .height(30.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = "Browse Files",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = ibmPlexSans,
-                                color = CardifyColors.DashedBorder
-                            )
-                        }
-                    }
+            if (isUploading) CircularProgressIndicator(color = CardifyColors.DarkGreen)
+            else {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(painterResource(R.drawable.ic_upload_custom), null, tint = CardifyColors.DarkGreen, modifier = Modifier.size(30.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(if (selectedFile != null) "File Ready" else "Tap to choose file", fontWeight = FontWeight.SemiBold)
+                    Text(selectedFile?.lastPathSegment ?: "CSV, XLS up to 10MB", fontSize = 12.sp, color = Color.Gray)
                 }
             }
         }
 
         Button(
-            onClick = {
-                if (selectedFile != null) {
-                    onUploadClicked()
-                } else {
-                    Toast.makeText(context, "Please select a file first", Toast.LENGTH_SHORT).show()
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp),
+            onClick = onUploadClicked,
+            modifier = Modifier.fillMaxWidth().height(54.dp),
             shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = CardifyColors.LightGreenText,
-                contentColor = Color.Black
-            )
+            colors = ButtonDefaults.buttonColors(containerColor = CardifyColors.LightGreenText, contentColor = Color.Black)
         ) {
-            Text(
-                text = "Upload",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = ibmPlexSans,
-                color = Color.Black
-            )
+            Text("Upload", fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
 
 @Composable
-fun TransactionCard(transaction: Transaction, viewModel: HomeViewModel) {
-    // 1. הגדרות סביבה (פונטים ו-Context לשיתוף)
-    val context = LocalContext.current
-    val ibmPlexSans = FontFamily(
-        Font(R.font.ibm_plex_sans_regular, FontWeight.Normal),
-        Font(R.font.ibm_plex_sans_semibold, FontWeight.SemiBold)
-    )
-
-    // 2. ניהול מצב הכרטיס
-    var isExpanded by remember { mutableStateOf(false) }
-    // לוקחים את הסטטוס מהעסקה, ואם אין - ברירת מחדל REGULAR
-    var currentStatus by remember { mutableStateOf(transaction.status ?: "REGULAR") }
-
-    val isIrregular = currentStatus == "IRREGULAR"
-    val statusColor = if (isIrregular) Color(0xFFE23125) else Color(0xFF38D325)
-    val statusText = if (isIrregular) "Irregular" else "Regular"
-    val borderColor = if (isIrregular) Color(0xFFE23125) else Color(0xFFEEEEEE)
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { isExpanded = !isExpanded },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(if (isExpanded) 4.dp else 1.dp),
-        border = BorderStroke(1.dp, borderColor)
+fun FilterDropdown(selectedLimit: String, expanded: Boolean, onExpandChange: (Boolean) -> Unit, onLimitSelect: (String) -> Unit, ibmPlexSans: FontFamily) {
+    Box(
+        modifier = Modifier.width(130.dp).background(CardifyColors.TurquoiseBox, RoundedCornerShape(12.dp))
+            .clickable { onExpandChange(!expanded) }.padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Column {
-            // --- שורה ראשית (תמיד גלויה) ---
-            Row(
-                modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(text = transaction.date ?: "", fontSize = 12.sp, fontFamily = ibmPlexSans, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.width(80.dp))
-                Text(text = transaction.businessName ?: "Unknown", fontSize = 14.sp, fontFamily = ibmPlexSans, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.weight(1f))
-                Text(text = "₪${transaction.amount ?: 0.0}", fontSize = 14.sp, fontFamily = ibmPlexSans, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.padding(end = 16.dp))
-                Text(text = statusText, fontSize = 12.sp, fontFamily = ibmPlexSans, fontWeight = FontWeight.Bold, color = statusColor)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Limit: $selectedLimit", fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = ibmPlexSans)
+                Spacer(Modifier.weight(1f))
+                Icon(if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, null, Modifier.size(16.dp))
             }
-
-            // --- חלק נפתח (מופיע בלחיצה) ---
-            AnimatedVisibility(visible = isExpanded) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFEEEEEE), thickness = 1.dp)
-
-                    if (isIrregular) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                            Text(text = "Please Notice: Unrecognizable Transaction!", color = Color.Red, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = ibmPlexSans, modifier = Modifier.padding(vertical = 12.dp))
-                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFEEEEEE), thickness = 1.dp)
-                        }
-                    }
-
-                    // שורת כפתורים: שיתוף ודיווח
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // כפתור שיתוף (פותח את התפריט של הטלפון)
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFE8FCE8))
-                                .clickable {
-                                    val shareMsg = "Check out this transaction: ${transaction.businessName} - ₪${transaction.amount}"
-                                    val sendIntent = android.content.Intent().apply {
-                                        action = android.content.Intent.ACTION_SEND
-                                        putExtra(android.content.Intent.EXTRA_TEXT, shareMsg)
-                                        type = "text/plain"
-                                    }
-                                    context.startActivity(android.content.Intent.createChooser(sendIntent, "Share via"))
-                                }
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(imageVector = Icons.Default.Share, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "Share with your friends", fontSize = 11.sp, fontFamily = ibmPlexSans, color = Color.Black)
-                        }
-
-                        // כפתור דיווח (מעדכן את השרת)
-                        Button(
-                            onClick = {
-                                val newStatus = if (isIrregular) "REGULAR" else "IRREGULAR"
-                                // קריאה לשרת לעדכון הסטטוס (משתמשים ב-id מהמודל החדש שלך)
-                                transaction.id?.let { id ->
-                                    viewModel.updateTransactionStatus(id, newStatus)
-                                    currentStatus = newStatus // משנה צבע מיד במסך
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006769)),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.height(38.dp)
-                        ) {
-                            Icon(imageVector = Icons.Default.Warning, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = if (isIrregular) "Report as \"Regular\"" else "Report as \"Irregular\"", fontSize = 11.sp, fontFamily = ibmPlexSans, color = Color.White)
-                        }
+            AnimatedVisibility(visible = expanded) {
+                Column {
+                    listOf("5", "10", "15").forEach {
+                        Text(it, modifier = Modifier.fillMaxWidth().clickable { onLimitSelect(it) }.padding(vertical = 4.dp))
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun CleanTopBar(onAccountClick: () -> Unit) {
+    val context = LocalContext.current
+    Row(
+        modifier = Modifier.fillMaxWidth().height(100.dp).background(CardifyColors.DarkGreen).padding(horizontal = 24.dp).padding(top = 40.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("Cardify", color = Color.White, fontSize = 42.sp, fontFamily = FontFamily(Font(R.font.kelly_slab)))
+        IconButton(onClick = {
+            com.cardify.app.utils.PreferencesManager.getInstance(context).clearAll()
+            UserSession.id = null
+            UserSession.username = null
+            onAccountClick()
+        }) {
+            Icon(Icons.Default.AccountCircle, "Logout", tint = Color.White, modifier = Modifier.size(34.dp))
         }
     }
 }

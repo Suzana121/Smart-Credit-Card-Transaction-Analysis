@@ -8,7 +8,7 @@ from routes.transactions import transactions_bp
 app = Flask(__name__)
 
 # Secret key for JWT (חשוב: לא לחשוף בקוד אמיתי!)
-app.config["JWT_SECRET_KEY"] = "super-secret-key"
+app.config["JWT_SECRET_KEY"] = "YOUR_SUPER_SECRET_KEY"
 
 # אתחול JWT
 jwt = JWTManager(app)

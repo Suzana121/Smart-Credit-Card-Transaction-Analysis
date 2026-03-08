@@ -3,19 +3,18 @@ package com.cardify.app.data.model
 import com.google.gson.annotations.SerializedName
 
 data class Transaction(
+    @SerializedName("userID", alternate = ["id", "ID"])
     val id: String? = null,
 
-    // הוספנו את "merchant" לרשימת השמות האפשריים!
-    @SerializedName("businessName", alternate = ["merchant", "Description", "business_name", "BusinessName"])
+    @SerializedName("businessName", alternate = ["merchant", "Description", "business_name", "BusinessName", "Business Name"])
     val businessName: String? = "Unknown Business",
 
-    @SerializedName("amount", alternate = ["Amount"])
+    @SerializedName("amount", alternate = ["Amount", "Value", "Price"])
     val amount: Double? = 0.0,
 
-    @SerializedName("date", alternate = ["Date"])
+    @SerializedName("date", alternate = ["Date", "Transaction Date"])
     val date: String? = "",
 
-    @SerializedName("status", alternate = ["Status"])
+    @SerializedName("status", alternate = ["Status", "state"])
     val status: String? = "REGULAR"
-
 )
