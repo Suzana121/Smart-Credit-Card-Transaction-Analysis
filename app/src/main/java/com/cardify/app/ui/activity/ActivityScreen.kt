@@ -32,10 +32,8 @@ fun ActivityScreen(
     var searchQuery by remember { mutableStateOf("") }
 
     AppScaffold(
-        title = "Transactions",
         currentRoute = "activity",
         onNavigate = onNavigate,
-        useCustomTopBar = true,
         topBarContent = {
             ActivityTopBar(
                 searchQuery = searchQuery,

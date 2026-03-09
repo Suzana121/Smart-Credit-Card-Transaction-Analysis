@@ -1,10 +1,14 @@
 package com.cardify.app.ui.account
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image // הוספנו את זה כדי שהשגיאה תיעלם
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -12,106 +16,239 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cardify.app.R
 import com.cardify.app.ui.components.AppScaffold
 
+val teal = Color(0xFF006769)
+
+data class Friend(
+    val name: String,
+    val photo: Int = R.drawable.user
+)
+
+val dummyFriends = listOf(
+    Friend("Sarah"),
+    Friend("Dana Levi"),
+    Friend("Noa Bar"),
+    Friend("Yael Katz"),
+    Friend("Tal Mizrahi"),
+)
+
+val dummyRequests = listOf(
+    Friend("Sarah"),
+    Friend("Dana Levi"),
+    Friend("Noa Bar"),
+    Friend("Yael Katz"),
+    Friend("Tal Mizrahi"),
+)
+
 @Composable
 fun AccountScreen(
-    viewModel: AccountViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onNavigate: (String) -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onEditProfile: () -> Unit
 ) {
-    // שליפת הנתונים מה-Session דרך ה-ViewModel
-    val username by viewModel.username.collectAsState()
-    val email by viewModel.email.collectAsState()
-    val context = androidx.compose.ui.platform.LocalContext.current
-
-    AppScaffold(
-        title = "Account",
-        currentRoute = "account",
-        onNavigate = onNavigate
-    ) { padding ->
-        LazyColumn(
+    AppScaffold(currentRoute = "account", onNavigate = onNavigate) { padding ->
+        Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(Color.White)
                 .padding(padding)
-                .padding(horizontal = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            item { Spacer(modifier = Modifier.height(30.dp)) }
+            Spacer(modifier = Modifier.height(32.dp))
+            ProfileSection(onEditProfile = onEditProfile)
+            Spacer(modifier = Modifier.height(32.dp))
+            FriendsSection()
+            Spacer(modifier = Modifier.height(32.dp))
+            RequestsSection()
+            Spacer(modifier = Modifier.height(40.dp))
 
-            // --- תמונת פרופיל (הקובץ המאוחד מהפיגמה) ---
-            item {
-                Image(
-                    painter = painterResource(id = R.drawable.profile_placeholder),
-                    contentDescription = "Profile Picture",
-                    modifier = Modifier.size(117.dp) // לפי מידות פיגמה
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("do you want to close this account?", fontSize = 13.sp, color = Color.Black)
+                Text(
+                    " log out",
+                    fontSize = 13.sp,
+                    color = Color.Red,
+                    modifier = Modifier.clickable { onLogout() }
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(24.dp)) }
-
-            // --- שדות המידע לפי העיצוב ---
-            item { AccountInfoField(label = "Fullname", value = username) }
-            item { AccountInfoField(label = "Email", value = email) }
-            item { AccountInfoField(label = "Phone", value = "052-212-3123") }
-
-            item { Spacer(modifier = Modifier.height(32.dp)) }
-
-            // --- כפתור התנתקות ---
-            item {
-                Button(
-                    onClick = { viewModel.logout(context, onLogout) },
-                    modifier = Modifier
-                        .fillMaxWidth(0.9f)
-                        .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF0D7377) // הצבע מה-Theme
-                    ),
-                    shape = RoundedCornerShape(25.dp) // רדיוס לפי פיגמה
-                ) {
-                    Text("Logout", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-
-            item { Spacer(modifier = Modifier.height(24.dp)) }
+            Spacer(modifier = Modifier.height(50.dp))
         }
     }
 }
 
 @Composable
-fun AccountInfoField(label: String, value: String) {
+fun ProfileSection(onEditProfile: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp)
+            .padding(top = 32.dp, bottom = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = label,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.Black,
-            modifier = Modifier.padding(start = 12.dp, bottom = 4.dp)
+        Image(
+            painter = painterResource(id = R.drawable.user),
+            contentDescription = "Profile Picture",
+            modifier = Modifier.size(108.dp)
         )
-        Surface(
+        Spacer(modifier = Modifier.height(14.dp))
+        Text("Hailey David", color = Color(0xFF0A0A0A), fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(modifier = Modifier.height(4.dp))
+        Text("+972 52-212-3123", color = Color(0xFF000000), fontSize = 14.sp)
+        Spacer(modifier = Modifier.height(2.dp))
+        Text("hailey@gmail.com", color = Color(0xFF535252), fontSize = 14.sp)
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = { onEditProfile() },
             modifier = Modifier
-                .fillMaxWidth()
-                .height(45.dp), // גובה מותאם לנגישות ורספונסיביות
-            shape = RoundedCornerShape(25.dp),
-            border = BorderStroke(1.dp, Color(0xFF006769)), // צבע Stroke מהפיגמה
-            color = Color.White
+                .width(220.dp)
+                .height(38.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = teal)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 20.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Text(text = value, color = Color.Gray, fontSize = 14.sp)
+            Text("Edit your profile", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+fun FriendsSection() {
+    Spacer(modifier = Modifier.height(5.dp))
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            "People you are friends with",
+            color = teal,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(start = 24.dp, bottom = 4.dp)
+        )
+        Text(
+            "Click on the profiles to see shared information",
+            color = Color.Gray,
+            fontSize = 12.sp,
+            modifier = Modifier.padding(start = 24.dp, bottom = 14.dp)
+        )
+        LazyRow(
+            contentPadding = PaddingValues(start = 24.dp, end = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(dummyFriends) { friend -> FriendItem(friend) }
+            item { AddFriendButton(onClick = { /* TODO */ }) }
+        }
+    }
+}
+
+@Composable
+fun RequestsSection() {
+    Spacer(modifier = Modifier.height(14.dp))
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            "These people want to be your friends",
+            color = teal,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(start = 24.dp, bottom = 4.dp)
+        )
+        Text(
+            "Click on the profiles to see more details",
+            color = Color.Gray,
+            fontSize = 12.sp,
+            modifier = Modifier.padding(start = 24.dp, bottom = 14.dp)
+        )
+        LazyRow(
+            contentPadding = PaddingValues(start = 24.dp, end = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(dummyRequests) { friend ->
+                RequestItem(friend, onConfirm = { /* TODO */ })
             }
         }
+    }
+}
+
+@Composable
+fun FriendItem(friend: Friend) {
+    Column(
+        modifier = Modifier
+            .width(72.dp)
+            .clickable { /* TODO */ },
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Image(
+            painter = painterResource(id = friend.photo),
+            contentDescription = friend.name,
+            modifier = Modifier.size(56.dp)
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            friend.name,
+            color = Color(0xFF5C5C5C),
+            fontSize = 11.sp,
+            textAlign = TextAlign.Center,
+            lineHeight = 14.sp
+        )
+    }
+}
+
+@Composable
+fun AddFriendButton(onClick: () -> Unit) {
+    Column(
+        modifier = Modifier.width(72.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.height(10.dp))
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .background(Color(0xFFE6F7F7), shape = RoundedCornerShape(12.dp))
+                .clickable { onClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            Text("+", color = teal, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+fun RequestItem(friend: Friend, onConfirm: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .width(72.dp)
+            .clickable { /* TODO */ },
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Image(
+            painter = painterResource(id = friend.photo),
+            contentDescription = friend.name,
+            modifier = Modifier.size(56.dp)
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            friend.name,
+            color = Color(0xFF5C5C5C),
+            fontSize = 11.sp,
+            textAlign = TextAlign.Center,
+            lineHeight = 14.sp
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        Box(
+            modifier = Modifier
+                .background(teal, shape = RoundedCornerShape(15.dp))
+                .clickable { onConfirm() }
+                .padding(horizontal = 6.dp, vertical = 1.dp)
+        ) {
+            Text("Confirm", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+        }
+        Spacer(modifier = Modifier.height(10.dp))
     }
 }

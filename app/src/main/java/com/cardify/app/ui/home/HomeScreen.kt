@@ -83,13 +83,7 @@ fun HomeScreen(
         }
     }
 
-    AppScaffold(
-        title = "Home",
-        currentRoute = "home",
-        onNavigate = onNavigate,
-        useCustomTopBar = true,
-        topBarContent = { CleanTopBar(onAccountClick = { onNavigate("account") }) }
-    ) { padding ->
+    AppScaffold(currentRoute = "home", onNavigate = onNavigate) { padding ->
 
         LazyColumn(
             modifier = Modifier

@@ -24,11 +24,7 @@ fun StatsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    AppScaffold(
-        title = "Stats",
-        currentRoute = currentRoute,
-        onNavigate = onNavigate
-    ) { paddingValues ->
+    AppScaffold(currentRoute = "Stats", onNavigate = onNavigate){ paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()

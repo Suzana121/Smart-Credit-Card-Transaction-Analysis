@@ -25,13 +25,7 @@ fun StatsScreen(
 ) {
     var selectedPeriod by remember { mutableStateOf("Monthly") }
 
-    AppScaffold(
-        title = "Stats",
-        currentRoute = currentRoute,
-        onNavigate = onNavigate,
-        showBackButton = true,
-        onBackClick = onBackClick
-    ) { paddingValues ->
+    AppScaffold(currentRoute = "Stats", onNavigate = onNavigate) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
