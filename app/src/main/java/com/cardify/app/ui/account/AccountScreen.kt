@@ -26,23 +26,24 @@ val teal = Color(0xFF006769)
 
 data class Friend(
     val name: String,
-    val photo: Int = R.drawable.user
+    val photo: Int = R.drawable.user,
+    val phone: String = ""
 )
 
 val dummyFriends = listOf(
-    Friend("Sarah"),
-    Friend("Dana Levi"),
-    Friend("Noa Bar"),
-    Friend("Yael Katz"),
-    Friend("Tal Mizrahi"),
+    Friend("Sarah Val", phone = "+972 52-212-3123"),
+    Friend("Dana Levi", phone = "+972 54-267-3993"),
+    Friend("Noa Bar", phone = "+972 50-456-8852"),
+    Friend("Yael Katz", phone = "+972 55-244-4109"),
+    Friend("Tal Mizrahi", phone = "+972 52-822-9753"),
 )
 
 val dummyRequests = listOf(
-    Friend("Sarah"),
-    Friend("Dana Levi"),
-    Friend("Noa Bar"),
-    Friend("Yael Katz"),
-    Friend("Tal Mizrahi"),
+    Friend("Sarah", phone = "+972 52-212-3123"),
+    Friend("Dana Levi", phone = "+972 54-267-3993"),
+    Friend("Noa Bar", phone = "+972 50-456-8852"),
+    Friend("Yael Katz", phone = "+972 55-244-4109"),
+    Friend("Tal Mizrahi", phone = "+972 52-822-9753"),
 )
 
 @Composable
@@ -73,7 +74,7 @@ fun AccountScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("do you want to close this account?", fontSize = 13.sp, color = Color.Black)
+                Text("Do you want to close this account?", fontSize = 13.sp, color = Color.Black)
                 Text(
                     " log out",
                     fontSize = 13.sp,
@@ -123,6 +124,26 @@ fun ProfileSection(onEditProfile: () -> Unit) {
 
 @Composable
 fun FriendsSection() {
+    var selectedFriend by remember { mutableStateOf<Friend?>(null) }
+    var showAddFriend by remember { mutableStateOf(false) }
+
+    // חלונית הוספת חבר
+    if (showAddFriend) {
+        AddFriendSheet(
+            onSend = { _, _ -> /* TODO */ },
+            onDismiss = { showAddFriend = false }
+        )
+    }
+
+    // חלונית פרטי חבר קיים
+    selectedFriend?.let { friend ->
+        FriendSheet(
+            friend = friend,
+            onDelete = { /* TODO */ },
+            onDismiss = { selectedFriend = null }
+        )
+    }
+
     Spacer(modifier = Modifier.height(5.dp))
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -133,7 +154,7 @@ fun FriendsSection() {
             modifier = Modifier.padding(start = 24.dp, bottom = 4.dp)
         )
         Text(
-            "Click on the profiles to see shared information",
+            "Click on the profiles to see more information",
             color = Color.Gray,
             fontSize = 12.sp,
             modifier = Modifier.padding(start = 24.dp, bottom = 14.dp)
@@ -142,14 +163,30 @@ fun FriendsSection() {
             contentPadding = PaddingValues(start = 24.dp, end = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            items(dummyFriends) { friend -> FriendItem(friend) }
-            item { AddFriendButton(onClick = { /* TODO */ }) }
+            items(dummyFriends) { friend ->
+                FriendItem(
+                    friend = friend,
+                    onClick = { selectedFriend = friend }
+                )
+            }
+            item { AddFriendButton(onClick = { showAddFriend = true }) }
         }
     }
 }
 
 @Composable
 fun RequestsSection() {
+    var selectedFriend by remember { mutableStateOf<Friend?>(null) }
+
+    selectedFriend?.let { friend ->
+        FriendRequestSheet(
+            friend = friend,
+            onConfirm = { /* TODO */ },
+            onDelete = { /* TODO */ },
+            onDismiss = { selectedFriend = null }
+        )
+    }
+
     Spacer(modifier = Modifier.height(14.dp))
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -170,18 +207,22 @@ fun RequestsSection() {
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(dummyRequests) { friend ->
-                RequestItem(friend, onConfirm = { /* TODO */ })
+                RequestItem(
+                    friend = friend,
+                    onConfirm = { /* TODO */ },
+                    onClick = { selectedFriend = friend }
+                )
             }
         }
     }
 }
 
 @Composable
-fun FriendItem(friend: Friend) {
+fun FriendItem(friend: Friend, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .width(72.dp)
-            .clickable { /* TODO */ },
+            .clickable { onClick() },
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Image(
@@ -220,11 +261,11 @@ fun AddFriendButton(onClick: () -> Unit) {
 }
 
 @Composable
-fun RequestItem(friend: Friend, onConfirm: () -> Unit) {
+fun RequestItem(friend: Friend, onConfirm: () -> Unit, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .width(72.dp)
-            .clickable { /* TODO */ },
+            .clickable { onClick() },
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Image(

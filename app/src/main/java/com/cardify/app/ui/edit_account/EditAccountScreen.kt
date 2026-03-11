@@ -115,11 +115,11 @@ fun EditAccountScreen(
                     label = "Password",
                     value = password,
                     onValueChange = { password = it },
-                    isPassword = true
+                    isPassword = true,
                 )
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(50.dp))
 
             // ---- כפתור עדכון ----
             Button(
@@ -133,7 +133,7 @@ fun EditAccountScreen(
                 Text("Update", fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
             // ---- טקסט הערה ----
             Text(
@@ -176,7 +176,7 @@ fun EditField(
             placeholder = { Text(placeholder, color = Color.Gray, fontSize = 14.sp) },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp),
+                .height(50.dp),
             shape = RoundedCornerShape(12.dp),
             visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
             colors = OutlinedTextFieldDefaults.colors(
@@ -186,7 +186,7 @@ fun EditField(
                 unfocusedContainerColor = Color.White,
             ),
             singleLine = true,
-            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
+            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = Color.Gray)
         )
     }
 }
