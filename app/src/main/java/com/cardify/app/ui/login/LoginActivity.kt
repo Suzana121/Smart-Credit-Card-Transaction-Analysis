@@ -19,6 +19,22 @@ class LoginActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // 1. בדיקה אם המשתמש כבר מחובר (לפני ה-setContentView)
+        val prefs = getSharedPreferences("auth_prefs", MODE_PRIVATE)
+        val savedToken = prefs.getString("token", null)
+
+        if (savedToken != null) {
+            // שחזור הנתונים ל-UserSession לשימוש בשאר האפליקציה
+            UserSession.token = savedToken
+            UserSession.username = prefs.getString("username", "User") ?: "User"
+
+            // מעבר מהיר למסך הבית
+            startMainActivity()
+            return // עוצר את המשך ה-onCreate
+        }
+
+        // 2. אם לא מחובר, ממשיכים כרגיל בטעינת המסך
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -30,7 +46,6 @@ class LoginActivity : AppCompatActivity() {
 
     private fun setupUI() {
         binding.btnLogin?.setOnClickListener {
-            // המרה מפורשת ל-EditText כדי שנוכל לגשת ל-text
             val emailField = binding.etEmail as? android.widget.EditText
             val passwordField = binding.etPassword as? android.widget.EditText
 
@@ -64,11 +79,11 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun handleLoginSuccess(state: LoginState.Success) {
-        // שמירה לזיכרון המיידי
+        // שמירה לזיכרון המיידי (UserSession)
         UserSession.token = state.response.token
         UserSession.username = state.response.user?.name ?: "User"
 
-        // שמירה לדיסק - מה ש-MainActivity מחפש
+        // שמירה לדיסק (Persistent Storage)
         val prefs = getSharedPreferences("auth_prefs", MODE_PRIVATE)
         prefs.edit().apply {
             putString("token", state.response.token)
@@ -77,9 +92,12 @@ class LoginActivity : AppCompatActivity() {
             apply()
         }
 
-        Toast.makeText(this, "Welcome!", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Welcome back, ${UserSession.username}!", Toast.LENGTH_SHORT).show()
+        startMainActivity()
+    }
 
-        // מעבר ל-MainActivity וניקוי היסטוריה
+    // פונקציית עזר למעבר למסך הראשי וניקוי המחסנית
+    private fun startMainActivity() {
         val intent = Intent(this, MainActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)

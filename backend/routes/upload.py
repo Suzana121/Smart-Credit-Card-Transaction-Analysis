@@ -37,23 +37,29 @@ def upload_file():
     try:
         df = FileService.validate_and_process_file(file)
 
-        # הדפסה לטרמינל כדי לראות מה pandas באמת רואה
-        print("Columns found in Excel:", df.columns.tolist())
-
         user_id = get_jwt_identity()
         batch = db.batch()
         count = 0
 
         for index, row in df.iterrows():
             try:
-                # שימוש ב-.get() עם ערך ברירת מחדל None
-                amount_val = row.get('סכום חיוב') or row.get('Amount') or row.get('סכום')
                 business_name = row.get('שם בית העסק') or row.get('BusinessName') or row.get('שם עסק')
+
+                # --- 1. התעלמות משורת סה"כ ---
+                # אם שם העסק מכיל "סה"כ" או "סך הכל", נדלג על השורה
+                if pd.isna(business_name) or not str(business_name).strip():
+                    continue
+
+                if "סה\"כ" in str(business_name) or "סך הכל" in str(business_name):
+                    continue
+
+                # שליפת שאר הנתונים
+                amount_val = row.get('סכום חיוב') or row.get('Amount') or row.get('סכום')
                 date_val = row.get('תאריך עסקה') or row.get('Date') or row.get('תאריך')
 
-                # אם השורה ריקה לגמרי, פשוט נמשיך הלאה בלי לקרוס
-                if pd.isna(business_name) or (isinstance(business_name, str) and not business_name.strip()):
-                    continue
+                # --- 2. שליפת הקטגוריה ---
+                # נשתמש בשדה 'category' שהוספנו ב-FileService
+                category_val = row.get('category', 'כללי')
 
                 # ניקוי סכום בטוח
                 clean_amount = 0.0
@@ -73,6 +79,7 @@ def upload_file():
                     "businessName": str(business_name).strip(),
                     "amount": clean_amount,
                     "date": str(date_val).strip() if not pd.isna(date_val) else "",
+                    "category": str(category_val).strip(), # הוספת השדה ל-Firestore
                     "status": "REGULAR"
                 }
 
