@@ -120,3 +120,62 @@ def login():
             "profile_image": user.get("profile_image", "https://www.w3schools.com/howto/img_avatar.png")
         }
     }), 200
+
+
+# --- שליפת פרטי המשתמש המחובר ---
+@auth_bp.route("/user_details", methods=["GET"])
+@jwt_required() # מחייב שהאפליקציה תשלח את ה-Token שהיא קיבלה ב-Login
+def get_user_details():
+    try:
+        # חילוץ ה-ID של המשתמש מתוך ה-Token
+        user_id = get_jwt_identity()
+
+        # שליפת המסמך מ-Firestore
+        user_doc = users_ref.document(user_id).get()
+
+        if not user_doc.exists:
+            return jsonify({"error": "User not found"}), 404
+
+        user_data = user_doc.to_dict()
+
+        # החזרת הנתונים בפורמט שה-Android מצפה לו (לפי המודל שיצרנו)
+        return jsonify({
+            "id": user_id,
+            "username": user_data.get("username"),
+            "email": user_data.get("email"),
+            "phone": user_data.get("phone", ""),
+            "profile_image": user_data.get("profile_image", "")
+        }), 200
+
+    except Exception as e:
+        print(f"Error fetching user details: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# --- עדכון פרטי חשבון ---
+@auth_bp.route("/update_account", methods=["POST"])
+@jwt_required()
+def update_account():
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json()
+
+        # הכנת המילון לעדכון
+        update_data = {
+            "username": data.get("username"),
+            "email": data.get("email"),
+            "phone": data.get("phone")
+        }
+
+        # אם נשלחה סיסמה חדשה, נגבב (Hash) אותה ונעדכן
+        if data.get("password"):
+            hashed_pw = bcrypt.generate_password_hash(data.get("password")).decode("utf-8")
+            update_data["password"] = hashed_pw
+
+        # עדכון ב-Firestore
+        users_ref.document(user_id).update(update_data)
+
+        return jsonify({"success": True, "message": "Account updated successfully"}), 200
+
+    except Exception as e:
+        print(f"Error updating account: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500

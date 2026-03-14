@@ -5,6 +5,7 @@ object UserSession {
     var id: String? = null
     var username: String? = null
     var email: String? = null
+    var phone: String? = null
 
     fun isLoggedIn(): Boolean {
         return !token.isNullOrEmpty()
@@ -15,5 +16,6 @@ object UserSession {
         id = null
         username = null
         email = null
+        phone = null
     }
 }
