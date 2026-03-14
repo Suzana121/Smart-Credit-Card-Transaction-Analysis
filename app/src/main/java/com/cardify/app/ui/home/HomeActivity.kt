@@ -19,7 +19,12 @@ class HomeActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    HomeScreen()
+                    HomeScreen(
+                        onNavigate = { route ->
+                            // כאן נכתוב בעתיד את הקוד שעובר מסכים באמת
+                            println("User clicked to navigate to: $route")
+                        }
+                    )
                 }
             }
         }

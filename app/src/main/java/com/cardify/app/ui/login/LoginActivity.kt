@@ -6,49 +6,52 @@ import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
+import com.cardify.app.MainActivity
 import com.cardify.app.R
+import com.cardify.app.data.UserSession
 import com.cardify.app.databinding.ActivityLoginBinding
-import com.cardify.app.ui.home.HomeActivity
-import com.cardify.app.utils.PreferencesManager
 import com.google.android.material.snackbar.Snackbar
 
-/**
- * Login Activity - מעודכן עם קישור למסך הרשמה
- */
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
     private lateinit var viewModel: LoginViewModel
-    private lateinit var preferencesManager: PreferencesManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Initialize ViewBinding
+        // 1. בדיקה אם המשתמש כבר מחובר (לפני ה-setContentView)
+        val prefs = getSharedPreferences("auth_prefs", MODE_PRIVATE)
+        val savedToken = prefs.getString("token", null)
+
+        if (savedToken != null) {
+            // שחזור הנתונים ל-UserSession לשימוש בשאר האפליקציה
+            UserSession.token = savedToken
+            UserSession.username = prefs.getString("username", "User") ?: "User"
+
+            // מעבר מהיר למסך הבית
+            startMainActivity()
+            return // עוצר את המשך ה-onCreate
+        }
+
+        // 2. אם לא מחובר, ממשיכים כרגיל בטעינת המסך
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Initialize ViewModel
         viewModel = ViewModelProvider(this)[LoginViewModel::class.java]
-
-        // Initialize PreferencesManager
-        preferencesManager = PreferencesManager.getInstance(this)
-
-        // Check if already logged in
-        if (preferencesManager.isLoggedIn()) {
-            navigateToHome()
-            return
-        }
 
         setupUI()
         observeViewModel()
     }
 
     private fun setupUI() {
-        // כפתור התחברות
-        binding.btnLogin.setOnClickListener {
-            val email = binding.etEmail.text.toString().trim()
-            val password = binding.etPassword.text.toString()
+        binding.btnLogin?.setOnClickListener {
+            val emailField = binding.etEmail as? android.widget.EditText
+            val passwordField = binding.etPassword as? android.widget.EditText
+
+            val email = emailField?.text?.toString()?.trim() ?: ""
+            val password = passwordField?.text?.toString() ?: ""
+
             if (email.isNotEmpty() && password.isNotEmpty()) {
                 viewModel.login(email, password)
             } else {
@@ -56,78 +59,62 @@ class LoginActivity : AppCompatActivity() {
             }
         }
 
-        // --- התיקון: מעבר למסך הרשמה ---
-        // ודאי שה-ID ב-XML הוא tvSignUp או שנו אותו בהתאם
         binding.btnRegister?.setOnClickListener {
-            val intent = Intent(this, RegisterActivity::class.java)
-            startActivity(intent)
-        }
-
-        // Forgot password click
-        binding.tvForgotPassword.setOnClickListener {
-            Toast.makeText(this, "Forgot Password - Coming soon!", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, RegisterActivity::class.java))
         }
     }
 
     private fun observeViewModel() {
         viewModel.loginState.observe(this) { state ->
             when (state) {
-                is LoginState.Idle -> hideLoading()
                 is LoginState.Loading -> showLoading()
-                is LoginState.Success -> {
-                    hideLoading()
-                    handleLoginSuccess(state)
-                }
+                is LoginState.Success -> handleLoginSuccess(state)
                 is LoginState.Error -> {
                     hideLoading()
                     showError(state.message)
                 }
+                else -> hideLoading()
             }
         }
     }
 
     private fun handleLoginSuccess(state: LoginState.Success) {
-        val response = state.response
+        // שמירה לזיכרון המיידי (UserSession)
+        UserSession.token = state.response.token
+        UserSession.username = state.response.user?.name ?: "User"
 
-        // שמירת הטוקן
-        response.token?.let { token ->
-            preferencesManager.saveToken(token)
+        // שמירה לדיסק (Persistent Storage)
+        val prefs = getSharedPreferences("auth_prefs", MODE_PRIVATE)
+        prefs.edit().apply {
+            putString("token", state.response.token)
+            putString("username", UserSession.username)
+            putString("user_id", state.response.user?.id)
+            apply()
         }
 
-        // שמירת נתוני המשתמש
-        response.user?.let { user ->
-            preferencesManager.saveUserData(
-                userId = user.id,
-                email = user.email,
-                name = user.name ?: "User"
-            )
-        }
-
-        Toast.makeText(this, "Login successful!", Toast.LENGTH_SHORT).show()
-        navigateToHome()
+        Toast.makeText(this, "Welcome back, ${UserSession.username}!", Toast.LENGTH_SHORT).show()
+        startMainActivity()
     }
 
-    private fun navigateToHome() {
-        val intent = Intent(this, HomeActivity::class.java)
+    // פונקציית עזר למעבר למסך הראשי וניקוי המחסנית
+    private fun startMainActivity() {
+        val intent = Intent(this, MainActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
         finish()
     }
 
     private fun showLoading() {
-        binding.progressBar.visibility = View.VISIBLE
-        binding.btnLogin.isEnabled = false
+        binding.progressBar?.visibility = View.VISIBLE
+        binding.btnLogin?.isEnabled = false
     }
 
     private fun hideLoading() {
-        binding.progressBar.visibility = View.GONE
-        binding.btnLogin.isEnabled = true
+        binding.progressBar?.visibility = View.GONE
+        binding.btnLogin?.isEnabled = true
     }
 
     private fun showError(message: String) {
-        Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG)
-            .setBackgroundTint(getColor(R.color.status_error))
-            .setTextColor(getColor(R.color.text_white))
-            .show()
+        Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
     }
 }

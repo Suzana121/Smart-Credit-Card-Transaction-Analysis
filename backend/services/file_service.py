@@ -1,57 +1,50 @@
 import pandas as pd
-import io
 import os
+from io import BytesIO
 
-def validate_and_process_file(file):
-    try:
-        filename = file.filename.lower()
-        # קריאת התוכן הגולמי של הקובץ
-        file_bytes = file.read()
-        
-        if filename.endswith('.csv'):
-            # טיפול ב-CSV
-            content = file_bytes.decode("UTF-8")
-            lines = content.splitlines()
-            
-            # חיפוש שורת הכותרת
-            header_line_index = 0
-            for i, line in enumerate(lines):
-                if "תאריך" in line or "סכום" in line:
-                    header_line_index = i
-                    break
-            
-            # קריאת ה-CSV החל מהשורה שמצאנו
-            df = pd.read_csv(io.StringIO(content), skiprows=header_line_index)
+# הגדרות
+ALLOWED_EXTENSIONS = {'csv', 'xlsx', 'xls'}
+MAX_FILE_SIZE = 1 * 1024 * 1024  # 1MB בדיוק
 
-        elif filename.endswith(('.xlsx', '.xls')):
-            # טיפול ב-Excel
-            # אנחנו קוראים את האקסל ומשתמשים ב-header=None כדי למצוא את השורה בעצמנו
-            df_temp = pd.read_excel(io.BytesIO(file_bytes), header=None)
-            
-            # חיפוש השורה שבה מופיעה מילת מפתח
-            header_line_index = 0
-            for i, row in df_temp.iterrows():
-                # בודקים אם המילים מופיעות בתוך אחד התאים בשורה
-                if row.astype(str).str.contains('תאריך|סכום').any():
-                    header_line_index = i
-                    break
-            
-            # קריאה מחדש עם ה-Header הנכון
-            df = pd.read_excel(io.BytesIO(file_bytes), skiprows=header_line_index)
+class FileService:
+    @staticmethod
+    def allowed_file(filename):
+        return '.' in filename and \
+            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-        else:
-            return False, "פורמט קובץ לא נתמך (יש להעלות CSV או Excel)"
+    @staticmethod # עכשיו זה בתוך המחלקה (עם Tab/הזחה)
+    def validate_and_process_file(file_storage):
+        filename = file_storage.filename
+        file_bytes = file_storage.read()
 
-        if df.empty:
-            return False, "הקובץ ריק מנתונים"
+        # בדיקה אם זה קובץ אקסל לפי ה-Magic Numbers של הקובץ
+        is_excel = file_bytes.startswith(b'PK\x03\x04')
 
-        # ניקוי עמודות ריקות (Unnamed) שנוצרות לפעמים בסוף
-        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
-        
-        # ניקוי רווחים משמות העמודות (חשוב מאוד לאקסל)
-        df.columns = [col.strip() for col in df.columns]
+        try:
+            if is_excel:
+                df = pd.read_excel(BytesIO(file_bytes))
+                # אם העמודה לא נמצאה, כנראה שיש שורות כותרת ריקות (נפוץ בבנקים)
+                if 'תאריך עסקה' not in df.columns:
+                    df = pd.read_excel(BytesIO(file_bytes), skiprows=3)
+            else:
+                try:
+                    df = pd.read_csv(BytesIO(file_bytes), encoding='utf-8')
+                except:
+                    df = pd.read_csv(BytesIO(file_bytes), encoding='cp1255')
 
-        return True, df
+            # ניקוי רווחים בשמות העמודות
+            df.columns = df.columns.str.strip()
 
-    except Exception as e:
-        return False, f"שגיאה בעיבוד הקובץ: {str(e)}"
+            # --- הוספת הטיפול בקטגוריות ---
+            possible_names = ['קטגוריה', 'Category']
+            category_col = next((col for col in possible_names if col in df.columns), None)
+
+            if category_col:
+                df['category'] = df[category_col].fillna('כללי')
+            else:
+                df['category'] = 'כללי'
+
+            return df
+
+        except Exception as e:
+            raise ValueError(f"שגיאה בעיבוד הקובץ: {str(e)}")
