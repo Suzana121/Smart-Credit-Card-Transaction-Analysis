@@ -7,6 +7,7 @@ import androidx.navigation.compose.rememberNavController
 import com.cardify.app.ui.home.HomeScreen
 import com.cardify.app.ui.account.AccountScreen
 import com.cardify.app.ui.edit_account.EditAccountScreen
+import com.cardify.app.ui.stats.StatsScreen
 
 @Composable
 fun AppNavigation(
@@ -32,7 +33,9 @@ fun AppNavigation(
         }
 
         composable("activity") { /* ... */ }
-        composable("stats") { /* ... */ }
+        composable("stats") { StatsScreen(
+            onNavigate = { route -> navController.navigate(route) }
+        ) }
 
         composable("account") {
             val context = androidx.compose.ui.platform.LocalContext.current
