@@ -5,6 +5,9 @@ import com.cardify.app.data.model.LoginResponse
 import com.cardify.app.data.model.RegisterRequest
 import com.cardify.app.data.model.Transaction
 import com.cardify.app.data.model.StatsResponse
+import com.cardify.app.data.model.UpdateResponse
+import com.cardify.app.data.model.UpdateUserRequest
+import com.cardify.app.data.model.User
 import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.*
@@ -38,4 +41,9 @@ interface AuthApiService {
 
     @GET("api/stats")
     suspend fun getStats(): Response<StatsResponse>
+    @GET("auth/user_details") // הכתובת ב-Flask שלך
+    suspend fun getUserProfile(): Response<User>
+
+    @POST("auth/update_account") // הכתובת ב-Flask שלך
+    suspend fun updateProfile(@Body request: UpdateUserRequest): Response<UpdateResponse>
 }

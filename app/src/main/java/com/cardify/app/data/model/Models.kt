@@ -32,7 +32,6 @@ data class LoginResponse(
 
 /**
  * User Model
- * התיקון כאן: שינינו את SerializedName ל-"username" כדי שיתאים למה שהשרת שולח
  */
 data class User(
     @SerializedName("id")
@@ -41,12 +40,46 @@ data class User(
     @SerializedName("email")
     val email: String,
 
-    // כאן התיקון! אומרים לו לחפש "username" בג'ייסון, ולשמור אותו כ-"name" בקוד
     @SerializedName("username")
     val name: String,
 
     @SerializedName("phone")
-    val phone: String? = null
+    val phone: String? = null,
+
+
+    @SerializedName("profile_image")
+    val profileImage: String? = null
+)
+
+/**
+ * מודל לבקשת עדכון חשבון
+ */
+data class UpdateUserRequest(
+    @SerializedName("username")
+    val username: String,
+
+    @SerializedName("email")
+    val email: String,
+
+    @SerializedName("phone")
+    val phone: String,
+
+    @SerializedName("password")
+    val password: String? = null // אופציונלי, רק אם המשתמש הזין סיסמה חדשה
+)
+
+/**
+ * מודל לתשובה מהשרת לאחר עדכון
+ */
+data class UpdateResponse(
+    @SerializedName("success")
+    val success: Boolean,
+
+    @SerializedName("message")
+    val message: String,
+
+    @SerializedName("user")
+    val user: User? = null
 )
 
 /**

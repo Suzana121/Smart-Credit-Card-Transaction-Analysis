@@ -1,8 +1,9 @@
 from flask import Blueprint, request, jsonify
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from google.cloud import firestore
 
-# ייבוא מופע ה-Firestore DB
+# ייבוא מופע ה-Firestore DB מתוך הקובץ הקיים שלך
 from firebase_config import users_ref
 
 bcrypt = Bcrypt()
@@ -21,7 +22,7 @@ def find_user_in_db(identifier_value, identifier_type='email'):
             return None
 
         user_data = query[0].to_dict()
-        user_data['id'] = query[0].id
+        user_data['id'] = query[0].id # חילוץ ה-ID הייחודי של המסמך
         return user_data
 
     except Exception as e:
@@ -43,46 +44,48 @@ def register():
     if not password or not username:
         return jsonify({"error": "Missing username or password"}), 400
 
-    # אם יש אימייל, נבדוק שהוא לא תפוס (אופציונלי אם אתם לא משתמשים בו)
+    # בדיקה שהאימייל לא תפוס
     if email and find_user_in_db(email, 'email'):
         return jsonify({"error": "Email already exists"}), 400
 
-    # בדיקה אם השם משתמש כבר תפוס
+    # בדיקה שהשם משתמש לא תפוס
     if find_user_in_db(username, 'username'):
         return jsonify({"error": "Username already taken"}), 400
 
     hashed_pw = bcrypt.generate_password_hash(password).decode("utf-8")
 
+    # יצירת אובייקט משתמש כולל שדה תמונה ומזהה
     user_doc = {
         "username": username,
-        "email": email or "", # שומרים ריק אם אין אימייל
+        "email": email or "",
         "phone": phone or "",
         "password": hashed_pw,
+        "profile_image": "https://www.w3schools.com/howto/img_avatar.png", # תמונת ברירת מחדל
+        "created_at": firestore.SERVER_TIMESTAMP # חותמת זמן של שרת פיירבייס
     }
 
     try:
-        users_ref.add(user_doc)
-        print("User registered successfully")
-        return jsonify({"message": "User registered successfully"}), 201
+        # שמירה ב-Firestore
+        new_user_ref = users_ref.add(user_doc)
+        print(f"User registered successfully. ID: {new_user_ref[1].id}")
+        return jsonify({"message": "User registered successfully", "userId": new_user_ref[1].id}), 201
     except Exception as e:
         print(f"Firestore error: {e}")
         return jsonify({"error": "Database write failed"}), 500
 
 
-# --- התחברות (Login) - תומך כעת בשם משתמש! ---
+# --- התחברות (Login) ---
 @auth_bp.route("/login", methods=["POST"])
 def login():
     data = request.get_json()
     print("----- LOGIN REQUEST -----", data)
 
-    # ננסה לקחת שם משתמש, ואם אין אז ננסה אימייל
     username = data.get("username") or data.get("userName") or data.get("name")
     email = data.get("email")
     password = data.get("password")
 
     user = None
 
-    # לוגיקה: אם יש שם משתמש, נחפש לפיו. אחרת נחפש לפי אימייל.
     if username:
         print(f"Searching user by username: {username}")
         user = find_user_in_db(username, 'username')
@@ -101,19 +104,78 @@ def login():
         print("Wrong password")
         return jsonify({"error": "Invalid credentials"}), 401
 
-    # יצירת טוקן
-    # משתמשים בשם המשתמש בתור הזהות בטוקן
-    identity = user.get("username") or user.get("email")
-    access_token = create_access_token(identity=identity)
+    # יצירת טוקן - משתמשים ב-ID הייחודי של המשתמש כזהות!
+    user_id = user["id"]
+    access_token = create_access_token(identity=user_id)
 
-    print("Login successful!")
+    print(f"Login successful for user: {user_id}")
     return jsonify({
         "success": True,
         "token": access_token,
         "message": "Login successful",
         "user": {
-            "id": user["id"],
+            "id": user_id,
             "username": user.get("username"),
-            "email": user.get("email")
+            "email": user.get("email"),
+            "profile_image": user.get("profile_image", "https://www.w3schools.com/howto/img_avatar.png")
         }
     }), 200
+
+
+# --- שליפת פרטי המשתמש המחובר ---
+@auth_bp.route("/user_details", methods=["GET"])
+@jwt_required() # מחייב שהאפליקציה תשלח את ה-Token שהיא קיבלה ב-Login
+def get_user_details():
+    try:
+        # חילוץ ה-ID של המשתמש מתוך ה-Token
+        user_id = get_jwt_identity()
+
+        # שליפת המסמך מ-Firestore
+        user_doc = users_ref.document(user_id).get()
+
+        if not user_doc.exists:
+            return jsonify({"error": "User not found"}), 404
+
+        user_data = user_doc.to_dict()
+
+        # החזרת הנתונים בפורמט שה-Android מצפה לו (לפי המודל שיצרנו)
+        return jsonify({
+            "id": user_id,
+            "username": user_data.get("username"),
+            "email": user_data.get("email"),
+            "phone": user_data.get("phone", ""),
+            "profile_image": user_data.get("profile_image", "")
+        }), 200
+
+    except Exception as e:
+        print(f"Error fetching user details: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# --- עדכון פרטי חשבון ---
+@auth_bp.route("/update_account", methods=["POST"])
+@jwt_required()
+def update_account():
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json()
+
+        # הכנת המילון לעדכון
+        update_data = {
+            "username": data.get("username"),
+            "email": data.get("email"),
+            "phone": data.get("phone")
+        }
+
+        # אם נשלחה סיסמה חדשה, נגבב (Hash) אותה ונעדכן
+        if data.get("password"):
+            hashed_pw = bcrypt.generate_password_hash(data.get("password")).decode("utf-8")
+            update_data["password"] = hashed_pw
+
+        # עדכון ב-Firestore
+        users_ref.document(user_id).update(update_data)
+
+        return jsonify({"success": True, "message": "Account updated successfully"}), 200
+
+    except Exception as e:
+        print(f"Error updating account: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
