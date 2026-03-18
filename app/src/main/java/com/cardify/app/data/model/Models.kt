@@ -96,6 +96,32 @@ data class ErrorResponse(
     val errors: Map<String, String>? = null
 )
 
+data class SharedTransaction(
+    @SerializedName("businessName") val businessName: String = "Unknown",
+    @SerializedName("amount")       val amount: Double = 0.0,
+    @SerializedName("date")         val date: String = "",
+    @SerializedName("status")       val status: String = "REGULAR",
+    @SerializedName("category")     val category: String = ""
+)
+
+data class ShareItem(
+    @SerializedName("id")            val id: String = "",
+    @SerializedName("sharedBy")      val sharedBy: String = "",
+    @SerializedName("sharedWith")    val sharedWith: String = "",
+    @SerializedName("transactionId") val transactionId: String = "",
+    @SerializedName("date")          val date: String = "",
+    @SerializedName("direction")     val direction: String = "outgoing", // "outgoing" | "incoming"
+    @SerializedName("transaction")   val transaction: SharedTransaction? = null
+)
+
+data class ShareRequest(
+    @SerializedName("sharedWith")
+    val sharedWith: String,
+
+    @SerializedName("transactionId")
+    val transactionId: String
+)
+
 data class RegisterRequest(
     @SerializedName("username")
     val username: String,

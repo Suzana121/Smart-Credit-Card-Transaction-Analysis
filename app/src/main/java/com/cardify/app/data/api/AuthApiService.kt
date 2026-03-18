@@ -3,6 +3,8 @@ package com.cardify.app.data.api
 import com.cardify.app.data.model.LoginRequest
 import com.cardify.app.data.model.LoginResponse
 import com.cardify.app.data.model.RegisterRequest
+import com.cardify.app.data.model.ShareItem
+import com.cardify.app.data.model.ShareRequest
 import com.cardify.app.data.model.Transaction
 import com.cardify.app.data.model.StatsResponse
 import com.cardify.app.data.model.UpdateResponse
@@ -38,6 +40,12 @@ interface AuthApiService {
         @Path("id") transactionId: String,
         @Body statusUpdate: Map<String, String>
     ): Response<Transaction>
+
+    @GET("api/shares")
+    suspend fun getShares(): Response<List<ShareItem>>
+
+    @POST("api/shares")
+    suspend fun postShare(@Body shareRequest: ShareRequest): Response<Map<String, String>>
 
     @GET("api/stats")
     suspend fun getStats(): Response<StatsResponse>

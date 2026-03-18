@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from firebase_config import db
 from services.file_service import FileService
+from google.cloud import firestore
 import pandas as pd
 
 upload_bp = Blueprint('upload', __name__)
@@ -26,6 +27,119 @@ def get_transactions():
     except Exception as e:
         print(f"Error fetching transactions: {e}")
         return jsonify({"error": str(e)}), 500
+
+def _serialize_share(doc, direction):
+    data = doc.to_dict()
+    # Convert Firestore timestamp to ISO string
+    ts = data.get('date')
+    date_str = ts.isoformat() if hasattr(ts, 'isoformat') else str(ts) if ts else ''
+
+    share = {
+        'id': doc.id,
+        'sharedBy': data.get('sharedBy', ''),
+        'sharedWith': data.get('sharedWith', ''),
+        'transactionId': data.get('transactionId', ''),
+        'date': date_str,
+        'direction': direction,
+        'transaction': None
+    }
+
+    txn_id = data.get('transactionId')
+    if txn_id:
+        txn_doc = db.collection('transactions').document(txn_id).get()
+        if txn_doc.exists:
+            t = txn_doc.to_dict()
+            share['transaction'] = {
+                'businessName': t.get('businessName', 'Unknown'),
+                'amount': t.get('amount', 0),
+                'date': t.get('date', ''),
+                'status': t.get('status', 'REGULAR'),
+                'category': t.get('category', '')
+            }
+    return share
+
+
+@upload_bp.route('/shares', methods=['GET'])
+@jwt_required()
+def get_shares():
+    try:
+        user_id = get_jwt_identity()
+
+        # Look up the current user's username for incoming query
+        user_doc = db.collection('users').document(user_id).get()
+        username = user_doc.to_dict().get('username', '') if user_doc.exists else ''
+
+        shares = []
+
+        # Outgoing: shares the current user sent
+        for doc in db.collection('shares').where('sharedBy', '==', user_id).stream():
+            shares.append(_serialize_share(doc, 'outgoing'))
+
+        # Incoming: shares where someone used this user's username as sharedWith
+        if username:
+            for doc in db.collection('shares').where('sharedWith', '==', username).stream():
+                shares.append(_serialize_share(doc, 'incoming'))
+
+        print(f"Returning {len(shares)} shares for user {user_id}")
+        return jsonify(shares), 200
+
+    except Exception as e:
+        print(f"Error fetching shares: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@upload_bp.route('/shares', methods=['POST'])
+@jwt_required()
+def create_share():
+    try:
+        shared_by = get_jwt_identity()
+        data = request.get_json()
+
+        shared_with = data.get('sharedWith')
+        transaction_id = data.get('transactionId')
+
+        if not shared_with or not transaction_id:
+            return jsonify({"error": "Missing sharedWith or transactionId"}), 400
+
+        doc_ref = db.collection('shares').document()
+        doc_ref.set({
+            "sharedBy": shared_by,
+            "sharedWith": shared_with,
+            "transactionId": transaction_id,
+            "date": firestore.SERVER_TIMESTAMP
+        })
+
+        print(f"Share saved: {shared_by} -> {shared_with}, transaction={transaction_id}")
+        return jsonify({"id": doc_ref.id}), 201
+
+    except Exception as e:
+        print(f"Error saving share: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@upload_bp.route('/transactions/<transaction_id>', methods=['PUT'])
+@jwt_required()
+def update_transaction_status(transaction_id):
+    try:
+        data = request.get_json()
+        new_status = data.get('status')
+        if not new_status:
+            return jsonify({"error": "Missing 'status' field"}), 400
+
+        doc_ref = db.collection('transactions').document(transaction_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            print(f"Transaction not found: {transaction_id}")
+            return jsonify({"error": "Transaction not found"}), 404
+
+        doc_ref.update({"status": new_status})
+        print(f"Updated transaction {transaction_id} -> status: {new_status}")
+        return jsonify({"id": transaction_id, "status": new_status}), 200
+
+    except Exception as e:
+        print(f"Error updating transaction status: {e}")
+        return jsonify({"error": str(e)}), 500
+
 
 @upload_bp.route('/upload', methods=['POST'])
 @jwt_required()

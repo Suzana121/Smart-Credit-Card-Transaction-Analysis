@@ -4,15 +4,19 @@ import androidx.compose.runtime.*
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.cardify.app.data.model.Transaction
 import com.cardify.app.ui.home.HomeScreen
 import com.cardify.app.ui.account.AccountScreen
 import com.cardify.app.ui.edit_account.EditAccountScreen
+import com.cardify.app.ui.shared_info.SharedInfoScreen
+import com.cardify.app.ui.shared_info.ShareWithFriendsScreen
 
 @Composable
 fun AppNavigation(
     startDestination: String = "home"
 ) {
     val navController = rememberNavController()
+    var selectedTransaction by remember { mutableStateOf<Transaction?>(null) }
 
     NavHost(
         navController = navController,
@@ -27,7 +31,41 @@ fun AppNavigation(
                             launchSingleTop = true
                         }
                     }
+                },
+                onShareClick = { transaction ->
+                    selectedTransaction = transaction
+                    navController.navigate("share_with_friends") {
+                        launchSingleTop = true
+                    }
                 }
+            )
+        }
+
+        // Bottom nav "Shared Info" — standalone screen
+        composable("wallet") {
+            SharedInfoScreen(
+                onNavigate = { route ->
+                    if (route != "wallet") {
+                        navController.navigate(route) {
+                            popUpTo("home") { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    }
+                }
+            )
+        }
+
+        // Opened from Share button on a transaction card
+        composable("share_with_friends") {
+            ShareWithFriendsScreen(
+                transaction = selectedTransaction,
+                onNavigate = { route ->
+                    navController.navigate(route) {
+                        popUpTo("home") { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
@@ -51,7 +89,6 @@ fun AppNavigation(
             )
         }
 
-        // רק זה נוסף — עמוד העריכה
         composable("edit_account") {
             EditAccountScreen(
                 onNavigate = { route ->
