@@ -2,13 +2,8 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 import os
 
-# ******* איתור מפתח השירות *******
-# נניח שקובץ המפתח נמצא בתיקייה הראשית של הפרויקט (ליד firebase_config.py)
-# או נשתמש בנתיב המלא כפי שצריך להיות:
+
 SERVICE_ACCOUNT_KEY_PATH = 'serviceAccountKey.json' 
-# או אם הקובץ יושב בתיקיית backend (לפי מבנה ה-JS שניסינו קודם):
-# SERVICE_ACCOUNT_KEY_PATH = 'backend/serviceAccountKey.json' 
-# אנא ודאי את הנתיב הנכון לפי המיקום הסופי שבחרת לקובץ serviceAccountKey.json
 
 # בדיקה אם Firebase כבר אותחל
 if not firebase_admin._apps:

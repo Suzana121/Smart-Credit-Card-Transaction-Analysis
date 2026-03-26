@@ -14,13 +14,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cardify.app.data.model.Friend // הוספת הייבוא
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FriendRequestSheet(
     friend: Friend,
     onConfirm: () -> Unit,
-    onDelete: () -> Unit,   // ← נוסף
+    onDelete: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState()
@@ -38,9 +39,8 @@ fun FriendRequestSheet(
                 .padding(bottom = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // ---- תמונת פרופיל ----
             Image(
-                painter = painterResource(id = friend.photo),
+                painter = painterResource(id = friend.photoResource),
                 contentDescription = friend.name,
                 modifier = Modifier
                     .size(80.dp)
@@ -49,7 +49,6 @@ fun FriendRequestSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ---- כרטיס פרטים ----
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -78,7 +77,6 @@ fun FriendRequestSheet(
 
             Spacer(modifier = Modifier.height(23.dp))
 
-            // ---- כפתור Confirm ----
             Button(
                 onClick = {
                     onConfirm()
@@ -104,7 +102,6 @@ fun FriendRequestSheet(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // ---- מחיקת בקשה ----
             Text(
                 "Delete request",
                 fontSize = 14.sp,

@@ -96,6 +96,32 @@ data class ErrorResponse(
     val errors: Map<String, String>? = null
 )
 
+data class SharedTransaction(
+    @SerializedName("businessName") val businessName: String = "Unknown",
+    @SerializedName("amount")       val amount: Double = 0.0,
+    @SerializedName("date")         val date: String = "",
+    @SerializedName("status")       val status: String = "REGULAR",
+    @SerializedName("category")     val category: String = ""
+)
+
+data class ShareItem(
+    @SerializedName("id")            val id: String = "",
+    @SerializedName("sharedBy")      val sharedBy: String = "",
+    @SerializedName("sharedWith")    val sharedWith: String = "",
+    @SerializedName("transactionId") val transactionId: String = "",
+    @SerializedName("date")          val date: String = "",
+    @SerializedName("direction")     val direction: String = "outgoing", // "outgoing" | "incoming"
+    @SerializedName("transaction")   val transaction: SharedTransaction? = null
+)
+
+data class ShareRequest(
+    @SerializedName("sharedWith")
+    val sharedWith: String,
+
+    @SerializedName("transactionId")
+    val transactionId: String
+)
+
 data class RegisterRequest(
     @SerializedName("username")
     val username: String,
@@ -132,3 +158,51 @@ data class MonthlySpend(
     @SerializedName("amount") val amount: Double,
     @SerializedName("isHighlighted") val isHighlighted: Boolean = false
 )
+
+/**
+ * מודל לתשובה מהשרת לאחר יצירת שיתוף
+ */
+data class ShareResponse(
+    @SerializedName("success")
+    val success: Boolean,
+
+    @SerializedName("message")
+    val message: String,
+
+    @SerializedName("id")
+    val id: String? = null
+)
+
+/**
+ * מודל לתשובה מהשרת לאחר העלאת קובץ אקסל
+ */
+data class UploadResponse(
+    @SerializedName("message")
+    val message: String? = null,
+
+    @SerializedName("error")
+    val error: String? = null
+)
+/**
+ * מודל לשליחת בקשת חברות (רק טלפון)
+ */
+data class FriendRequestData(
+    @SerializedName("phone")
+    val phone: String
+)
+
+/**
+ * מודל לביצוע פעולה על חבר (כמו אישור או מחיקה)
+ */
+data class FriendActionData(
+    @SerializedName("phone")
+    val phone: String
+)
+data class Friend(
+    @SerializedName("name") val name: String, // שונה מ-username ל-name
+    @SerializedName("phone") val phone: String,
+    @SerializedName("status") val status: String = "pending",
+    @SerializedName("photoUrl") val photoUrl: String? = null
+) {
+    val photoResource: Int get() = com.cardify.app.R.drawable.user
+}

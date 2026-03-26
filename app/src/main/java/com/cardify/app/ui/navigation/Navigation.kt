@@ -1,13 +1,16 @@
 package com.cardify.app.ui.navigation
 
 import androidx.compose.runtime.*
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.cardify.app.ui.home.HomeScreen
 import com.cardify.app.ui.account.AccountScreen
 import com.cardify.app.ui.edit_account.EditAccountScreen
-import com.cardify.app.ui.stats.StatsScreen
+import com.cardify.app.ui.shared_info.SharedInfoScreen
+import com.cardify.app.ui.shared_info.ShareWithFriendsScreen
 
 @Composable
 fun AppNavigation(
@@ -28,14 +31,47 @@ fun AppNavigation(
                             launchSingleTop = true
                         }
                     }
+                },
+                onShareClick = { transaction ->
+                    // מעבירים את ה-ID כחלק מהנתיב
+                    navController.navigate("share_with_friends/${transaction.id}")
                 }
             )
         }
 
-        composable("activity") { /* ... */ }
-        composable("stats") { StatsScreen(
-            onNavigate = { route -> navController.navigate(route) }
-        ) }
+        // הגדרת המסלול עם פרמטר transactionId
+        composable(
+            route = "share_with_friends/{transactionId}",
+            arguments = listOf(
+                navArgument("transactionId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val txnId = backStackEntry.arguments?.getString("transactionId")
+
+            ShareWithFriendsScreen(
+                transactionId = txnId, // המסך יקבל ID במקום אובייקט שלם
+                onNavigate = { route ->
+                    navController.navigate(route) {
+                        popUpTo("home") { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("wallet") {
+            SharedInfoScreen(
+                onNavigate = { route ->
+                    if (route != "wallet") {
+                        navController.navigate(route) {
+                            popUpTo("home") { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    }
+                }
+            )
+        }
 
         composable("account") {
             val context = androidx.compose.ui.platform.LocalContext.current
@@ -54,7 +90,6 @@ fun AppNavigation(
             )
         }
 
-        // רק זה נוסף — עמוד העריכה
         composable("edit_account") {
             EditAccountScreen(
                 onNavigate = { route ->

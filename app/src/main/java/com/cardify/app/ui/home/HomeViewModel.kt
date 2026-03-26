@@ -76,14 +76,28 @@ class HomeViewModel : ViewModel() {
     }
 
     fun updateTransactionStatus(transactionId: String, newStatus: String) {
+        val previousList = _transactions.value
+        // Optimistic update — reflect the change in the UI immediately
+        _transactions.value = previousList.map { t ->
+            if (t.id == transactionId) t.copy(status = newStatus) else t
+        }
         viewModelScope.launch {
             try {
-                val statusUpdate = mapOf("status" to newStatus)
-                val response = RetrofitClient.apiService.updateTransactionStatus(transactionId, statusUpdate)
-                if (response.isSuccessful) {
-                    fetchTransactions()
+                Log.d("HomeViewModel", "PUT /api/transactions/$transactionId  status=$newStatus")
+                val response = RetrofitClient.apiService.updateTransactionStatus(
+                    transactionId, mapOf("status" to newStatus)
+                )
+                if (!response.isSuccessful) {
+                    // Revert if the backend rejected the update
+                    _transactions.value = previousList
+                    val errorBody = response.errorBody()?.string() ?: "empty"
+                    Log.e("HomeViewModel", "Update status failed: HTTP ${response.code()} | id=$transactionId | body=$errorBody")
+                } else {
+                    Log.d("HomeViewModel", "Update status success: id=$transactionId -> $newStatus")
                 }
             } catch (e: Exception) {
+                // Revert on network error
+                _transactions.value = previousList
                 Log.e("HomeViewModel", "Update status error", e)
             }
         }

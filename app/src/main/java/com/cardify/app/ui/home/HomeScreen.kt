@@ -51,6 +51,7 @@ object CardifyColors {
 @Composable
 fun HomeScreen(
     onNavigate: (String) -> Unit = {},
+    onShareClick: (Transaction) -> Unit = {},
     viewModel: HomeViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -146,7 +147,7 @@ fun HomeScreen(
                 item { Text("No transactions found.", color = Color.Gray, fontFamily = ibmPlexSans) }
             } else {
                 items(displayList) { transaction ->
-                    TransactionCard(transaction = transaction, viewModel = viewModel)
+                    TransactionCard(transaction = transaction, viewModel = viewModel, onShareClick = onShareClick)
                 }
             }
             item { Spacer(modifier = Modifier.height(20.dp)) }
@@ -155,7 +156,7 @@ fun HomeScreen(
 }
 
 @Composable
-fun TransactionCard(transaction: Transaction, viewModel: HomeViewModel) {
+fun TransactionCard(transaction: Transaction, viewModel: HomeViewModel, onShareClick: (Transaction) -> Unit = {}) {
     val context = LocalContext.current
     var isExpanded by remember { mutableStateOf(false) }
     val currentStatus = transaction.status ?: "REGULAR"
@@ -202,7 +203,7 @@ fun TransactionCard(transaction: Transaction, viewModel: HomeViewModel) {
                         // Share
                         Row(
                             modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color(0xFFE8FCE8))
-                                .clickable { /* Share Logic */ }.padding(horizontal = 12.dp, vertical = 8.dp),
+                                .clickable { onShareClick(transaction) }.padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(Icons.Default.Share, null, tint = Color(0xFF2E7D32), modifier = Modifier.size(16.dp))

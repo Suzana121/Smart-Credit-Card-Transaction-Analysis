@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
+import com.cardify.app.data.model.Friend
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,9 +38,8 @@ fun FriendSheet(
                 .padding(bottom = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // ---- תמונת פרופיל ----
             Image(
-                painter = painterResource(id = friend.photo),
+                painter = painterResource(id = friend.photoResource),
                 contentDescription = friend.name,
                 modifier = Modifier
                     .size(80.dp)
@@ -48,7 +48,6 @@ fun FriendSheet(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // ---- כרטיס פרטים ----
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -78,14 +77,12 @@ fun FriendSheet(
             Spacer(modifier = Modifier.height(23.dp))
 
             Text(
-                  "No longer in contect?",
-                 color = Color.Gray,
+                "No longer in contact?", // תיקון שגיאת כתיב
+                color = Color.Gray,
                 fontSize = 14.sp,
-                 fontWeight = FontWeight.Light
-                )
+                fontWeight = FontWeight.Light
+            )
 
-
-                // ---- כפתור Delete Friend ----
             Text(
                 "Delete friend",
                 fontSize = 14.sp,
