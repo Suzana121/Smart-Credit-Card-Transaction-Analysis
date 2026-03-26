@@ -1,10 +1,11 @@
 package com.cardify.app.ui.navigation
 
 import androidx.compose.runtime.*
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.cardify.app.data.model.Transaction
+import androidx.navigation.navArgument
 import com.cardify.app.ui.home.HomeScreen
 import com.cardify.app.ui.account.AccountScreen
 import com.cardify.app.ui.edit_account.EditAccountScreen
@@ -16,7 +17,6 @@ fun AppNavigation(
     startDestination: String = "home"
 ) {
     val navController = rememberNavController()
-    var selectedTransaction by remember { mutableStateOf<Transaction?>(null) }
 
     NavHost(
         navController = navController,
@@ -33,15 +33,33 @@ fun AppNavigation(
                     }
                 },
                 onShareClick = { transaction ->
-                    selectedTransaction = transaction
-                    navController.navigate("share_with_friends") {
-                        launchSingleTop = true
-                    }
+                    // מעבירים את ה-ID כחלק מהנתיב
+                    navController.navigate("share_with_friends/${transaction.id}")
                 }
             )
         }
 
-        // Bottom nav "Shared Info" — standalone screen
+        // הגדרת המסלול עם פרמטר transactionId
+        composable(
+            route = "share_with_friends/{transactionId}",
+            arguments = listOf(
+                navArgument("transactionId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val txnId = backStackEntry.arguments?.getString("transactionId")
+
+            ShareWithFriendsScreen(
+                transactionId = txnId, // המסך יקבל ID במקום אובייקט שלם
+                onNavigate = { route ->
+                    navController.navigate(route) {
+                        popUpTo("home") { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
         composable("wallet") {
             SharedInfoScreen(
                 onNavigate = { route ->
@@ -54,23 +72,6 @@ fun AppNavigation(
                 }
             )
         }
-
-        // Opened from Share button on a transaction card
-        composable("share_with_friends") {
-            ShareWithFriendsScreen(
-                transaction = selectedTransaction,
-                onNavigate = { route ->
-                    navController.navigate(route) {
-                        popUpTo("home") { inclusive = false }
-                        launchSingleTop = true
-                    }
-                },
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable("activity") { /* ... */ }
-        composable("stats") { /* ... */ }
 
         composable("account") {
             val context = androidx.compose.ui.platform.LocalContext.current

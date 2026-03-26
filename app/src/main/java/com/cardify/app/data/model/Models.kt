@@ -158,3 +158,51 @@ data class MonthlySpend(
     @SerializedName("amount") val amount: Double,
     @SerializedName("isHighlighted") val isHighlighted: Boolean = false
 )
+
+/**
+ * מודל לתשובה מהשרת לאחר יצירת שיתוף
+ */
+data class ShareResponse(
+    @SerializedName("success")
+    val success: Boolean,
+
+    @SerializedName("message")
+    val message: String,
+
+    @SerializedName("id")
+    val id: String? = null
+)
+
+/**
+ * מודל לתשובה מהשרת לאחר העלאת קובץ אקסל
+ */
+data class UploadResponse(
+    @SerializedName("message")
+    val message: String? = null,
+
+    @SerializedName("error")
+    val error: String? = null
+)
+/**
+ * מודל לשליחת בקשת חברות (רק טלפון)
+ */
+data class FriendRequestData(
+    @SerializedName("phone")
+    val phone: String
+)
+
+/**
+ * מודל לביצוע פעולה על חבר (כמו אישור או מחיקה)
+ */
+data class FriendActionData(
+    @SerializedName("phone")
+    val phone: String
+)
+data class Friend(
+    @SerializedName("name") val name: String, // שונה מ-username ל-name
+    @SerializedName("phone") val phone: String,
+    @SerializedName("status") val status: String = "pending",
+    @SerializedName("photoUrl") val photoUrl: String? = null
+) {
+    val photoResource: Int get() = com.cardify.app.R.drawable.user
+}

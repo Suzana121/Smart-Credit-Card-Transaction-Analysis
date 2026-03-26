@@ -4,7 +4,7 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 from google.cloud import firestore
 
 # ייבוא מופע ה-Firestore DB מתוך הקובץ הקיים שלך
-from firebase_config import users_ref
+from firebase_config import users_ref,db
 
 bcrypt = Bcrypt()
 auth_bp = Blueprint("auth", __name__)
@@ -179,3 +179,170 @@ def update_account():
     except Exception as e:
         print(f"Error updating account: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
+
+
+
+
+@auth_bp.route('/friends', methods=['GET'])
+@jwt_required()
+def get_all_friendships():
+    try:
+        current_user_id = get_jwt_identity()
+        friends_dict = {} # מילון למניעת כפילויות
+
+        # 1. שליפת בקשות שאני שלחתי (אני ה-user_id)
+        sent_query = db.collection('friendships').where('user_id', '==', current_user_id).get()
+        for doc in sent_query:
+            f_data = doc.to_dict()
+            friend_id = f_data.get('friend_id')
+            friend_doc = users_ref.document(friend_id).get()
+            if friend_doc.exists:
+                u_info = friend_doc.to_dict()
+                phone = u_info.get("phone")
+                status = f_data.get("status")
+
+                # אם הסטטוס הוא pending, נסמן שזה "שלחתי"
+                final_status = f"sent_{status}" if status == "pending" else status
+
+                friends_dict[phone] = {
+                    "name": u_info.get("username"),
+                    "phone": phone,
+                    "status": final_status,
+                    "photoUrl": u_info.get("profile_image")
+                }
+
+        # 2. שליפת בקשות שנשלחו אליי (אני ה-friend_id)
+        received_query = db.collection('friendships').where('friend_id', '==', current_user_id).get()
+        for doc in received_query:
+            f_data = doc.to_dict()
+            sender_id = f_data.get('user_id')
+            sender_doc = users_ref.document(sender_id).get()
+            if sender_doc.exists:
+                u_info = sender_doc.to_dict()
+                phone = u_info.get("phone")
+                status = f_data.get("status")
+
+                # אם הסטטוס הוא pending, נסמן שזה "קיבלתי"
+                final_status = f"received_{status}" if status == "pending" else status
+
+                # הכנסה למילון (אם כבר קיים כ'sent' ומאושר, זה לא יידרס בצורה שתפריע)
+                friends_dict[phone] = {
+                    "name": u_info.get("username"),
+                    "phone": phone,
+                    "status": final_status,
+                    "photoUrl": u_info.get("profile_image")
+                }
+
+        return jsonify(list(friends_dict.values())), 200
+    except Exception as e:
+        print(f"Error fetching friends: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@auth_bp.route('/add-friend', methods=['POST'])
+@jwt_required()
+def add_friend():
+    try:
+        data = request.get_json()
+        friend_phone = data.get('phone')
+        current_user_id = get_jwt_identity()
+
+        # 1. מציאת המשתמש שאנחנו רוצים להוסיף לפי הטלפון שלו
+        friend_query = users_ref.where('phone', '==', friend_phone).limit(1).get()
+
+        if not friend_query:
+            return jsonify({"error": "User with this phone not found"}), 404
+
+        friend_id = friend_query[0].id
+
+        # 2. בדיקה: האם המשתמש מנסה להוסיף את עצמו?
+        if friend_id == current_user_id:
+            return jsonify({"error": "You cannot add yourself as a friend"}), 400
+
+        # 3. בדיקה האם כבר קיימת בקשה (כדי למנוע כפילויות)
+        existing_check = db.collection('friendships') \
+            .where('user_id', '==', current_user_id) \
+            .where('friend_id', '==', friend_id).get()
+
+        if existing_check:
+            return jsonify({"error": "Friend request already exists"}), 400
+
+        # 4. יצירת מסמך חברות חדש
+        friendship_data = {
+            "user_id": current_user_id,
+            "friend_id": friend_id,
+            "status": "pending",
+            "created_at": firestore.SERVER_TIMESTAMP
+        }
+
+        db.collection('friendships').add(friendship_data)
+        return jsonify({"message": "Friend request sent successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@auth_bp.route('/confirm-friend', methods=['POST'])
+@jwt_required()
+def confirm_friend():
+    try:
+        data = request.get_json()
+        friend_phone = data.get('phone')
+        current_user_id = get_jwt_identity()
+
+        # מציאת ה-ID של החבר לפי הטלפון
+        friend_query = users_ref.where('phone', '==', friend_phone).limit(1).get()
+        if not friend_query:
+            return jsonify({"error": "User not found"}), 404
+
+        friend_id = friend_query[0].id
+
+        # עדכון הסטטוס ל-'approved' במסמך החברות הרלוונטי
+        friendship_docs = db.collection('friendships') \
+            .where('user_id', '==', friend_id) \
+            .where('friend_id', '==', current_user_id).get()
+
+        for doc in friendship_docs:
+            doc.reference.update({"status": "approved"})
+
+        return jsonify({"message": "Friend confirmed"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@auth_bp.route('/delete-friend', methods=['POST'])
+@jwt_required()
+def delete_friend():
+    try:
+        data = request.get_json()
+        friend_phone = data.get('phone')
+        current_user_id = get_jwt_identity()
+
+        # מוצאים את ה-ID של החבר לפי הטלפון
+        friend_query = users_ref.where('phone', '==', friend_phone).limit(1).get()
+        if not friend_query:
+            return jsonify({"error": "User not found"}), 404
+
+        friend_id = friend_query[0].id
+
+        # מחפשים את מסמך החברות (משני הצדדים לביטחון) ומוחקים
+        friendship_docs = db.collection('friendships') \
+            .where('user_id', 'in', [current_user_id, friend_id]) \
+            .where('friend_id', 'in', [current_user_id, friend_id]).get()
+
+        for doc in friendship_docs:
+            doc.reference.delete()
+
+        return jsonify({"success": True, "message": "Friend deleted"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@auth_bp.route('/search_user/<phone>', methods=['GET'])
+@jwt_required()
+def search_user(phone):
+    user_doc = db.collection('users').where('phone', '==', phone).limit(1).get()
+    if not user_doc:
+        return jsonify({"error": "User not found"}), 404
+
+    user_data = user_doc[0].to_dict()
+    return jsonify({
+        "username": user_data.get('username'),
+        "phone": user_data.get('phone')
+    }), 200

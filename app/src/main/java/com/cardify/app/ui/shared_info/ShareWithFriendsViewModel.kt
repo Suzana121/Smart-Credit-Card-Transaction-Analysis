@@ -5,42 +5,39 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cardify.app.data.api.RetrofitClient
 import com.cardify.app.data.model.ShareRequest
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import com.cardify.app.data.model.Friend
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class ShareWithFriendsViewModel : ViewModel() {
+    private val _friends = MutableStateFlow<List<Friend>>(emptyList())
+    val friends = _friends.asStateFlow()
 
     private val _isSending = MutableStateFlow(false)
-    val isSending: StateFlow<Boolean> = _isSending.asStateFlow()
+    val isSending = _isSending.asStateFlow()
 
-    fun sendShare(
-        sharedWith: String,
-        transactionId: String,
-        onSuccess: () -> Unit,
-        onError: (String) -> Unit
-    ) {
+    init { loadFriends() }
+
+    fun loadFriends() {
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.getFriends()
+                if (response.isSuccessful) {
+                    // חשוב: מציגים רק חברים מאושרים
+                    _friends.value = response.body() ?: emptyList()
+                }
+            } catch (e: Exception) { Log.e("ShareVM", "Error", e) }
+        }
+    }
+
+    fun sendShare(friendPhone: String, txnId: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             _isSending.value = true
             try {
-                val response = RetrofitClient.apiService.postShare(
-                    ShareRequest(sharedWith = sharedWith, transactionId = transactionId)
-                )
-                if (response.isSuccessful) {
-                    Log.d("ShareVM", "Share saved: id=${response.body()?.get("id")}")
-                    onSuccess()
-                } else {
-                    val error = response.errorBody()?.string() ?: "Unknown error"
-                    Log.e("ShareVM", "Share failed: HTTP ${response.code()} | $error")
-                    onError(error)
-                }
-            } catch (e: Exception) {
-                Log.e("ShareVM", "Share error", e)
-                onError(e.localizedMessage ?: "Network error")
-            } finally {
-                _isSending.value = false
-            }
+                val res = RetrofitClient.apiService.postShare(ShareRequest(friendPhone, txnId))
+                if (res.isSuccessful) onSuccess()
+            } catch (e: Exception) { Log.e("ShareVM", "Error sending", e) }
+            finally { _isSending.value = false }
         }
     }
 }

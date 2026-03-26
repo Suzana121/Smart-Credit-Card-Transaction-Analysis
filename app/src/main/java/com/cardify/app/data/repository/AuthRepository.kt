@@ -1,46 +1,35 @@
 package com.cardify.app.data.repository
 
 import com.cardify.app.data.api.RetrofitClient
-import com.cardify.app.data.model.* // ייבוא של כל המודלים (User, UpdateUserRequest וכו')
+import com.cardify.app.data.model.*
 import retrofit2.Response
 
-/**
- * Repository for Authentication and User operations
- */
 class AuthRepository {
 
     private val apiService = RetrofitClient.apiService
 
-    /**
-     * Login user
-     */
     suspend fun login(username: String, password: String): Response<LoginResponse> {
         val loginRequest = LoginRequest(username, password)
         return apiService.login(loginRequest)
     }
 
-    /**
-     * Register new user
-     */
     suspend fun register(username: String, email: String, phone: String, password: String): Response<LoginResponse> {
         val registerRequest = RegisterRequest(username, email, phone, password)
         return apiService.register(registerRequest)
     }
 
-    // --- פונקציות חדשות עבור ה-Edit Account ---
-
     /**
      * שליפת נתוני המשתמש הנוכחי
-     * מחזירה Result כדי שה-ViewModel יוכל לטפל בהצלחה/כישלון בקלות
      */
     suspend fun fetchUserData(): Result<User> {
         return try {
-            // קריאה ל-API (צריך להוסיף את getUserProfile ב-ApiService)
-            val response = apiService.getUserProfile()
-            if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
+            // שינוי שם הפונקציה ל-getUserDetails (כמו ב-ApiService)
+            val response = apiService.getUserDetails()
+            val body = response.body()
+            if (response.isSuccessful && body != null) {
+                Result.success(body)
             } else {
-                Result.failure(Exception("Failed to fetch user data"))
+                Result.failure(Exception("Failed to fetch user data: ${response.code()}"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -58,8 +47,12 @@ class AuthRepository {
                 phone = phone,
                 password = if (pass.isEmpty()) null else pass
             )
-            // קריאה ל-API (צריך להוסיף את updateProfile ב-ApiService)
-            val response = apiService.updateProfile(request)
+
+            // ודאי שב-AuthApiService קראת לפונקציית העדכון בשם הזה
+            // אם לא הוספת אותה ל-Interface, כדאי להוסיף:
+            // @POST("auth/update") suspend fun updateUserDetails(@Body request: UpdateUserRequest): Response<UpdateResponse>
+            val response = apiService.updateUserDetails(request)
+
             if (response.isSuccessful) {
                 Result.success(true)
             } else {

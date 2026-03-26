@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cardify.app.R
-import com.cardify.app.ui.account.Friend
+import com.cardify.app.data.model.Friend
 
 enum class TransactionRowVariant { FULL, SHARED, COMPACT }
 
@@ -74,7 +74,7 @@ fun TransactionRow(
     ) {
         if (variant == TransactionRowVariant.SHARED) {
             Image(
-                painter = painterResource(id = transaction.sharedWith?.photo ?: R.drawable.user),
+                painter = painterResource(id = transaction.sharedWith?.photoResource ?: R.drawable.user),
                 contentDescription = transaction.sharedWith?.name,
                 modifier = Modifier.size(36.dp).clip(androidx.compose.foundation.shape.CircleShape)
             )

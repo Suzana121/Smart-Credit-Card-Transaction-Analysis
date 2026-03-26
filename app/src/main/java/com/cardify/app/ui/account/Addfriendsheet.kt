@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -13,11 +14,12 @@ import androidx.compose.ui.unit.sp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddFriendSheet(
-    onSend: (name: String, phone: String) -> Unit,
+    onSend: (phone: String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var name  by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
+    var searchedName by remember { mutableStateOf<String?>(null) }
+    var isError by remember { mutableStateOf(false) }
 
     val sheetState = rememberModalBottomSheetState()
 
@@ -31,85 +33,72 @@ fun AddFriendSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
+                .padding(bottom = 40.dp),
         ) {
             Text(
-                "Add your new friend's details",
-                fontSize = 18.sp,
+                "Add a friend by phone",
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.Black,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Text(
+                "Enter their phone number to find them on Cardify",
+                fontSize = 14.sp,
+                color = Color.Gray,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
 
-            AddFriendField(
-                label = "Name",
-                value = name,
-                onValueChange = { name = it },
-                placeholder = "Enter full name"
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            AddFriendField(
-                label = "Phone number",
+            // החלפתי את AddFriendField בשדה טקסט מובנה ומעוצב
+            OutlinedTextField(
                 value = phone,
-                onValueChange = { phone = it },
-                placeholder = "Enter phone number"
+                onValueChange = {
+                    phone = it
+                    isError = false
+                },
+                label = { Text("Phone number") },
+                placeholder = { Text("e.g. 0501234567") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = teal,
+                    unfocusedBorderColor = Color(0xFFE7E8E9),
+                    focusedLabelColor = teal
+                )
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // הצגת הודעת שגיאה אם המספר קצר מדי (אופציונלי)
+            if (isError) {
+                Text(
+                    "Please enter a valid phone number",
+                    color = Color.Red,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(bottom = 16.dp, start = 4.dp)
+                )
+            }
 
             Button(
                 onClick = {
-                    onSend(name, phone)
-                    onDismiss()
+                    if (phone.length >= 9) {
+                        onSend(phone)
+                        onDismiss()
+                    } else {
+                        isError = true
+                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .height(52.dp),
+                enabled = phone.length >= 9,
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = teal)
             ) {
-                Text("Send a friend request", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Text("Send Request", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
         }
-    }
-}
-
-@Composable
-fun AddFriendField(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String = ""
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = label,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            color = teal,
-            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
-        )
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            placeholder = { Text(placeholder, color = Color.Gray, fontSize = 14.sp) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor      = teal,
-                unfocusedBorderColor    = teal,
-                focusedContainerColor   = Color.White,
-                unfocusedContainerColor = Color.White,
-            ),
-            singleLine = true,
-            textStyle = androidx.compose.ui.text.TextStyle(
-                fontSize = 14.sp,
-                color = Color.Gray
-            )
-        )
     }
 }

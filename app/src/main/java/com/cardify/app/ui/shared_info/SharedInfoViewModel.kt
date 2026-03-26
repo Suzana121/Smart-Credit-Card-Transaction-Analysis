@@ -8,75 +8,52 @@ import com.cardify.app.data.model.ShareItem
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-val CATEGORY_OPTIONS = listOf("Food", "Health & Fitness", "Transport")
-val AMOUNT_MAX = 500f
-
 data class ShareFilterState(
-    val direction: String = "outgoing",              // "outgoing" | "incoming"
-    val friendName: String = "",
-    val status: String = "ALL",                      // "ALL" | "REGULAR" | "IRREGULAR"
-    val selectedCategories: Set<String> = emptySet(), // empty = all categories
-    val amountRange: ClosedFloatingPointRange<Float> = 0f..AMOUNT_MAX,
-    val dateFrom: String = "",
-    val dateTo: String = ""
-) {
-    val hasActiveFilters: Boolean get() =
-        friendName.isNotBlank() ||
-        status != "ALL" ||
-        selectedCategories.isNotEmpty() ||
-        amountRange != 0f..AMOUNT_MAX ||
-        dateFrom.isNotBlank() ||
-        dateTo.isNotBlank()
-}
+    val direction: String = "outgoing", // "outgoing" או "incoming"
+    val searchQuery: String = ""        // חיפוש לפי מספר טלפון
+)
 
 class SharedInfoViewModel : ViewModel() {
 
     private val _shares = MutableStateFlow<List<ShareItem>>(emptyList())
     private val _filterState = MutableStateFlow(ShareFilterState())
     private val _isLoading = MutableStateFlow(false)
-    private val _errorMessage = MutableStateFlow<String?>(null)
 
-    val filterState: StateFlow<ShareFilterState> = _filterState.asStateFlow()
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+    val filterState = _filterState.asStateFlow()
+    val isLoading = _isLoading.asStateFlow()
 
-    val filteredShares: StateFlow<List<ShareItem>> = combine(_shares, _filterState) { shares, f ->
-        shares.filter { item ->
-            val txn = item.transaction
-            val friendField = if (item.direction == "outgoing") item.sharedWith else item.sharedBy
-            val amount = txn?.amount?.toFloat() ?: 0f
+    // לוגיקת הסינון המעודכנת לפי המודל שלך
+    val filteredShares = combine(_shares, _filterState) { shares, filter ->
+        shares.filter { share ->
+            // 1. סינון לפי כיוון (מול שדה ה-direction במודל)
+            val matchesDirection = share.direction == filter.direction
 
-            item.direction == f.direction &&
-            (f.friendName.isBlank() || friendField.contains(f.friendName, ignoreCase = true)) &&
-            (f.status == "ALL" || txn?.status == f.status) &&
-            (f.selectedCategories.isEmpty() || f.selectedCategories.any {
-                txn?.category?.contains(it, ignoreCase = true) == true
-            }) &&
-            (amount >= f.amountRange.start && amount <= f.amountRange.endInclusive) &&
-            (f.dateFrom.isBlank() || (txn?.date ?: item.date) >= f.dateFrom) &&
-            (f.dateTo.isBlank()   || (txn?.date ?: item.date) <= f.dateTo)
+            // 2. סינון לפי חיפוש (בודק את הטלפון של השולח או המקבל בהתאם לכיוון)
+            val contactToCompare = if (share.direction == "outgoing") share.sharedWith else share.sharedBy
+            val matchesSearch = filter.searchQuery.isEmpty() ||
+                    contactToCompare.contains(filter.searchQuery, ignoreCase = true)
+
+            matchesDirection && matchesSearch
         }
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    init { fetchShares() }
+    init {
+        refreshShares()
+    }
 
-    fun fetchShares() {
+    fun refreshShares() {
         viewModelScope.launch {
             _isLoading.value = true
-            _errorMessage.value = null
             try {
                 val response = RetrofitClient.apiService.getShares()
                 if (response.isSuccessful) {
                     _shares.value = response.body() ?: emptyList()
-                    Log.d("SharedInfoVM", "Loaded ${_shares.value.size} shares")
+                    Log.d("SharedInfoVM", "Successfully loaded ${_shares.value.size} shares")
                 } else {
-                    val error = response.errorBody()?.string() ?: "Unknown error"
-                    Log.e("SharedInfoVM", "Fetch failed: HTTP ${response.code()} | $error")
-                    _errorMessage.value = "Failed to load shares (${response.code()})"
+                    Log.e("SharedInfoVM", "Server error: ${response.code()}")
                 }
             } catch (e: Exception) {
-                Log.e("SharedInfoVM", "Fetch error", e)
-                _errorMessage.value = "Network error: ${e.localizedMessage}"
+                Log.e("SharedInfoVM", "Network error while loading shares", e)
             } finally {
                 _isLoading.value = false
             }
@@ -87,19 +64,7 @@ class SharedInfoViewModel : ViewModel() {
         _filterState.update { it.copy(direction = direction) }
     }
 
-    // Called by the "Apply Filters" button with the pending state from the sheet
-    fun applyFilters(pending: ShareFilterState) {
-        _filterState.value = pending.copy(direction = _filterState.value.direction)
-    }
-
-    fun clearFilters() {
-        _filterState.update { it.copy(
-            friendName = "",
-            status = "ALL",
-            selectedCategories = emptySet(),
-            amountRange = 0f..AMOUNT_MAX,
-            dateFrom = "",
-            dateTo = ""
-        )}
+    fun updateSearchQuery(query: String) {
+        _filterState.update { it.copy(searchQuery = query) }
     }
 }
