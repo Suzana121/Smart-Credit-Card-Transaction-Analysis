@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -22,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cardify.app.R
 import com.cardify.app.ui.components.AppScaffold
-import com.cardify.app.data.model.Friend
+import com.cardify.app.data.model.*
 
 val teal = Color(0xFF006769)
 
@@ -41,12 +42,12 @@ fun AccountScreen(
     val friendsList by viewModel.friends.collectAsState()
     val requestsList by viewModel.requests.collectAsState()
 
-    // ניהול מצב להצגת ה-Sheets השונים
+    // State management for different BottomSheets
     var selectedFriend by remember { mutableStateOf<Friend?>(null) }
     var selectedRequest by remember { mutableStateOf<Friend?>(null) }
     var showAddFriend by remember { mutableStateOf(false) }
 
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         viewModel.refreshUserData()
@@ -73,7 +74,7 @@ fun AccountScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // סקציית חברים
+            // Friends Section
             FriendsSection(
                 friends = friendsList,
                 onFriendClick = { selectedFriend = it },
@@ -82,7 +83,7 @@ fun AccountScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // סקציית בקשות חברות
+            // Friend Requests Section
             if (requestsList.isNotEmpty()) {
                 RequestsSection(
                     requests = requestsList,
@@ -92,7 +93,7 @@ fun AccountScreen(
                 Spacer(modifier = Modifier.height(32.dp))
             }
 
-            // כפתור התנתקות
+            // Logout Footer
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -100,7 +101,7 @@ fun AccountScreen(
             ) {
                 Text("Do you want to close this account?", fontSize = 13.sp, color = Color.Black)
                 Text(
-                    " log out",
+                    text = " log out",
                     fontSize = 13.sp,
                     color = Color.Red,
                     modifier = Modifier
@@ -112,34 +113,29 @@ fun AccountScreen(
         }
     }
 
-    // --- הצגת ה-Sheets לפי הצורך ---
+    // --- Bottom Sheets Management ---
 
-
+    // Add Friend Sheet
     if (showAddFriend) {
         AddFriendSheet(
-            onSend = { p ->
-                viewModel.sendFriendRequest(p) { message ->
-                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                    if (message.contains("בהצלחה")) {
-                        showAddFriend = false
-                    }
-                }
-            },
-            onDismiss = { showAddFriend = false }
+            viewModel = viewModel,
+            onDismiss = {
+                showAddFriend = false
+                viewModel.clearSearch()
+            }
         )
     }
 
+    // Existing Friend Options Sheet
     selectedFriend?.let { friend ->
         FriendSheet(
             friend = friend,
-            onDelete = {
-                viewModel.deleteFriend(friend)
-                selectedFriend = null
-            },
+            viewModel = viewModel, // Passed to support smart delete dialog
             onDismiss = { selectedFriend = null }
         )
     }
 
+    // Incoming Friend Request Sheet
     selectedRequest?.let { request ->
         FriendRequestSheet(
             friend = request,
@@ -148,7 +144,8 @@ fun AccountScreen(
                 selectedRequest = null
             },
             onDelete = {
-                viewModel.deleteFriend(request)
+                // For pending requests, we usually delete without extra options
+                viewModel.deleteFriendWithOptions(request, false, false)
                 selectedRequest = null
             },
             onDismiss = { selectedRequest = null }
@@ -163,10 +160,24 @@ fun FriendsSection(
     onAddFriendClick: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text("People you are friends with", color = teal, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 24.dp, bottom = 4.dp))
-        Text("Click on the profiles to see more information", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.padding(start = 24.dp, bottom = 14.dp))
+        Text(
+            text = "People you are friends with",
+            color = teal,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(start = 24.dp, bottom = 4.dp)
+        )
+        Text(
+            text = "Click on profiles for more information",
+            color = Color.Gray,
+            fontSize = 12.sp,
+            modifier = Modifier.padding(start = 24.dp, bottom = 14.dp)
+        )
 
-        LazyRow(contentPadding = PaddingValues(start = 24.dp, end = 24.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        LazyRow(
+            contentPadding = PaddingValues(start = 24.dp, end = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
             items(friends) { friend ->
                 FriendItem(friend = friend, onClick = { onFriendClick(friend) })
             }
@@ -182,8 +193,17 @@ fun RequestsSection(
     onConfirm: (Friend) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text("These people want to be your friends", color = teal, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 24.dp, bottom = 4.dp))
-        LazyRow(contentPadding = PaddingValues(start = 24.dp, end = 24.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text(
+            text = "Pending friend requests",
+            color = teal,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(start = 24.dp, bottom = 4.dp)
+        )
+        LazyRow(
+            contentPadding = PaddingValues(start = 24.dp, end = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
             items(requests) { friend ->
                 RequestItem(
                     friend = friend,
@@ -197,19 +217,45 @@ fun RequestsSection(
 
 @Composable
 fun FriendItem(friend: Friend, onClick: () -> Unit) {
-    Column(modifier = Modifier.width(72.dp).clickable { onClick() }, horizontalAlignment = Alignment.CenterHorizontally) {
-        Image(painter = painterResource(id = friend.photoResource), contentDescription = friend.name, modifier = Modifier.size(56.dp))
+    Column(
+        modifier = Modifier.width(72.dp).clickable { onClick() },
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Image(
+            painter = painterResource(id = friend.photoResource),
+            contentDescription = friend.name,
+            modifier = Modifier.size(56.dp)
+        )
         Spacer(modifier = Modifier.height(6.dp))
-        Text(friend.name ?: "Unknown", color = Color(0xFF5C5C5C), fontSize = 11.sp, textAlign = TextAlign.Center, maxLines = 1)
+        Text(
+            text = friend.name ?: "Unknown",
+            color = Color(0xFF5C5C5C),
+            fontSize = 11.sp,
+            textAlign = TextAlign.Center,
+            maxLines = 1
+        )
     }
 }
 
 @Composable
 fun RequestItem(friend: Friend, onConfirm: () -> Unit, onClick: () -> Unit) {
-    Column(modifier = Modifier.width(72.dp).clickable { onClick() }, horizontalAlignment = Alignment.CenterHorizontally) {
-        Image(painter = painterResource(id = friend.photoResource), contentDescription = friend.name, modifier = Modifier.size(56.dp))
+    Column(
+        modifier = Modifier.width(72.dp).clickable { onClick() },
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Image(
+            painter = painterResource(id = friend.photoResource),
+            contentDescription = friend.name,
+            modifier = Modifier.size(56.dp)
+        )
         Spacer(modifier = Modifier.height(6.dp))
-        Text(friend.name, color = Color(0xFF5C5C5C), fontSize = 11.sp, textAlign = TextAlign.Center, maxLines = 1)
+        Text(
+            text = friend.name,
+            color = Color(0xFF5C5C5C),
+            fontSize = 11.sp,
+            textAlign = TextAlign.Center,
+            maxLines = 1
+        )
         Spacer(modifier = Modifier.height(8.dp))
         Box(
             modifier = Modifier
@@ -239,8 +285,15 @@ fun AddFriendButton(onClick: () -> Unit) {
 
 @Composable
 fun ProfileSection(name: String, email: String, phone: String, onEditProfile: () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth().padding(top = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Image(painter = painterResource(id = R.drawable.user), contentDescription = "Profile Picture", modifier = Modifier.size(108.dp))
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.user),
+            contentDescription = "Profile Picture",
+            modifier = Modifier.size(108.dp)
+        )
         Spacer(modifier = Modifier.height(14.dp))
         Text(name, color = Color(0xFF0A0A0A), fontSize = 18.sp, fontWeight = FontWeight.Bold)
         if (phone.isNotEmpty()) Text(phone, color = Color.Black, fontSize = 14.sp)

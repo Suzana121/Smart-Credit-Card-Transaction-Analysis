@@ -206,3 +206,14 @@ data class Friend(
 ) {
     val photoResource: Int get() = com.cardify.app.R.drawable.user
 }
+data class UserProfile(
+    val id: String,
+    val name: String,
+    val phone: String
+)
+data class UserSearchResponse(
+    val id: String,
+    val username: String,
+    val phone: String,
+    val profile_image: String
+)

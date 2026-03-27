@@ -27,10 +27,10 @@ interface AuthApiService {
     @POST("auth/confirm-friend")
     suspend fun confirmFriend(@Body data: FriendActionData): Response<ShareResponse>
 
-    @POST("auth/delete-friend")
-    suspend fun deleteFriend(@Body data: FriendActionData): Response<ShareResponse>
-
-
+    @POST("auth/delete-friend-smart")
+    suspend fun deleteFriendWithOptions(
+        @Body options: Map<String, @JvmSuppressWildcards Any>
+    ): Response<ShareResponse>
     // --- Transactions & Shares (Prefix: /api) ---
 
     @GET("api/transactions")
@@ -52,7 +52,11 @@ interface AuthApiService {
         @Body statusRequest: Map<String, String>
     ): Response<Transaction>
 
-    @POST("auth/update_account")
-    suspend fun updateUserDetails(
-        @Body request: UpdateUserRequest): Response<UpdateResponse>
+    @GET("auth/search_user/{phone}")
+    suspend fun searchUserByPhone(
+        @Path("phone") phone: String
+    ): Response<UserSearchResponse>
+
+    @POST("auth/update") suspend fun updateUserDetails(@Body request: UpdateUserRequest): Response<UpdateResponse>
+
 }

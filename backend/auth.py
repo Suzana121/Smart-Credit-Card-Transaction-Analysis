@@ -307,42 +307,57 @@ def confirm_friend():
         return jsonify({"error": str(e)}), 500
 
 
-@auth_bp.route('/delete-friend', methods=['POST'])
+@auth_bp.route('/delete-friend-smart', methods=['POST'])
 @jwt_required()
-def delete_friend():
-    try:
-        data = request.get_json()
-        friend_phone = data.get('phone')
-        current_user_id = get_jwt_identity()
+def delete_friend_smart():
+    data = request.get_json()
+    friend_phone = data.get('phone')
+    delete_sent = data.get('delete_sent', False)
+    delete_received = data.get('delete_received', False)
+    current_user_id = get_jwt_identity()
 
-        # מוצאים את ה-ID של החבר לפי הטלפון
-        friend_query = users_ref.where('phone', '==', friend_phone).limit(1).get()
-        if not friend_query:
-            return jsonify({"error": "User not found"}), 404
+    # 1. מציאת ה-ID של החבר
+    friend_query = db.collection('users').where('phone', '==', friend_phone).limit(1).get()
+    if not friend_query: return jsonify({"error": "Not found"}), 404
+    friend_id = friend_query[0].id
 
-        friend_id = friend_query[0].id
+    # 2. מחיקת הקשר ב-friendships (משני הצדדים)
+    friendship_docs = db.collection('friendships') \
+        .where('user_id', 'in', [current_user_id, friend_id]) \
+        .where('friend_id', 'in', [current_user_id, friend_id]).get()
+    for doc in friendship_docs: doc.reference.delete()
 
-        # מחפשים את מסמך החברות (משני הצדדים לביטחון) ומוחקים
-        friendship_docs = db.collection('friendships') \
-            .where('user_id', 'in', [current_user_id, friend_id]) \
-            .where('friend_id', 'in', [current_user_id, friend_id]).get()
+    # 3. מחיקה חכמה של שיתופים (Shares)
+    if delete_sent:
+        # מוחק קבצים שאני שלחתי אליו
+        sent_shares = db.collection('shares').where('sender_id', '==', current_user_id).where('receiver_id', '==', friend_id).get()
+        for doc in sent_shares: doc.reference.delete()
 
-        for doc in friendship_docs:
-            doc.reference.delete()
+    if delete_received:
+        # מוחק קבצים שהוא שלח אלי
+        received_shares = db.collection('shares').where('sender_id', '==', friend_id).where('receiver_id', '==', current_user_id).get()
+        for doc in received_shares: doc.reference.delete()
 
-        return jsonify({"success": True, "message": "Friend deleted"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify({"success": True}), 200
 
 @auth_bp.route('/search_user/<phone>', methods=['GET'])
 @jwt_required()
 def search_user(phone):
-    user_doc = db.collection('users').where('phone', '==', phone).limit(1).get()
-    if not user_doc:
-        return jsonify({"error": "User not found"}), 404
+    try:
+        # חיפוש המשתמש ב-Firestore לפי טלפון
+        user_docs = users_ref.where('phone', '==', phone).limit(1).get()
 
-    user_data = user_doc[0].to_dict()
-    return jsonify({
-        "username": user_data.get('username'),
-        "phone": user_data.get('phone')
-    }), 200
+        if not user_docs:
+            return jsonify({"error": "User not found"}), 404
+
+        user_data = user_docs[0].to_dict()
+        user_id = user_docs[0].id # חשוב לשליחת בקשת החברות בהמשך
+
+        return jsonify({
+            "id": user_id,
+            "username": user_data.get('username'),
+            "phone": user_data.get('phone'),
+            "profile_image": user_data.get('profile_image', "https://www.w3schools.com/howto/img_avatar.png")
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
