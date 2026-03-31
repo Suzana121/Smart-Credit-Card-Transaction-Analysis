@@ -15,11 +15,10 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
-
 class AccountViewModel(
     private val repository: AuthRepository = AuthRepository()
 ) : ViewModel() {
-    // משתנים לניהול מצב החיפוש ב-UI
+
     var searchedUser by mutableStateOf<UserProfile?>(null)
         private set
 
@@ -28,6 +27,7 @@ class AccountViewModel(
 
     var searchErrorMessage by mutableStateOf<String?>(null)
         private set
+
     private val _username = MutableStateFlow(UserSession.username ?: "Guest")
     val username: StateFlow<String> = _username
 
@@ -58,20 +58,18 @@ class AccountViewModel(
                 if (response.isSuccessful) {
                     val allLinks = response.body() ?: emptyList()
 
-                    // חברים מאושרים (סטטוס 'approved')
-                    _friends.value = allLinks.filter { it.status == "approved" }
+                    // חברים מאושרים + בקשות שאני שלחתי וממתינות (sent_pending)
+                    _friends.value = allLinks.filter { it.status == "approved" || it.status == "sent_pending" }
 
-                    // בקשות שמחכות לאישור שלי (הסטטוס החדש מהשרת)
+                    // בקשות שמחכות לאישור שלי (received_pending)
                     _requests.value = allLinks.filter { it.status == "received_pending" }
-
-                    // הערה: אם תרצי להציג גם בקשות שאת שלחת ומחכות,
-                    // תוכלי ליצור StateFlow נוסף עבור "sent_pending"
                 }
             } catch (e: Exception) {
                 Log.e("AccountVM", "Error loading friends", e)
             }
         }
     }
+
     fun refreshUserData() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -90,11 +88,9 @@ class AccountViewModel(
         }
     }
 
-    // אישור בקשת חברות
     fun confirmFriendRequest(friend: Friend) {
         viewModelScope.launch {
             try {
-                // שימוש ב-FriendActionData כפי שהגדרנו ב-models.kt
                 val response = RetrofitClient.apiService.confirmFriend(FriendActionData(friend.phone))
                 if (response.isSuccessful) {
                     loadFriendsData()
@@ -112,7 +108,6 @@ class AccountViewModel(
     ) {
         viewModelScope.launch {
             try {
-                // הכנת הנתונים למשלוח (הטלפון + שתי הבחירות)
                 val options = mapOf(
                     "phone" to friend.phone,
                     "delete_sent" to deleteSentShares,
@@ -122,7 +117,7 @@ class AccountViewModel(
                 val response = RetrofitClient.apiService.deleteFriendWithOptions(options)
 
                 if (response.isSuccessful) {
-                    loadFriendsData() // רענון הרשימה לאחר מחיקה
+                    loadFriendsData()
                 }
             } catch (e: Exception) {
                 Log.e("AccountVM", "Smart delete failed", e)
@@ -130,7 +125,6 @@ class AccountViewModel(
         }
     }
 
-    // שליחת בקשת חברות חדשה
     fun sendFriendRequest(phone: String, onResult: (String) -> Unit) {
         viewModelScope.launch {
             try {
@@ -139,7 +133,6 @@ class AccountViewModel(
                     loadFriendsData()
                     onResult("בקשת חברות נשלחה בהצלחה!")
                 } else {
-                    // חילוץ הודעת השגיאה הגולמית מהשרת (כמו "You cannot add yourself")
                     val errorBody = response.errorBody()?.string()
                     if (errorBody?.contains("You cannot add yourself") == true) {
                         onResult("לא ניתן להוסיף את עצמך כחבר")
@@ -162,6 +155,7 @@ class AccountViewModel(
         prefs.edit().clear().apply()
         onLogoutSuccess()
     }
+
     fun searchUser(phone: String) {
         searchErrorMessage = null
         searchedUser = null

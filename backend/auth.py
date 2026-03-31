@@ -195,6 +195,7 @@ def get_all_friendships():
         for doc in sent_query:
             f_data = doc.to_dict()
             friend_id = f_data.get('friend_id')
+
             friend_doc = users_ref.document(friend_id).get()
             if friend_doc.exists:
                 u_info = friend_doc.to_dict()

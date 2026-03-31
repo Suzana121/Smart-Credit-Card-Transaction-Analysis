@@ -205,6 +205,7 @@ data class Friend(
     @SerializedName("photoUrl") val photoUrl: String? = null
 ) {
     val photoResource: Int get() = com.cardify.app.R.drawable.user
+    val isPending: Boolean get() = status == "sent_pending"
 }
 data class UserProfile(
     val id: String,
