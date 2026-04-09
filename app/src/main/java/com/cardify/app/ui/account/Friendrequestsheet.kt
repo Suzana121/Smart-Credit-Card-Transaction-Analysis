@@ -14,7 +14,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cardify.app.data.model.Friend // הוספת הייבוא
+import com.cardify.app.data.model.Friend
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,93 +24,33 @@ fun FriendRequestSheet(
     onDelete: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState()
-
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
         containerColor = Color.White,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 40.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Image(
-                painter = painterResource(id = friend.photoResource),
-                contentDescription = friend.name,
-                modifier = Modifier
-                    .size(80.dp)
-                    .padding(bottom = 8.dp)
-            )
-
+            Image(painter = painterResource(id = friend.photoResource), contentDescription = friend.name, modifier = Modifier.size(80.dp).padding(bottom = 8.dp))
+            Text(text = "Friend Request", fontSize = 20.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(16.dp))
-
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE7E8E9))
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                ) {
-                    Text("Name", color = teal, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(friend.name, color = Color(0xFF999494), fontSize = 15.sp)
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(vertical = 12.dp),
-                        color = Color(0xFFE7E8E9)
-                    )
-
-                    Text("Phone number", color = teal, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(friend.phone, color = Color(0xFF9A9494), fontSize = 15.sp)
+            Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = Color(0xFFF7F8F9), border = BorderStroke(1.dp, Color(0xFFE7E8E9))) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Name", color = teal, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(friend.name, color = Color.Black, fontSize = 16.sp)
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E8E9))
+                    Text("Phone number", color = teal, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(friend.phone, color = Color.Black, fontSize = 16.sp)
                 }
             }
-
-            Spacer(modifier = Modifier.height(23.dp))
-
-            Button(
-                onClick = {
-                    onConfirm()
-                    onDismiss()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = teal)
-            ) {
-                Text("Confirm", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(onClick = { onConfirm(); onDismiss() }, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = teal)) {
+                Text("Confirm Request", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                "Don't know this person?",
-                color = Color.Gray,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Light
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                "Delete request",
-                fontSize = 14.sp,
-                color = teal,
-                modifier = Modifier.clickable {
-                    onDelete()
-                    onDismiss()
-                }
-            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(text = "Delete request", fontSize = 14.sp, color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold, modifier = Modifier.clickable { onDelete(); onDismiss() })
         }
     }
 }

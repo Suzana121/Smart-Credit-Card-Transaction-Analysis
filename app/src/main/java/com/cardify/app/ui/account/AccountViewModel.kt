@@ -2,6 +2,7 @@ package com.cardify.app.ui.account
 
 import android.content.Context
 import android.util.Log
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cardify.app.data.UserSession
@@ -11,10 +12,21 @@ import com.cardify.app.data.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 class AccountViewModel(
     private val repository: AuthRepository = AuthRepository()
 ) : ViewModel() {
+
+    var searchedUser by mutableStateOf<UserProfile?>(null)
+        private set
+
+    var isSearching by mutableStateOf(false)
+        private set
+
+    var searchErrorMessage by mutableStateOf<String?>(null)
+        private set
 
     private val _username = MutableStateFlow(UserSession.username ?: "Guest")
     val username: StateFlow<String> = _username
@@ -46,20 +58,18 @@ class AccountViewModel(
                 if (response.isSuccessful) {
                     val allLinks = response.body() ?: emptyList()
 
-                    // חברים מאושרים (סטטוס 'approved')
-                    _friends.value = allLinks.filter { it.status == "approved" }
+                    // חברים מאושרים + בקשות שאני שלחתי וממתינות (sent_pending)
+                    _friends.value = allLinks.filter { it.status == "approved" || it.status == "sent_pending" }
 
-                    // בקשות שמחכות לאישור שלי (הסטטוס החדש מהשרת)
+                    // בקשות שמחכות לאישור שלי (received_pending)
                     _requests.value = allLinks.filter { it.status == "received_pending" }
-
-                    // הערה: אם תרצי להציג גם בקשות שאת שלחת ומחכות,
-                    // תוכלי ליצור StateFlow נוסף עבור "sent_pending"
                 }
             } catch (e: Exception) {
                 Log.e("AccountVM", "Error loading friends", e)
             }
         }
     }
+
     fun refreshUserData() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -78,11 +88,9 @@ class AccountViewModel(
         }
     }
 
-    // אישור בקשת חברות
     fun confirmFriendRequest(friend: Friend) {
         viewModelScope.launch {
             try {
-                // שימוש ב-FriendActionData כפי שהגדרנו ב-models.kt
                 val response = RetrofitClient.apiService.confirmFriend(FriendActionData(friend.phone))
                 if (response.isSuccessful) {
                     loadFriendsData()
@@ -93,21 +101,30 @@ class AccountViewModel(
         }
     }
 
-    // מחיקת חבר או דחיית בקשה
-    fun deleteFriend(friend: Friend) {
+    fun deleteFriendWithOptions(
+        friend: Friend,
+        deleteSentShares: Boolean,
+        deleteReceivedShares: Boolean
+    ) {
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.deleteFriend(FriendActionData(friend.phone))
+                val options = mapOf(
+                    "phone" to friend.phone,
+                    "delete_sent" to deleteSentShares,
+                    "delete_received" to deleteReceivedShares
+                )
+
+                val response = RetrofitClient.apiService.deleteFriendWithOptions(options)
+
                 if (response.isSuccessful) {
                     loadFriendsData()
                 }
             } catch (e: Exception) {
-                Log.e("AccountVM", "Failed to delete friend", e)
+                Log.e("AccountVM", "Smart delete failed", e)
             }
         }
     }
 
-    // שליחת בקשת חברות חדשה
     fun sendFriendRequest(phone: String, onResult: (String) -> Unit) {
         viewModelScope.launch {
             try {
@@ -116,7 +133,6 @@ class AccountViewModel(
                     loadFriendsData()
                     onResult("בקשת חברות נשלחה בהצלחה!")
                 } else {
-                    // חילוץ הודעת השגיאה הגולמית מהשרת (כמו "You cannot add yourself")
                     val errorBody = response.errorBody()?.string()
                     if (errorBody?.contains("You cannot add yourself") == true) {
                         onResult("לא ניתן להוסיף את עצמך כחבר")
@@ -138,5 +154,62 @@ class AccountViewModel(
         val prefs = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
         prefs.edit().clear().apply()
         onLogoutSuccess()
+    }
+
+    fun searchUser(phone: String) {
+        searchErrorMessage = null
+        searchedUser = null
+
+        val cleanPhone = phone.trim()
+
+        if (cleanPhone.isEmpty()) {
+            searchErrorMessage = "Please enter a phone number"
+            return
+        }
+
+        if (!cleanPhone.all { it.isDigit() }) {
+            searchErrorMessage = "Phone number must contain only digits"
+            return
+        }
+
+        if (cleanPhone.length < 9 || cleanPhone.length > 10) {
+            searchErrorMessage = "Phone number must be 9-10 digits"
+            return
+        }
+
+        if (cleanPhone == UserSession.phone) {
+            searchErrorMessage = "You cannot add yourself"
+            return
+        }
+
+        viewModelScope.launch {
+            isSearching = true
+            try {
+                val response = RetrofitClient.apiService.searchUserByPhone(cleanPhone)
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        searchedUser = UserProfile(
+                            id = body.id,
+                            name = body.username,
+                            phone = body.phone
+                        )
+                    } else {
+                        searchErrorMessage = "User not found"
+                    }
+                } else {
+                    searchErrorMessage = "User not found"
+                }
+            } catch (e: Exception) {
+                searchErrorMessage = "Network error, please try again later"
+            } finally {
+                isSearching = false
+            }
+        }
+    }
+
+    fun clearSearch() {
+        searchedUser = null
+        isSearching = false
     }
 }
