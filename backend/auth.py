@@ -362,3 +362,63 @@ def search_user(phone):
         }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@auth_bp.route('/stats/<month>', methods=['GET'])
+@jwt_required()
+def get_monthly_stats(month):
+    try:
+        user_id = get_jwt_identity()
+
+        # 1. שליפת כל העסקאות של המשתמש (בלי סינון חודש ב-Query כי אין שדה כזה)
+        transactions_query = db.collection('transactions').where('user_id', '==', user_id).get()
+
+        total_spend = 0
+        category_map = {}
+        irregular_count = 0
+        regular_count = 0
+
+        # מילון עזר לתרגום קיצור חודש למספר (לפי הפורמט ב-Firestore: DD-MM-YYYY)
+        month_to_num = {
+            "Jan": "01", "Feb": "02", "Mar": "03", "Apr": "04", "May": "05", "Jun": "06",
+            "Jul": "07", "Aug": "08", "Sep": "09", "Oct": "10", "Nov": "11", "Dec": "12"
+        }
+        target_month_num = month_to_num.get(month)
+
+        for doc in transactions_query:
+            t = doc.to_dict()
+            date_str = t.get('date', "") # למשל "09-01-2025"
+
+            # 2. סינון ידני: בדיקה האם החודש בתוך ה-date מתאים לחודש המבוקש
+            # אנחנו בודקים אם החלק שבין המקפים (החודש) תואם
+            if date_str and len(date_str) >= 5:
+                parts = date_str.split('-')
+                if len(parts) >= 2 and parts[1] == target_month_num:
+
+                    cat = t.get('category') or "Other"
+                    amt = float(t.get('amount', 0))
+
+                    total_spend += amt
+                    category_map[cat] = category_map.get(cat, 0) + amt
+
+                    if t.get('status') == "IRREGULAR" or amt > 1000:
+                        irregular_count += 1
+                    else:
+                        regular_count += 1
+
+        expenses_by_category = [
+            {"categoryName": name, "amount": amt}
+            for name, amt in category_map.items()
+        ]
+
+        return jsonify({
+            "totalSpend": total_spend,
+            "regularTransactionsCount": regular_count,
+            "irregularTransactionsCount": irregular_count,
+            "expensesByCategory": expenses_by_category,
+            "monthlyExpenses": []
+        }), 200
+
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return jsonify({"error": str(e)}), 500

@@ -32,7 +32,6 @@
 
         <activity android:name=".ui.home.HomeActivity" android:exported="false" />
         <activity android:name=".ui.activity.ActivityActivity" android:exported="false" />
-        <activity android:name=".ui.stats.StatsActivity" android:exported="false" />
 
     </application>
 

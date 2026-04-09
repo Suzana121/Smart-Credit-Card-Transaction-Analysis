@@ -31,6 +31,18 @@ interface AuthApiService {
     suspend fun deleteFriendWithOptions(
         @Body options: Map<String, @JvmSuppressWildcards Any>
     ): Response<ShareResponse>
+
+
+    @GET("auth/search_user/{phone}")
+    suspend fun searchUserByPhone(
+        @Path("phone") phone: String
+    ): Response<UserSearchResponse>
+
+    @POST("auth/update") suspend fun updateUserDetails(@Body request: UpdateUserRequest): Response<UpdateResponse>
+
+
+
+
     // --- Transactions & Shares (Prefix: /api) ---
 
     @GET("api/transactions")
@@ -52,11 +64,10 @@ interface AuthApiService {
         @Body statusRequest: Map<String, String>
     ): Response<Transaction>
 
-    @GET("auth/search_user/{phone}")
-    suspend fun searchUserByPhone(
-        @Path("phone") phone: String
-    ): Response<UserSearchResponse>
 
-    @POST("auth/update") suspend fun updateUserDetails(@Body request: UpdateUserRequest): Response<UpdateResponse>
 
+    @GET("auth/stats/{month}") // ודאי שזה תואם ל-Prefix (כאן זה auth כי זה ב-auth.py)
+    suspend fun getStatsByMonth(
+        @Path("month") month: String
+    ): Response<StatsResponse> // שינוי מ-List<StatsTransaction> ל-StatsResponse
 }

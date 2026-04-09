@@ -147,6 +147,7 @@ data class StatsResponse(
     @SerializedName("monthlyExpenses") val monthlyExpenses: List<MonthlySpend>
 )
 
+
 data class CategorySpend(
     @SerializedName("category") val category: String,
     @SerializedName("amount") val amount: Double,
