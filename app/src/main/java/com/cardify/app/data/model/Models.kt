@@ -198,6 +198,19 @@ data class FriendActionData(
     @SerializedName("phone")
     val phone: String
 )
+data class ForgotPasswordRequest(
+    @SerializedName("email")
+    val email: String
+)
+
+data class UpdateLocationRequest(
+    @SerializedName("latitude")
+    val latitude: Double,
+
+    @SerializedName("longitude")
+    val longitude: Double
+)
+
 data class Friend(
     @SerializedName("name") val name: String, // שונה מ-username ל-name
     @SerializedName("phone") val phone: String,

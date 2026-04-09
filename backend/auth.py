@@ -334,6 +334,31 @@ def delete_friend():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@auth_bp.route('/update_location', methods=['POST'])
+@jwt_required()
+def update_location():
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json()
+        latitude = data.get('latitude')
+        longitude = data.get('longitude')
+
+        if latitude is None or longitude is None:
+            return jsonify({"error": "latitude and longitude are required"}), 400
+
+        users_ref.document(user_id).update({
+            "lastLocation": {
+                "latitude": latitude,
+                "longitude": longitude
+            }
+        })
+
+        return jsonify({"success": True, "message": "Location updated"}), 200
+    except Exception as e:
+        print(f"Error updating location: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 @auth_bp.route('/search_user/<phone>', methods=['GET'])
 @jwt_required()
 def search_user(phone):

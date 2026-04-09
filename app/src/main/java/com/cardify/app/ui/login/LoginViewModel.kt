@@ -1,5 +1,6 @@
 package com.cardify.app.ui.login
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -34,7 +35,11 @@ class LoginViewModel : ViewModel() {
         // Make API call
         viewModelScope.launch {
             try {
+                Log.d("LoginViewModel", "Calling API with username=$username")
                 val response = repository.login(username, password)
+                Log.d("LoginViewModel", "Response code: ${response.code()}, successful: ${response.isSuccessful}")
+                Log.d("LoginViewModel", "Response body: ${response.body()}")
+                Log.d("LoginViewModel", "Error body: ${response.errorBody()?.string()}")
 
                 if (response.isSuccessful) {
                     val loginResponse = response.body()
@@ -58,6 +63,7 @@ class LoginViewModel : ViewModel() {
                     )
                 }
             } catch (e: Exception) {
+                Log.e("LoginViewModel", "Exception during login: ${e.javaClass.simpleName}: ${e.message}")
                 _loginState.value = LoginState.Error(
                     "Network error: ${e.localizedMessage}"
                 )

@@ -3,6 +3,7 @@ package com.cardify.app.data.repository
 import com.cardify.app.data.api.RetrofitClient
 import com.cardify.app.data.model.*
 import retrofit2.Response
+import android.util.Log
 
 class AuthRepository {
 
@@ -39,6 +40,34 @@ class AuthRepository {
     /**
      * עדכון נתוני המשתמש
      */
+    suspend fun sendForgotPasswordOtp(email: String): Result<Boolean> {
+        return try {
+            val response = apiService.forgotPassword(ForgotPasswordRequest(email))
+            if (response.isSuccessful) {
+                Result.success(true)
+            } else {
+                val errorMsg = response.body()?.message ?: "Failed to send reset link (${response.code()})"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateLocation(latitude: Double, longitude: Double): Result<Boolean> {
+        return try {
+            val response = apiService.updateLocation(UpdateLocationRequest(latitude, longitude))
+            if (response.isSuccessful) {
+                Result.success(true)
+            } else {
+                Result.failure(Exception("Location update failed: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "updateLocation error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
     suspend fun updateUserData(name: String, email: String, phone: String, pass: String): Result<Boolean> {
         return try {
             val request = UpdateUserRequest(

@@ -55,4 +55,10 @@ interface AuthApiService {
     @POST("auth/update_account")
     suspend fun updateUserDetails(
         @Body request: UpdateUserRequest): Response<UpdateResponse>
+
+    @POST("auth/update_location")
+    suspend fun updateLocation(@Body request: UpdateLocationRequest): Response<UpdateResponse>
+
+    @POST("auth/forgot-password")
+    suspend fun forgotPassword(@Body request: ForgotPasswordRequest): Response<UpdateResponse>
 }

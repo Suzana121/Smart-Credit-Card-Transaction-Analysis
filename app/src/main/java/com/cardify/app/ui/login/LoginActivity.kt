@@ -1,21 +1,46 @@
 package com.cardify.app.ui.login
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import com.cardify.app.MainActivity
 import com.cardify.app.R
 import com.cardify.app.data.UserSession
+import com.cardify.app.data.repository.AuthRepository
 import com.cardify.app.databinding.ActivityLoginBinding
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.material.snackbar.Snackbar
+import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
     private lateinit var viewModel: LoginViewModel
+
+    private val requestLocationPermission = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        // Whether granted or denied, navigate to MainActivity
+        // Location is best-effort — login already succeeded
+        val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (granted) {
+            fetchLocationAndProceed()
+        } else {
+            startMainActivity()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,11 +71,9 @@ class LoginActivity : AppCompatActivity() {
 
     private fun setupUI() {
         binding.btnLogin?.setOnClickListener {
-            val emailField = binding.etEmail as? android.widget.EditText
-            val passwordField = binding.etPassword as? android.widget.EditText
-
-            val email = emailField?.text?.toString()?.trim() ?: ""
-            val password = passwordField?.text?.toString() ?: ""
+            Toast.makeText(this, "Button clicked!", Toast.LENGTH_SHORT).show()
+            val email = findViewById<android.widget.EditText>(R.id.etEmail)?.text?.toString()?.trim() ?: ""
+            val password = findViewById<android.widget.EditText>(R.id.etPassword)?.text?.toString() ?: ""
 
             if (email.isNotEmpty() && password.isNotEmpty()) {
                 viewModel.login(email, password)
@@ -93,7 +116,87 @@ class LoginActivity : AppCompatActivity() {
         }
 
         Toast.makeText(this, "Welcome back, ${UserSession.username}!", Toast.LENGTH_SHORT).show()
-        startMainActivity()
+
+        // Try to capture location before navigating
+        requestLocationOrProceed()
+    }
+
+    private fun requestLocationOrProceed() {
+        val fineGranted = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        val coarseGranted = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        when {
+            fineGranted || coarseGranted -> fetchLocationAndProceed()
+            else -> requestLocationPermission.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
+    }
+
+    private fun fetchLocationAndProceed() {
+        val fusedClient = LocationServices.getFusedLocationProviderClient(this)
+        try {
+            fusedClient.lastLocation
+                .addOnSuccessListener { location ->
+                    if (location != null) {
+                        android.util.Log.d("LocationDebug", "lastLocation: lat=${location.latitude}, lng=${location.longitude}")
+                        lifecycleScope.launch {
+                            val result = AuthRepository().updateLocation(location.latitude, location.longitude)
+                            if (result.isSuccess) android.util.Log.d("LocationDebug", "updateLocation succeeded")
+                            else android.util.Log.e("LocationDebug", "updateLocation failed: ${result.exceptionOrNull()?.message}")
+                            startMainActivity()
+                        }
+                    } else {
+                        android.util.Log.d("LocationDebug", "lastLocation is null, trying getCurrentLocation...")
+                        fetchCurrentLocationAndProceed(fusedClient)
+                    }
+                }
+                .addOnFailureListener { e ->
+                    android.util.Log.e("LocationDebug", "lastLocation failed: ${e.message}, trying getCurrentLocation...")
+                    fetchCurrentLocationAndProceed(fusedClient)
+                }
+        } catch (e: SecurityException) {
+            android.util.Log.e("LocationDebug", "SecurityException: ${e.message}")
+            startMainActivity()
+        }
+    }
+
+    private fun fetchCurrentLocationAndProceed(fusedClient: FusedLocationProviderClient) {
+        try {
+            val cts = CancellationTokenSource()
+            android.os.Handler(mainLooper).postDelayed({ cts.cancel() }, 10_000L)
+
+            fusedClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, cts.token)
+                .addOnSuccessListener { location ->
+                    if (location != null) {
+                        android.util.Log.d("LocationDebug", "getCurrentLocation: lat=${location.latitude}, lng=${location.longitude}")
+                    } else {
+                        android.util.Log.d("LocationDebug", "getCurrentLocation also returned null, skipping")
+                    }
+                    lifecycleScope.launch {
+                        if (location != null) {
+                            val result = AuthRepository().updateLocation(location.latitude, location.longitude)
+                            if (result.isSuccess) android.util.Log.d("LocationDebug", "updateLocation succeeded")
+                            else android.util.Log.e("LocationDebug", "updateLocation failed: ${result.exceptionOrNull()?.message}")
+                        }
+                        startMainActivity()
+                    }
+                }
+                .addOnFailureListener { e ->
+                    android.util.Log.e("LocationDebug", "getCurrentLocation failed: ${e.message}")
+                    startMainActivity()
+                }
+        } catch (e: SecurityException) {
+            android.util.Log.e("LocationDebug", "SecurityException in getCurrentLocation: ${e.message}")
+            startMainActivity()
+        }
     }
 
     // פונקציית עזר למעבר למסך הראשי וניקוי המחסנית
