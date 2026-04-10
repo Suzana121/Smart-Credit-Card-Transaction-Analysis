@@ -9,6 +9,7 @@ import com.cardify.app.data.UserSession
 import com.cardify.app.data.api.RetrofitClient
 import com.cardify.app.data.model.*
 import com.cardify.app.data.repository.AuthRepository
+import com.cardify.app.utils.PreferencesManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -149,10 +150,15 @@ class AccountViewModel(
         }
     }
 
+    // התיקון הקריטי כאן: שימוש ב-PreferencesManager וב-UserSession.clear()
     fun logout(context: Context, onLogoutSuccess: () -> Unit) {
+        // 1. ניקוי ה-RAM
         UserSession.clear()
-        val prefs = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
-        prefs.edit().clear().apply()
+
+        // 2. ניקוי ה-Storage (הדיסק) בצורה אחידה
+        PreferencesManager.getInstance(context).clearAll()
+
+        // 3. חזרה למסך ה-Login
         onLogoutSuccess()
     }
 

@@ -19,16 +19,19 @@ object RetrofitClient {
         .setLenient()
         .create()
 
-    // ה-Interceptor שמוסיף את הטוקן אוטומטית לכל Header
+    // התיקון הקריטי: המשיכה של הטוקן מתבצעת בתוך ה-lambda של ה-Interceptor
     private val authInterceptor = Interceptor { chain ->
         val originalRequest = chain.request()
-        val token = UserSession.token
 
-        val newRequest = if (!token.isNullOrEmpty()) {
+        // כאן אנחנו מוודאים שכל בקשה לוקחת את הטוקן הכי עדכני מ-UserSession
+        val currentToken = UserSession.token
+
+        val newRequest = if (!currentToken.isNullOrEmpty()) {
             originalRequest.newBuilder()
-                .header("Authorization", "Bearer $token")
+                .header("Authorization", "Bearer $currentToken")
                 .build()
         } else {
+            // אם אין טוקן (למשל לפני לוגין), שולחים את הבקשה המקורית
             originalRequest
         }
         chain.proceed(newRequest)
@@ -40,7 +43,7 @@ object RetrofitClient {
 
     private val okHttpClient = OkHttpClient.Builder()
         .addInterceptor(loggingInterceptor)
-        .addInterceptor(authInterceptor)
+        .addInterceptor(authInterceptor) // ה-Interceptor המתוקן כאן
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
@@ -49,7 +52,7 @@ object RetrofitClient {
     private val retrofit = Retrofit.Builder()
         .baseUrl(BASE_URL)
         .client(okHttpClient)
-        .addConverterFactory(GsonConverterFactory.create(gson)) // הוספת ה-GSON המותאם כאן
+        .addConverterFactory(GsonConverterFactory.create(gson))
         .build()
 
     val apiService: AuthApiService = retrofit.create(AuthApiService::class.java)

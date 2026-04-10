@@ -328,28 +328,35 @@ fun CleanTopBar(onAccountClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .height(100.dp)
-            .background(CardifyColors.DarkGreen)
+            .background(com.cardify.app.ui.home.CardifyColors.DarkGreen)
             .padding(horizontal = 24.dp)
             .padding(top = 40.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            "Cardify",
-            color = Color.White,
+            text = "Cardify",
+            color = androidx.compose.ui.graphics.Color.White,
             fontSize = 42.sp,
-            fontFamily = FontFamily(Font(R.font.kelly_slab))
+            fontFamily = androidx.compose.ui.text.font.FontFamily(androidx.compose.ui.text.font.Font(com.cardify.app.R.font.kelly_slab))
         )
+
         IconButton(onClick = {
-            com.cardify.app.utils.PreferencesManager.getInstance(context).clearAll()
-            UserSession.id = null
-            UserSession.username = null
+            // התיקון שרצינו: איפוס מלא
+            val prefs = com.cardify.app.utils.PreferencesManager.getInstance(context)
+            prefs.clearAll()
+
+            com.cardify.app.data.UserSession.token = null
+            com.cardify.app.data.UserSession.username = null
+            com.cardify.app.data.UserSession.id = null
+
+            // מעבר למסך ההתחברות
             onAccountClick()
         }) {
             Icon(
-                Icons.Default.AccountCircle,
-                "Logout",
-                tint = Color.White,
+                imageVector = androidx.compose.material.icons.Icons.Default.AccountCircle,
+                contentDescription = "Logout",
+                tint = androidx.compose.ui.graphics.Color.White,
                 modifier = Modifier.size(34.dp)
             )
         }
