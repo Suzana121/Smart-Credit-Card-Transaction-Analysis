@@ -1,0 +1,19 @@
+[
+  "amount_ils",
+  "hour",
+  "day_of_week",
+  "is_night",
+  "is_foreign_currency",
+  "currency_risk",
+  "amount_vs_cat_mean",
+  "cat_אופנה",
+  "cat_אחר",
+  "cat_דלק",
+  "cat_חינוך",
+  "cat_חשמל",
+  "cat_מסעדות",
+  "cat_סופרמרקט",
+  "cat_פארם",
+  "cat_פנאי",
+  "cat_תחבורה"
+]

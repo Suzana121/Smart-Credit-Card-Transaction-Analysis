@@ -13,14 +13,13 @@ def _serialize_share(doc, direction):
     ts = data.get('date')
     date_str = ts.isoformat() if hasattr(ts, 'isoformat') else str(ts) if ts else ''
 
-    # מחלצים את הטלפון של הצד השני להצגה כשם זמני
     friend_phone = data.get('sharedWith') if direction == 'outgoing' else data.get('sharedBy')
 
     share = {
         'id': doc.id,
         'sharedBy': data.get('sharedBy', ''),
         'sharedWith': data.get('sharedWith', ''),
-        'friendName': friend_phone, # באנדרואיד נציג את זה ככותרת
+        'friendName': friend_phone,
         'transactionId': data.get('transactionId', ''),
         'date': date_str,
         'direction': direction,
@@ -59,14 +58,41 @@ def get_transactions():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# --- עדכון סטטוס עסקה ---
+@upload_bp.route('/transactions/<transaction_id>', methods=['PUT'])
+@jwt_required()
+def update_transaction_status(transaction_id):
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json()
+        new_status = data.get('status')
+
+        if not new_status or new_status not in ['REGULAR', 'IRREGULAR']:
+            return jsonify({"error": "Invalid status"}), 400
+
+        doc_ref = db.collection('transactions').document(transaction_id)
+        doc = doc_ref.get()
+
+        if not doc.exists:
+            return jsonify({"error": "Transaction not found"}), 404
+
+        if doc.to_dict().get('user_id') != user_id:
+            return jsonify({"error": "Unauthorized"}), 403
+
+        doc_ref.update({"status": new_status})
+        updated = doc_ref.get().to_dict()
+        updated['id'] = transaction_id
+
+        return jsonify(updated), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # --- שליפת היסטוריית שיתופים (Wallet) ---
 @upload_bp.route('/shares', methods=['GET'])
 @jwt_required()
 def get_shares():
     try:
         user_id = get_jwt_identity()
-
-        # שליפת הטלפון של המשתמשת מה-Firestore
         user_doc = db.collection('users').document(user_id).get()
         if not user_doc.exists:
             return jsonify({"error": "User not found"}), 404
@@ -74,12 +100,10 @@ def get_shares():
         my_phone = user_doc.to_dict().get('phone', '')
         shares = []
 
-        # שיתופים ששלחתי
         outgoing = db.collection('shares').where('sharedBy', '==', my_phone).stream()
         for doc in outgoing:
             shares.append(_serialize_share(doc, 'outgoing'))
 
-        # שיתופים שקיבלתי
         incoming = db.collection('shares').where('sharedWith', '==', my_phone).stream()
         for doc in incoming:
             shares.append(_serialize_share(doc, 'incoming'))
@@ -88,21 +112,19 @@ def get_shares():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# --- יצירת שיתוף חדש (הפונקציה שהאנדרואיד קורא לה) ---
+# --- יצירת שיתוף חדש ---
 @upload_bp.route('/shares', methods=['POST'])
 @jwt_required()
 def post_share():
     try:
         current_user_id = get_jwt_identity()
         data = request.get_json()
-
         shared_with_phone = data.get('sharedWith')
         transaction_id = data.get('transactionId')
 
         if not shared_with_phone or not transaction_id:
             return jsonify({"error": "Missing sharedWith or transactionId"}), 400
 
-        # השגת מספר הטלפון של השולחת
         user_doc = db.collection('users').document(current_user_id).get()
         sender_phone = user_doc.to_dict().get('phone', '')
 
@@ -118,7 +140,7 @@ def post_share():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# --- העלאת קובץ אקסל ועיבודו ---
+# --- העלאת קובץ אקסל ועיבודו (גרסה ללא ML זמנית) ---
 @upload_bp.route('/upload', methods=['POST'])
 @jwt_required()
 def upload_file():
@@ -140,7 +162,7 @@ def upload_file():
 
             amount_val = row.get('סכום חיוב') or row.get('Amount') or row.get('סכום')
             date_val = row.get('תאריך עסקה') or row.get('Date') or row.get('תאריך')
-            category_val = row.get('category', 'כללי')
+            category_val = row.get('category', 'General')
 
             doc_ref = db.collection('transactions').document()
             record = {
@@ -161,4 +183,5 @@ def upload_file():
         batch.commit()
         return jsonify({"message": f"Successfully saved {count} transactions."}), 200
     except Exception as e:
+        print(f"DEBUG: Upload error: {e}")
         return jsonify({"error": str(e)}), 500

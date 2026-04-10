@@ -5,6 +5,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cardify.app.data.api.RetrofitClient
+import com.cardify.app.data.model.Friend
+import com.cardify.app.data.model.ShareRequest
 import com.cardify.app.data.model.Transaction
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +34,12 @@ class HomeViewModel : ViewModel() {
     private val _uploadMessage = MutableStateFlow<String?>(null)
     val uploadMessage: StateFlow<String?> = _uploadMessage.asStateFlow()
 
+    private val _friends = MutableStateFlow<List<Friend>>(emptyList())
+    val friends: StateFlow<List<Friend>> = _friends.asStateFlow()
+
+    private val _isSendingShare = MutableStateFlow(false)
+    val isSendingShare: StateFlow<Boolean> = _isSendingShare.asStateFlow()
+
     fun fetchTransactions() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -48,6 +56,35 @@ class HomeViewModel : ViewModel() {
         }
     }
 
+    fun loadFriends() {
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.getFriends()
+                if (response.isSuccessful) {
+                    _friends.value = response.body() ?: emptyList()
+                }
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error loading friends", e)
+            }
+        }
+    }
+
+    fun sendShare(friendPhone: String, transactionId: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _isSendingShare.value = true
+            try {
+                val response = RetrofitClient.apiService.postShare(
+                    ShareRequest(friendPhone, transactionId)
+                )
+                if (response.isSuccessful) onSuccess()
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error sending share", e)
+            } finally {
+                _isSendingShare.value = false
+            }
+        }
+    }
+
     fun uploadFile(uri: Uri, context: Context) {
         viewModelScope.launch {
             _isUploading.value = true
@@ -55,9 +92,11 @@ class HomeViewModel : ViewModel() {
             try {
                 val file = getFileFromUri(context, uri)
                 if (file != null) {
-                    val requestFile = file.asRequestBody("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet".toMediaTypeOrNull())
+                    val requestFile = file.asRequestBody(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                            .toMediaTypeOrNull()
+                    )
                     val body = MultipartBody.Part.createFormData("file", file.name, requestFile)
-
                     val response = RetrofitClient.apiService.uploadFile(body)
                     if (response.isSuccessful) {
                         _uploadMessage.value = "Success! Data processed."
@@ -77,26 +116,19 @@ class HomeViewModel : ViewModel() {
 
     fun updateTransactionStatus(transactionId: String, newStatus: String) {
         val previousList = _transactions.value
-        // Optimistic update — reflect the change in the UI immediately
         _transactions.value = previousList.map { t ->
             if (t.id == transactionId) t.copy(status = newStatus) else t
         }
         viewModelScope.launch {
             try {
-                Log.d("HomeViewModel", "PUT /api/transactions/$transactionId  status=$newStatus")
                 val response = RetrofitClient.apiService.updateTransactionStatus(
                     transactionId, mapOf("status" to newStatus)
                 )
                 if (!response.isSuccessful) {
-                    // Revert if the backend rejected the update
                     _transactions.value = previousList
-                    val errorBody = response.errorBody()?.string() ?: "empty"
-                    Log.e("HomeViewModel", "Update status failed: HTTP ${response.code()} | id=$transactionId | body=$errorBody")
-                } else {
-                    Log.d("HomeViewModel", "Update status success: id=$transactionId -> $newStatus")
+                    Log.e("HomeViewModel", "Update status failed: HTTP ${response.code()}")
                 }
             } catch (e: Exception) {
-                // Revert on network error
                 _transactions.value = previousList
                 Log.e("HomeViewModel", "Update status error", e)
             }

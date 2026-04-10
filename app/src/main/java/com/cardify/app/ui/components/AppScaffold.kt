@@ -32,7 +32,7 @@ sealed class NavigationItem(
 ) {
     object Home         : NavigationItem("home",     Icons.Default.Home,        "Home")
     object SharedInfo   : NavigationItem("wallet",   Icons.Default.Description, "Shared Info")
-    object Transactions : NavigationItem("activity", Icons.Default.List,        "Transactions")
+    object Transactions : NavigationItem("transactions", Icons.Default.List,        "Transactions")
     object Stats        : NavigationItem("stats",    Icons.Default.BarChart,    "Stats")
     object Account      : NavigationItem("account",  Icons.Default.Person,      "Account")
 }

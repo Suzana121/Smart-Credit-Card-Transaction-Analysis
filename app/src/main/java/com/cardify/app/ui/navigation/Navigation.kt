@@ -11,6 +11,7 @@ import com.cardify.app.ui.account.AccountScreen
 import com.cardify.app.ui.edit_account.EditAccountScreen
 import com.cardify.app.ui.shared_info.SharedInfoScreen
 import com.cardify.app.ui.shared_info.ShareWithFriendsScreen
+import com.cardify.app.ui.transactions.TransactionsScreen
 
 @Composable
 fun AppNavigation(
@@ -64,6 +65,19 @@ fun AppNavigation(
             SharedInfoScreen(
                 onNavigate = { route ->
                     if (route != "wallet") {
+                        navController.navigate(route) {
+                            popUpTo("home") { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    }
+                }
+            )
+        }
+
+        composable("transactions") {
+            TransactionsScreen(
+                onNavigate = { route ->
+                    if (route != "transactions") {
                         navController.navigate(route) {
                             popUpTo("home") { inclusive = false }
                             launchSingleTop = true

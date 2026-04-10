@@ -16,6 +16,7 @@ import com.cardify.app.R
 import com.cardify.app.data.UserSession
 import com.cardify.app.data.repository.AuthRepository
 import com.cardify.app.databinding.ActivityLoginBinding
+import com.cardify.app.utils.PreferencesManager
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -31,8 +32,6 @@ class LoginActivity : AppCompatActivity() {
     private val requestLocationPermission = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        // Whether granted or denied, navigate to MainActivity
-        // Location is best-effort — login already succeeded
         val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
                 permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
         if (granted) {
@@ -45,21 +44,19 @@ class LoginActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. בדיקה אם המשתמש כבר מחובר (לפני ה-setContentView)
-        val prefs = getSharedPreferences("auth_prefs", MODE_PRIVATE)
-        val savedToken = prefs.getString("token", null)
+        // בדיקה אם המשתמש כבר מחובר - עכשיו דרך PreferencesManager
+        val prefs = PreferencesManager.getInstance(this)
+        val savedToken = prefs.getToken()
 
         if (savedToken != null) {
-            // שחזור הנתונים ל-UserSession לשימוש בשאר האפליקציה
             UserSession.token = savedToken
-            UserSession.username = prefs.getString("username", "User") ?: "User"
-
-            // מעבר מהיר למסך הבית
+            UserSession.username = prefs.getUserName() ?: "User"
+            UserSession.id = prefs.getUserId()
+            UserSession.email = prefs.getUserEmail()
             startMainActivity()
-            return // עוצר את המשך ה-onCreate
+            return
         }
 
-        // 2. אם לא מחובר, ממשיכים כרגיל בטעינת המסך
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -102,22 +99,24 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun handleLoginSuccess(state: LoginState.Success) {
-        // שמירה לזיכרון המיידי (UserSession)
-        UserSession.token = state.response.token
-        UserSession.username = state.response.user?.name ?: "User"
+        val token = state.response.token ?: return
+        val name = state.response.user?.name ?: "User"
+        val userId = state.response.user?.id ?: ""
+        val email = state.response.user?.email ?: ""
 
-        // שמירה לדיסק (Persistent Storage)
-        val prefs = getSharedPreferences("auth_prefs", MODE_PRIVATE)
-        prefs.edit().apply {
-            putString("token", state.response.token)
-            putString("username", UserSession.username)
-            putString("user_id", state.response.user?.id)
-            apply()
-        }
+        // שמירה ל-UserSession (in-memory)
+        UserSession.token = token
+        UserSession.username = name
+        UserSession.id = userId
+        UserSession.email = email
 
-        Toast.makeText(this, "Welcome back, ${UserSession.username}!", Toast.LENGTH_SHORT).show()
+        // שמירה ל-PreferencesManager (persistent) - מקום אחד בלבד!
+        val prefs = PreferencesManager.getInstance(this)
+        prefs.saveToken(token)
+        prefs.saveUserData(userId, email, name)
 
-        // Try to capture location before navigating
+        Toast.makeText(this, "Welcome back, $name!", Toast.LENGTH_SHORT).show()
+
         requestLocationOrProceed()
     }
 
@@ -159,7 +158,7 @@ class LoginActivity : AppCompatActivity() {
                     }
                 }
                 .addOnFailureListener { e ->
-                    android.util.Log.e("LocationDebug", "lastLocation failed: ${e.message}, trying getCurrentLocation...")
+                    android.util.Log.e("LocationDebug", "lastLocation failed: ${e.message}")
                     fetchCurrentLocationAndProceed(fusedClient)
                 }
         } catch (e: SecurityException) {
@@ -175,16 +174,14 @@ class LoginActivity : AppCompatActivity() {
 
             fusedClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, cts.token)
                 .addOnSuccessListener { location ->
-                    if (location != null) {
-                        android.util.Log.d("LocationDebug", "getCurrentLocation: lat=${location.latitude}, lng=${location.longitude}")
-                    } else {
-                        android.util.Log.d("LocationDebug", "getCurrentLocation also returned null, skipping")
-                    }
                     lifecycleScope.launch {
                         if (location != null) {
+                            android.util.Log.d("LocationDebug", "getCurrentLocation: lat=${location.latitude}, lng=${location.longitude}")
                             val result = AuthRepository().updateLocation(location.latitude, location.longitude)
                             if (result.isSuccess) android.util.Log.d("LocationDebug", "updateLocation succeeded")
                             else android.util.Log.e("LocationDebug", "updateLocation failed: ${result.exceptionOrNull()?.message}")
+                        } else {
+                            android.util.Log.d("LocationDebug", "getCurrentLocation returned null")
                         }
                         startMainActivity()
                     }
@@ -194,12 +191,11 @@ class LoginActivity : AppCompatActivity() {
                     startMainActivity()
                 }
         } catch (e: SecurityException) {
-            android.util.Log.e("LocationDebug", "SecurityException in getCurrentLocation: ${e.message}")
+            android.util.Log.e("LocationDebug", "SecurityException: ${e.message}")
             startMainActivity()
         }
     }
 
-    // פונקציית עזר למעבר למסך הראשי וניקוי המחסנית
     private fun startMainActivity() {
         val intent = Intent(this, MainActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK

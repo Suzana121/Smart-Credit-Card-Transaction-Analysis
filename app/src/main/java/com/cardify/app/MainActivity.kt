@@ -11,27 +11,27 @@ import com.cardify.app.data.UserSession
 import com.cardify.app.ui.navigation.AppNavigation
 import com.cardify.app.ui.theme.CardifyTheme
 import com.cardify.app.ui.login.LoginActivity
+import com.cardify.app.utils.PreferencesManager
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // בדיקה ב-auth_prefs
-        val prefs = getSharedPreferences("auth_prefs", MODE_PRIVATE)
-        val savedToken = prefs.getString("token", null)
+        // עכשיו קוראים מ-PreferencesManager במקום auth_prefs ישירות
+        val prefs = PreferencesManager.getInstance(this)
+        val savedToken = prefs.getToken()
 
         if (savedToken == null) {
-            // אם אין טוקן - עוברים ללוגין וסוגרים את MainActivity
-            val intent = Intent(this, LoginActivity::class.java)
-            startActivity(intent)
+            startActivity(Intent(this, LoginActivity::class.java))
             finish()
             return
         }
 
-        // אם יש טוקן - טוענים נתונים ומציגים את ה-Compose
+        // טוענים את כל הנתונים מ-PreferencesManager
         UserSession.token = savedToken
-        UserSession.username = prefs.getString("username", "User")
-        UserSession.id = prefs.getString("user_id", null)
+        UserSession.username = prefs.getUserName()
+        UserSession.id = prefs.getUserId()
+        UserSession.email = prefs.getUserEmail()
 
         setContent {
             CardifyTheme {
