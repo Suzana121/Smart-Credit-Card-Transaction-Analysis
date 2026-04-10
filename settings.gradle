@@ -10,12 +10,13 @@ pluginManagement {
     }
 }
 
+// settings.gradle.kts
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        // המאגרים ליחסי התלות (הספריות שהאפליקציה משתמשת בהן)
         google()
-        mavenCentral()
+        mavenCentral() // חובה שיופיע לפני jitpack
+        maven { url 'https://jitpack.io' }
     }
 }
 

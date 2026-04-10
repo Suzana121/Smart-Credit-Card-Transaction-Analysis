@@ -79,7 +79,6 @@ class AuthRepository {
 
             // ודאי שב-AuthApiService קראת לפונקציית העדכון בשם הזה
             // אם לא הוספת אותה ל-Interface, כדאי להוסיף:
-            // @POST("auth/update") suspend fun updateUserDetails(@Body request: UpdateUserRequest): Response<UpdateResponse>
             val response = apiService.updateUserDetails(request)
 
             if (response.isSuccessful) {
@@ -91,4 +90,5 @@ class AuthRepository {
             Result.failure(e)
         }
     }
+
 }

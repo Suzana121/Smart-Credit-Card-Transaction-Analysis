@@ -195,6 +195,7 @@ def get_all_friendships():
         for doc in sent_query:
             f_data = doc.to_dict()
             friend_id = f_data.get('friend_id')
+
             friend_doc = users_ref.document(friend_id).get()
             if friend_doc.exists:
                 u_info = friend_doc.to_dict()
@@ -307,32 +308,38 @@ def confirm_friend():
         return jsonify({"error": str(e)}), 500
 
 
-@auth_bp.route('/delete-friend', methods=['POST'])
+@auth_bp.route('/delete-friend-smart', methods=['POST'])
 @jwt_required()
-def delete_friend():
-    try:
-        data = request.get_json()
-        friend_phone = data.get('phone')
-        current_user_id = get_jwt_identity()
+def delete_friend_smart():
+    data = request.get_json()
+    friend_phone = data.get('phone')
+    delete_sent = data.get('delete_sent', False)
+    delete_received = data.get('delete_received', False)
+    current_user_id = get_jwt_identity()
 
-        # מוצאים את ה-ID של החבר לפי הטלפון
-        friend_query = users_ref.where('phone', '==', friend_phone).limit(1).get()
-        if not friend_query:
-            return jsonify({"error": "User not found"}), 404
+    # 1. מציאת ה-ID של החבר
+    friend_query = db.collection('users').where('phone', '==', friend_phone).limit(1).get()
+    if not friend_query: return jsonify({"error": "Not found"}), 404
+    friend_id = friend_query[0].id
 
-        friend_id = friend_query[0].id
+    # 2. מחיקת הקשר ב-friendships (משני הצדדים)
+    friendship_docs = db.collection('friendships') \
+        .where('user_id', 'in', [current_user_id, friend_id]) \
+        .where('friend_id', 'in', [current_user_id, friend_id]).get()
+    for doc in friendship_docs: doc.reference.delete()
 
-        # מחפשים את מסמך החברות (משני הצדדים לביטחון) ומוחקים
-        friendship_docs = db.collection('friendships') \
-            .where('user_id', 'in', [current_user_id, friend_id]) \
-            .where('friend_id', 'in', [current_user_id, friend_id]).get()
+    # 3. מחיקה חכמה של שיתופים (Shares)
+    if delete_sent:
+        # מוחק קבצים שאני שלחתי אליו
+        sent_shares = db.collection('shares').where('sender_id', '==', current_user_id).where('receiver_id', '==', friend_id).get()
+        for doc in sent_shares: doc.reference.delete()
 
-        for doc in friendship_docs:
-            doc.reference.delete()
+    if delete_received:
+        # מוחק קבצים שהוא שלח אלי
+        received_shares = db.collection('shares').where('sender_id', '==', friend_id).where('receiver_id', '==', current_user_id).get()
+        for doc in received_shares: doc.reference.delete()
 
-        return jsonify({"success": True, "message": "Friend deleted"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify({"success": True}), 200
 
 @auth_bp.route('/update_location', methods=['POST'])
 @jwt_required()
@@ -362,12 +369,79 @@ def update_location():
 @auth_bp.route('/search_user/<phone>', methods=['GET'])
 @jwt_required()
 def search_user(phone):
-    user_doc = db.collection('users').where('phone', '==', phone).limit(1).get()
-    if not user_doc:
-        return jsonify({"error": "User not found"}), 404
+    try:
+        # חיפוש המשתמש ב-Firestore לפי טלפון
+        user_docs = users_ref.where('phone', '==', phone).limit(1).get()
 
-    user_data = user_doc[0].to_dict()
+        if not user_docs:
+            return jsonify({"error": "User not found"}), 404
+
+        user_data = user_docs[0].to_dict()
+        user_id = user_docs[0].id # חשוב לשליחת בקשת החברות בהמשך
+
+        return jsonify({
+            "id": user_id,
+            "username": user_data.get('username'),
+            "phone": user_data.get('phone'),
+            "profile_image": user_data.get('profile_image', "https://www.w3schools.com/howto/img_avatar.png")
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# הגדרת הקטגוריות והמילים בצורה נקייה
+# המילון המצוין שלך
+RAW_CATEGORIES = {
+    "Food": ["מסעדה", "מקדונלד", "קפה", "פיצה", "סופר", "ארומה", "וולט", "תן ביס", "שופרסל", "יוחננוף", "wolt", "super", "pizza","רמי לוי","קונדיטוריה","המבורגר","בורגר"],
+    "Health": ["פארם", "pharm", "מרפאה", "כללית", "מכבי", "doctor", "בי", "be", "בית מרקחת","גוד פארם"],
+    "Shopping": ["זארה", "zara", "h&m", "אמזון", "amazon", "ksp", "אייבורי", "עזריאלי", "shein", "שיין","הלבשה"],
+    "Transport": ["דלק", "פז", "סונול", "דור אלון", "paz", "sonol", "רכבת", "אוטובוס", "מונית", "taxi", "gettaxi", "פנגו", "pango","תחבורה"],
+    "Education": ["אוניברסיטה", "university", "college", "טכניון", "לימודים","המכללה","קורס"]
+}
+
+def classify_transaction(description):
+    if not description:
+        return "Other"
+    desc_lowered = description.lower()
+    for category, keywords in RAW_CATEGORIES.items():
+        for keyword in keywords:
+            if keyword.lower() in desc_lowered:
+                return category
+    return "Other"
+
+@auth_bp.route('/stats/<month>', methods=['GET'])
+@jwt_required()
+def get_monthly_stats(month):
+    user_id = get_jwt_identity()
+    transactions_query = db.collection('transactions').where('user_id', '==', user_id).get()
+
+    category_map = {}
+    total_spend = 0
+
+    month_to_num = {"Jan":"01","Feb":"02","Mar":"03","Apr":"04","May":"05","Jun":"06",
+                    "Jul":"07","Aug":"08","Sep":"09","Oct":"10","Nov":"11","Dec":"12"}
+    target_month = month_to_num.get(month)
+
+    for doc in transactions_query:
+        t = doc.to_dict()
+        date_str = t.get('date', "")
+
+        if date_str and date_str.split('-')[1] == target_month:
+            amt = float(t.get('amount', 0))
+
+            # תיקון כאן: קריאה לשם הפונקציה הנכון
+            raw_name = t.get('businessName') or t.get('category') or ""
+            clean_category = classify_transaction(raw_name)
+
+            total_spend += amt
+            category_map[clean_category] = category_map.get(clean_category, 0) + amt
+
+    expenses_by_category = [
+        {"category": name, "amount": amt}
+        for name, amt in category_map.items()
+    ]
+
     return jsonify({
-        "username": user_data.get('username'),
-        "phone": user_data.get('phone')
+        "totalSpend": total_spend,
+        "expensesByCategory": expenses_by_category
     }), 200

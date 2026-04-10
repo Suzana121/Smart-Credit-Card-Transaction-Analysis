@@ -147,6 +147,7 @@ data class StatsResponse(
     @SerializedName("monthlyExpenses") val monthlyExpenses: List<MonthlySpend>
 )
 
+
 data class CategorySpend(
     @SerializedName("category") val category: String,
     @SerializedName("amount") val amount: Double,
@@ -218,4 +219,16 @@ data class Friend(
     @SerializedName("photoUrl") val photoUrl: String? = null
 ) {
     val photoResource: Int get() = com.cardify.app.R.drawable.user
+    val isPending: Boolean get() = status == "sent_pending"
 }
+data class UserProfile(
+    val id: String,
+    val name: String,
+    val phone: String
+)
+data class UserSearchResponse(
+    val id: String,
+    val username: String,
+    val phone: String,
+    val profile_image: String
+)
