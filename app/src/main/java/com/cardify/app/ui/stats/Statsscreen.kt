@@ -1,9 +1,9 @@
 package com.cardify.app.ui.stats
 
+import android.content.Context
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,19 +18,20 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.sp // לשימוש בטקסט של Compose
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.cardify.app.data.model.StatsResponse // ודאי שה-Import תואם למיקום המודל שלך
+import com.cardify.app.data.model.StatsResponse
 import com.cardify.app.ui.account.teal
 import com.cardify.app.ui.components.AppScaffold
-import com.cardify.app.ui.components.TransactionItem
-import com.cardify.app.ui.components.TransactionRow
-import com.cardify.app.ui.components.TransactionRowVariant
+
+import com.cardify.app.R
+
 
 // --- עזרי תצוגה ---
 fun fullMonthName(month: String): String = when (month) {
@@ -41,15 +42,14 @@ fun fullMonthName(month: String): String = when (month) {
     else -> month
 }
 
-// פונקציית עזר להתאמת צבעים לקטגוריות מהשרת
-// בתוך Statsscreen.kt
-fun getCategoryColor(categoryName: String?): Color { // שינוי ל-String? מאפשר לקבל null בלי לקרוס
-    return when (categoryName) {
-        "מסעדות, קפה וברים" -> Color(0xFFFF9800)
-        "קניות" -> Color(0xFF2196F3)
-        "בילוי ופנאי" -> Color(0xFF9C27B0)
-        // הוסיפי כאן את שאר הקטגוריות שלך
-        else -> Color.Gray // צבע ברירת מחדל לכל מה שלא מזוהה או null
+fun getCategoryColor(categoryName: String?): Color {
+    return when (categoryName?.lowercase()) {
+        "food" -> Color(0xFF006769)
+        "health" -> Color(0xFF40A578)
+        "shopping" -> Color(0xFF9DDE8B)
+        "transport" -> Color(0xFFE6FF94)
+        "education" -> Color(0xFF2196F3)
+        else -> Color(0xFF9E9E9E) // צבע אפור לקטגוריית "Other"
     }
 }
 
@@ -77,7 +77,6 @@ fun StatsScreen(
                     }
                 }
                 is StatsUiState.Success -> {
-                    // העברת אובייקט ה-Response המלא
                     StatsContent(state.data, selectedMonth, viewModel)
                 }
             }
@@ -167,8 +166,6 @@ fun TotalSpendSection(
                 Column {
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFF0F0F0))
                     Text("Suspicious Activities", color = Color.Red, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-
-                    // במידה ותוסיפי רשימת עסקאות למודל ה-Response בעתיד, תוכלי להציג אותן כאן
                     if (data.irregularTransactionsCount == 0) {
                         Text("No suspicious activities found.", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(top = 8.dp))
                     }
@@ -183,51 +180,44 @@ fun DonutChartSection(data: StatsResponse) {
     val categories = data.expensesByCategory
     val total = data.totalSpend
 
-    Surface(
+    AndroidView(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, Color(0xFFDADBDD))
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text("Expenses by Category", fontWeight = FontWeight.Bold)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                if (total > 0) {
-                    Canvas(modifier = Modifier.size(140.dp)) {
-                        var startAngle = -90f
-                        categories.forEach { cat ->
-                            val sweep = (cat.amount / total).toFloat() * 360f
+            .height(350.dp) // 1. הגדלנו את הגובה הכולל
+            .padding(vertical = 8.dp),
+        factory = { ctx ->
+            val view = android.view.LayoutInflater.from(ctx)
+                .inflate(R.layout.pie_chart_layout, null) as ir.mahozad.android.PieChart
 
-                            // שימוש ב-categoryName ובדיקת null בטוחה
-                            val color = getCategoryColor(cat.category ?: "Other")
+            view.apply {
+                holeRatio = 0f
+                labelsColor = android.graphics.Color.WHITE
+                labelType = ir.mahozad.android.PieChart.LabelType.INSIDE
 
-                            drawArc(
-                                color = color,
-                                startAngle = startAngle,
-                                sweepAngle = sweep,
-                                useCenter = false,
-                                style = Stroke(30f),
-                                size = Size(size.width, size.height)
-                            )
-                            startAngle += sweep
-                        }
-                    }
+                isAnimationEnabled = true
+                isLegendEnabled = false
+
+                // 2. הקטנו את ה-Padding כדי שהפאי עצמו יגדל
+                val p = 16
+                setPadding(p, p, p, p)
+            }
+            view
+        },
+        update = { view ->
+            if (total > 0) {
+                view.slices = categories.map { cat ->
+                    ir.mahozad.android.PieChart.Slice(
+                        fraction = (cat.amount / total).toFloat(),
+                        color = getCategoryColor(cat.category).toArgb(),
+                        label = cat.category ?: ""
+                    )
                 }
-                Text("₪${total.toInt()}", fontWeight = FontWeight.Bold)
             }
         }
-    }
+    )
 }
 @Composable
 fun SimpleInsights(month: String, data: StatsResponse) {
-    // ניתן להוסיף חישובים נוספים במודל השרת ולהציגם כאן
     Surface(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         shape = RoundedCornerShape(12.dp), color = Color.White, border = BorderStroke(1.dp, Color(0xFFDADBDD))

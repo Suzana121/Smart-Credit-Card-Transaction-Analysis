@@ -102,4 +102,5 @@ dependencies {
 
     // ספקיית Coil להצגת תמונות ב-Compose
     implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("ir.mahozad.android:pie-chart:0.7.0")
 }
