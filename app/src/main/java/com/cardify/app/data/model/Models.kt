@@ -46,9 +46,11 @@ data class User(
     @SerializedName("phone")
     val phone: String? = null,
 
-
     @SerializedName("profile_image")
-    val profileImage: String? = null
+    val profileImage: String? = null,
+
+    @SerializedName("role")
+    val role: String? = "user"
 )
 
 /**
@@ -65,7 +67,7 @@ data class UpdateUserRequest(
     val phone: String,
 
     @SerializedName("password")
-    val password: String? = null // אופציונלי, רק אם המשתמש הזין סיסמה חדשה
+    val password: String? = null
 )
 
 /**
@@ -110,7 +112,7 @@ data class ShareItem(
     @SerializedName("sharedWith")    val sharedWith: String = "",
     @SerializedName("transactionId") val transactionId: String = "",
     @SerializedName("date")          val date: String = "",
-    @SerializedName("direction")     val direction: String = "outgoing", // "outgoing" | "incoming"
+    @SerializedName("direction")     val direction: String = "outgoing",
     @SerializedName("transaction")   val transaction: SharedTransaction? = null
 )
 
@@ -146,7 +148,6 @@ data class StatsResponse(
     @SerializedName("expensesByCategory") val expensesByCategory: List<CategorySpend>,
     @SerializedName("monthlyExpenses") val monthlyExpenses: List<MonthlySpend>
 )
-
 
 data class CategorySpend(
     @SerializedName("category") val category: String,
@@ -184,6 +185,7 @@ data class UploadResponse(
     @SerializedName("error")
     val error: String? = null
 )
+
 /**
  * מודל לשליחת בקשת חברות (רק טלפון)
  */
@@ -199,6 +201,7 @@ data class FriendActionData(
     @SerializedName("phone")
     val phone: String
 )
+
 data class ForgotPasswordRequest(
     @SerializedName("email")
     val email: String
@@ -213,7 +216,7 @@ data class UpdateLocationRequest(
 )
 
 data class Friend(
-    @SerializedName("name") val name: String, // שונה מ-username ל-name
+    @SerializedName("name") val name: String,
     @SerializedName("phone") val phone: String,
     @SerializedName("status") val status: String = "pending",
     @SerializedName("photoUrl") val photoUrl: String? = null
@@ -221,11 +224,13 @@ data class Friend(
     val photoResource: Int get() = com.cardify.app.R.drawable.user
     val isPending: Boolean get() = status == "sent_pending"
 }
+
 data class UserProfile(
     val id: String,
     val name: String,
     val phone: String
 )
+
 data class UserSearchResponse(
     val id: String,
     val username: String,

@@ -109,6 +109,7 @@ class LoginActivity : AppCompatActivity() {
         UserSession.username = name
         UserSession.id = userId
         UserSession.email = email
+        UserSession.role = state.response.user?.role ?: "user"
 
         // שמירה ל-PreferencesManager (persistent) - מקום אחד בלבד!
         val prefs = PreferencesManager.getInstance(this)

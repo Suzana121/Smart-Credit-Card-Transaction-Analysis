@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.cardify.app.R
+import com.cardify.app.data.UserSession
 import com.cardify.app.ui.components.AppScaffold
 import com.cardify.app.data.model.*
 
@@ -73,12 +75,21 @@ fun AccountScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (isLoading) {
-                Box(modifier = Modifier.fillMaxWidth().height(250.dp), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(250.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     CircularProgressIndicator(color = teal)
                 }
             } else {
                 Spacer(modifier = Modifier.height(32.dp))
-                ProfileSection(name = name, email = email, phone = phone, onEditProfile = onEditProfile)
+                ProfileSection(
+                    name = name,
+                    email = email,
+                    phone = phone,
+                    isAdmin = UserSession.isAdmin(),
+                    onEditProfile = onEditProfile
+                )
             }
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -150,6 +161,69 @@ fun AccountScreen(
             },
             onDismiss = { selectedRequest = null }
         )
+    }
+}
+
+@Composable
+fun ProfileSection(
+    name: String,
+    email: String,
+    phone: String,
+    isAdmin: Boolean = false,
+    onEditProfile: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.user),
+            contentDescription = "Profile Picture",
+            modifier = Modifier.size(108.dp)
+        )
+        Spacer(modifier = Modifier.height(14.dp))
+
+        Text(name, color = Color(0xFF0A0A0A), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+
+        // Badge אדמין - מופיע רק אם המשתמש הוא אדמין
+        if (isAdmin) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(teal)
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    Icons.Default.Shield,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    "Admin",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+        if (phone.isNotEmpty()) Text(phone, color = Color.Black, fontSize = 14.sp)
+        Text(email, color = Color.Gray, fontSize = 14.sp)
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(
+            onClick = onEditProfile,
+            modifier = Modifier.width(220.dp).height(40.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = teal)
+        ) {
+            Text("Edit Profile", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        }
     }
 }
 
@@ -351,33 +425,6 @@ fun AddFriendButton(onClick: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             Text("+", color = teal, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
-@Composable
-fun ProfileSection(name: String, email: String, phone: String, onEditProfile: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Image(
-            painter = painterResource(id = R.drawable.user),
-            contentDescription = "Profile Picture",
-            modifier = Modifier.size(108.dp)
-        )
-        Spacer(modifier = Modifier.height(14.dp))
-        Text(name, color = Color(0xFF0A0A0A), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        if (phone.isNotEmpty()) Text(phone, color = Color.Black, fontSize = 14.sp)
-        Text(email, color = Color.Gray, fontSize = 14.sp)
-        Spacer(modifier = Modifier.height(24.dp))
-        Button(
-            onClick = onEditProfile,
-            modifier = Modifier.width(220.dp).height(40.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = teal)
-        ) {
-            Text("Edit Profile", fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
     }
 }

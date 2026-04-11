@@ -59,6 +59,9 @@ interface AuthApiService {
     @GET("api/shares")
     suspend fun getShares(): Response<List<ShareItem>>
 
+    @GET("auth/admin/dashboard")
+    suspend fun getAdminDashboard(): Response<Map<String, Any>>
+
     @POST("api/shares")
     suspend fun postShare(@Body request: ShareRequest): Response<ShareResponse>
 

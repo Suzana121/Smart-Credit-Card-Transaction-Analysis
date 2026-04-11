@@ -6,8 +6,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.cardify.app.data.UserSession
 import com.cardify.app.ui.home.HomeScreen
 import com.cardify.app.ui.account.AccountScreen
+import com.cardify.app.ui.admin.AdminDashboardScreen
 import com.cardify.app.ui.edit_account.EditAccountScreen
 import com.cardify.app.ui.shared_info.SharedInfoScreen
 import com.cardify.app.ui.shared_info.ShareWithFriendsScreen
@@ -36,13 +38,11 @@ fun AppNavigation(
                     }
                 },
                 onShareClick = { transaction ->
-                    // מעבירים את ה-ID כחלק מהנתיב
                     navController.navigate("share_with_friends/${transaction.id}")
                 }
             )
         }
 
-        // הגדרת המסלול עם פרמטר transactionId
         composable(
             route = "share_with_friends/{transactionId}",
             arguments = listOf(
@@ -50,9 +50,8 @@ fun AppNavigation(
             )
         ) { backStackEntry ->
             val txnId = backStackEntry.arguments?.getString("transactionId")
-
             ShareWithFriendsScreen(
-                transactionId = txnId, // המסך יקבל ID במקום אובייקט שלם
+                transactionId = txnId,
                 onNavigate = { route ->
                     navController.navigate(route) {
                         popUpTo("home") { inclusive = false }
@@ -116,17 +115,32 @@ fun AppNavigation(
                 onBack = { navController.popBackStack() }
             )
         }
+
+        // אדמין רואה דשבורד, משתמש רגיל רואה סטטיסטיקות רגילות
         composable("stats") {
-            StatsScreen(
-                onNavigate = { route ->
-                    if (route != "stats") {
-                        navController.navigate(route) {
-                            popUpTo("home") { inclusive = false }
-                            launchSingleTop = true
+            if (UserSession.isAdmin()) {
+                AdminDashboardScreen(
+                    onNavigate = { route ->
+                        if (route != "stats") {
+                            navController.navigate(route) {
+                                popUpTo("home") { inclusive = false }
+                                launchSingleTop = true
+                            }
                         }
                     }
-                }
-            )
+                )
+            } else {
+                StatsScreen(
+                    onNavigate = { route ->
+                        if (route != "stats") {
+                            navController.navigate(route) {
+                                popUpTo("home") { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                    }
+                )
+            }
         }
     }
 }
