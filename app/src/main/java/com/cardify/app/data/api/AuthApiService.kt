@@ -62,6 +62,11 @@ interface AuthApiService {
     @GET("auth/admin/dashboard")
     suspend fun getAdminDashboard(): Response<Map<String, Any>>
 
+    @GET("api/transactions")
+    suspend fun getTransactions(
+        @Query("limit") limit: Int,
+        @Query("last_doc_id") lastDocId: String?
+    ): Response<List<Transaction>>
     @GET("api/messages/{shareId}")
     suspend fun getMessages(@Path("shareId") shareId: String): Response<Any>
 

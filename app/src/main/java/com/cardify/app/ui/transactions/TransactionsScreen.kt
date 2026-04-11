@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -35,6 +36,7 @@ fun TransactionsScreen(
 ) {
     val transactions by viewModel.filteredTransactions.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val isPaginationLoading by viewModel.isPaginationLoading.collectAsState() // חדש
     val activeFilter by viewModel.activeFilter.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val friends by viewModel.friends.collectAsState()
@@ -44,6 +46,20 @@ fun TransactionsScreen(
         Font(R.font.ibm_plex_sans_regular, FontWeight.Normal),
         Font(R.font.ibm_plex_sans_semibold, FontWeight.SemiBold)
     )
+
+    // --- ניהול מצב הגלילה לצורך Pagination ---
+    val listState = rememberLazyListState()
+
+    // זיהוי הגעה לסוף הרשימה כדי לטעון עוד נתונים
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .collect { lastVisibleIndex ->
+                // אם הגענו לאחד ה-3 האחרונים ברשימה, תטען עוד
+                if (lastVisibleIndex != null && lastVisibleIndex >= transactions.size - 3 && !isLoading && !isPaginationLoading) {
+                    viewModel.fetchTransactions(isFirstLoad = false)
+                }
+            }
+    }
 
     AppScaffold(currentRoute = "transactions", onNavigate = onNavigate) { padding ->
         Column(
@@ -123,7 +139,7 @@ fun TransactionsScreen(
 
             // --- Count ---
             Text(
-                "${transactions.size} transactions",
+                "${transactions.size} transactions loaded",
                 fontSize = 12.sp,
                 color = Color.Gray,
                 modifier = Modifier.padding(horizontal = 16.dp),
@@ -134,12 +150,12 @@ fun TransactionsScreen(
 
             // --- List ---
             when {
-                isLoading -> {
+                isLoading && transactions.isEmpty() -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = CardifyColors.DarkGreen)
                     }
                 }
-                transactions.isEmpty() -> {
+                transactions.isEmpty() && !isLoading -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
@@ -158,6 +174,7 @@ fun TransactionsScreen(
                 }
                 else -> {
                     LazyColumn(
+                        state = listState, // שידוך ה-state לגלילה
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = 16.dp),
@@ -179,6 +196,24 @@ fun TransactionsScreen(
                                 }
                             )
                         }
+
+                        // אינדיקטור טעינה בתחתית הרשימה בזמן Pagination
+                        if (isPaginationLoading) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = CardifyColors.DarkGreen,
+                                        strokeWidth = 2.dp
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -186,7 +221,6 @@ fun TransactionsScreen(
     }
 }
 
-// ממיר Transaction (מה-API) ל-TransactionRowItem (מה-UI component)
 private fun Transaction.toRowItem() = TransactionRowItem(
     id = this.id,
     title = this.businessName,
