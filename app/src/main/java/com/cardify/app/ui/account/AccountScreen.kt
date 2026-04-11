@@ -37,8 +37,21 @@ import com.cardify.app.data.UserSession
 import com.cardify.app.ui.components.AppScaffold
 import com.cardify.app.data.model.*
 
+/** Primary teal brand colour shared across account-screen composables. */
 val teal = Color(0xFF006769)
 
+/**
+ * Account screen showing the user's profile, friend list, pending friend requests,
+ * and a log-out action.
+ *
+ * Displays bottom sheets for adding a friend, viewing a friend's details, and
+ * responding to incoming friend requests.
+ *
+ * @param onNavigate Called with the destination route when a bottom nav item is tapped.
+ * @param onLogout Called after the user confirms log-out; typically navigates to login.
+ * @param onEditProfile Called when the user taps the "Edit Profile" button.
+ * @param viewModel The [AccountViewModel] supplying profile data and friend management.
+ */
 @Composable
 fun AccountScreen(
     onNavigate: (String) -> Unit,
@@ -53,6 +66,7 @@ fun AccountScreen(
 
     val friendsList by viewModel.friends.collectAsState()
     val requestsList by viewModel.requests.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
 
     var selectedFriend by remember { mutableStateOf<Friend?>(null) }
     var selectedRequest by remember { mutableStateOf<Friend?>(null) }
@@ -63,6 +77,13 @@ fun AccountScreen(
     LaunchedEffect(Unit) {
         viewModel.refreshUserData()
         viewModel.loadFriendsData()
+    }
+
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            viewModel.clearError()
+        }
     }
 
     AppScaffold(currentRoute = "account", onNavigate = onNavigate) { padding ->
@@ -164,6 +185,16 @@ fun AccountScreen(
     }
 }
 
+/**
+ * Displays the user's avatar, display name, optional phone number, email, an admin badge
+ * (when [isAdmin] is `true`), and an "Edit Profile" button.
+ *
+ * @param name The user's display name.
+ * @param email The user's email address.
+ * @param phone The user's phone number (empty string if not set).
+ * @param isAdmin When `true` an admin shield badge is shown below the name.
+ * @param onEditProfile Called when the "Edit Profile" button is tapped.
+ */
 @Composable
 fun ProfileSection(
     name: String,
@@ -227,6 +258,13 @@ fun ProfileSection(
     }
 }
 
+/**
+ * Horizontal scrolling row of friend avatars followed by an add-friend button.
+ *
+ * @param friends The list of approved friends to display.
+ * @param onFriendClick Called with the tapped [Friend] to open the friend detail sheet.
+ * @param onAddFriendClick Called when the "+" add-friend button is tapped.
+ */
 @Composable
 fun FriendsSection(
     friends: List<Friend>,
@@ -260,6 +298,13 @@ fun FriendsSection(
     }
 }
 
+/**
+ * Horizontal scrolling row of incoming friend requests, each with a "Confirm" button.
+ *
+ * @param requests Pending friend requests to display.
+ * @param onRequestClick Called with the tapped [Friend] to open the request detail sheet.
+ * @param onConfirm Called with the [Friend] when the inline "Confirm" button is tapped.
+ */
 @Composable
 fun RequestsSection(
     requests: List<Friend>,
@@ -289,6 +334,13 @@ fun RequestsSection(
     }
 }
 
+/**
+ * Single avatar tile in the friends row. Shows a photo (via Coil) or a placeholder icon,
+ * a pending-approval badge when [Friend.isPending] is `true`, and the friend's name.
+ *
+ * @param friend The [Friend] whose data is displayed.
+ * @param onClick Called when the tile is tapped.
+ */
 @Composable
 fun FriendItem(friend: Friend, onClick: () -> Unit) {
     val context = LocalContext.current
@@ -358,6 +410,14 @@ fun FriendItem(friend: Friend, onClick: () -> Unit) {
     }
 }
 
+/**
+ * Single tile in the friend-requests row. Shows an avatar, the requester's name, and a
+ * teal "Confirm" chip.
+ *
+ * @param friend The [Friend] who sent the request.
+ * @param onConfirm Called when the "Confirm" chip is tapped.
+ * @param onClick Called when anywhere else on the tile is tapped (opens detail sheet).
+ */
 @Composable
 fun RequestItem(friend: Friend, onConfirm: () -> Unit, onClick: () -> Unit) {
     val context = LocalContext.current
@@ -414,6 +474,11 @@ fun RequestItem(friend: Friend, onConfirm: () -> Unit, onClick: () -> Unit) {
     }
 }
 
+/**
+ * "+" button tile at the end of the friends row that opens the add-friend bottom sheet.
+ *
+ * @param onClick Called when the tile is tapped.
+ */
 @Composable
 fun AddFriendButton(onClick: () -> Unit) {
     Column(modifier = Modifier.width(72.dp), horizontalAlignment = Alignment.CenterHorizontally) {

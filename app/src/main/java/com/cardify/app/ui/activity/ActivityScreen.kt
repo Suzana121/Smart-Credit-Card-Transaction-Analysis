@@ -22,9 +22,15 @@ import com.cardify.app.ui.components.AppScaffold
 import java.text.NumberFormat
 import java.util.*
 
-// ==========================================
-// 1. המסך עצמו (UI בלבד)
-// ==========================================
+/**
+ * Activity feed screen showing a searchable list of sample transactions.
+ *
+ * Uses a custom [ActivityTopBar] with a search field and delegates rendering to
+ * [TransactionsList]. Note: this screen currently uses hard-coded sample data from
+ * [getSampleTransactions] and is not connected to the live API.
+ *
+ * @param onNavigate Called with the destination route when a bottom nav item is tapped.
+ */
 @Composable
 fun ActivityScreen(
     onNavigate: (String) -> Unit
@@ -59,10 +65,14 @@ fun ActivityScreen(
     }
 }
 
-// ==========================================
-// רכיבי עזר (TopBar, List, Card)
-// ==========================================
-
+/**
+ * Top app bar for the activity screen containing the "Transactions" title, a menu icon,
+ * and a rounded search field.
+ *
+ * @param searchQuery The current search text.
+ * @param onSearchChange Called on every keystroke with the updated query.
+ * @param onFilterClick Called when the filter/menu icon is tapped (currently a no-op).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActivityTopBar(
@@ -124,6 +134,13 @@ fun ActivityTopBar(
     }
 }
 
+/**
+ * Lazily renders a filtered subset of [transactions], applying a case-insensitive
+ * title search using [searchQuery].
+ *
+ * @param transactions The full list of [Transaction] items to display.
+ * @param searchQuery Text used to filter transactions by title. An empty string shows all items.
+ */
 @Composable
 fun TransactionsList(transactions: List<Transaction>, searchQuery: String) {
     val filtered = remember(transactions, searchQuery) {
@@ -135,6 +152,12 @@ fun TransactionsList(transactions: List<Transaction>, searchQuery: String) {
     }
 }
 
+/**
+ * Card row displaying a [Transaction]'s date, title, amount, and an inline
+ * "Regular" / "Irregular" status label (amounts over 1000 are treated as irregular).
+ *
+ * @param transaction The [Transaction] to display.
+ */
 @Composable
 fun TransactionCard(transaction: Transaction) {
     Card(
@@ -179,9 +202,18 @@ fun TransactionCard(transaction: Transaction) {
     }
 }
 
-// נתונים
+/** Local transaction model used by the activity screen sample data. */
 data class Transaction(val id: String, val title: String, val date: String, val amount: Double)
-object CardifyColors { val Primary = Color(0xFF0D7377); val ScanButton = Color(0xFFA0FF9D) }
+
+/** Colour constants local to the activity screen. */
+object CardifyColors {
+    /** Primary teal used in the activity top bar. */
+    val Primary = Color(0xFF0D7377)
+    /** Light green used for the scan button (reserved for future use). */
+    val ScanButton = Color(0xFFA0FF9D)
+}
+
+/** Returns a hard-coded list of sample transactions used while the screen is not yet API-connected. */
 fun getSampleTransactions(): List<Transaction> {
     return listOf(
         Transaction("1", "Greg's Coffee", "10/11/2025", 20.0),

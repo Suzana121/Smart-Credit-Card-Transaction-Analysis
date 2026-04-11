@@ -6,10 +6,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import com.cardify.app.ui.home.HomeActivity
 
-// ==========================================
-// ה-Activity: ה"אבא" שמפעיל את המסך
-// ==========================================
+/**
+ * Legacy activity shell that hosts the [ActivityScreen] Compose content.
+ *
+ * Navigation to other destinations is currently handled through explicit [Intent] launches
+ * rather than the main Compose navigation graph. Only the `"home"` route is wired up;
+ * other routes (`"wallet"`, `"stats"`, `"account"`) are stubs for future implementation.
+ */
 class ActivityActivity : ComponentActivity() {
+    /** Sets the Compose content and wires basic navigation intents. */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {

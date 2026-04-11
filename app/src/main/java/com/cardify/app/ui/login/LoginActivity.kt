@@ -24,11 +24,27 @@ import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.launch
 
+/**
+ * Entry-point Activity for the login flow.
+ *
+ * On launch it checks [PreferencesManager] for a persisted JWT token. If one exists it
+ * restores the [UserSession] and skips directly to [MainActivity]. Otherwise it inflates
+ * the login form and delegates credential validation to [LoginViewModel].
+ *
+ * After a successful login the activity requests location permissions and, when granted,
+ * fetches the device location via [FusedLocationProviderClient] and posts it to the server
+ * before navigating to [MainActivity].
+ */
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
     private lateinit var viewModel: LoginViewModel
 
+    /**
+     * Activity-result launcher that requests fine and coarse location permissions.
+     * Proceeds to fetch the device location if at least one permission is granted;
+     * otherwise navigates directly to [MainActivity].
+     */
     private val requestLocationPermission = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -41,6 +57,10 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Initialises the activity. If a persisted token is found the user is sent straight to
+     * [MainActivity]; otherwise the login form is set up and ViewModel observation begins.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -66,6 +86,11 @@ class LoginActivity : AppCompatActivity() {
         observeViewModel()
     }
 
+    /**
+     * Wires the login and register button click listeners.
+     * The login button reads email and password from the form and delegates to [LoginViewModel.login].
+     * The register button opens [RegisterActivity].
+     */
     private fun setupUI() {
         binding.btnLogin?.setOnClickListener {
             Toast.makeText(this, "Button clicked!", Toast.LENGTH_SHORT).show()
@@ -84,6 +109,7 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
+    /** Observes [LoginViewModel.loginState] and routes each state to the appropriate handler. */
     private fun observeViewModel() {
         viewModel.loginState.observe(this) { state ->
             when (state) {
@@ -98,6 +124,12 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Persists the authenticated user's data to both [UserSession] (in-memory) and
+     * [PreferencesManager] (encrypted persistent storage), then begins the location flow.
+     *
+     * @param state The successful login state containing the API response.
+     */
     private fun handleLoginSuccess(state: LoginState.Success) {
         val token = state.response.token ?: return
         val name = state.response.user?.name ?: "User"
@@ -121,6 +153,10 @@ class LoginActivity : AppCompatActivity() {
         requestLocationOrProceed()
     }
 
+    /**
+     * Checks whether a location permission is already granted. If so, fetches the location
+     * immediately; otherwise launches the runtime permission request.
+     */
     private fun requestLocationOrProceed() {
         val fineGranted = ContextCompat.checkSelfPermission(
             this, Manifest.permission.ACCESS_FINE_LOCATION
@@ -140,6 +176,11 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Attempts to retrieve the last known location. If the result is null it falls through to
+     * [fetchCurrentLocationAndProceed]. On success the coordinates are sent to the server via
+     * [AuthRepository.updateLocation] before navigating to [MainActivity].
+     */
     private fun fetchLocationAndProceed() {
         val fusedClient = LocationServices.getFusedLocationProviderClient(this)
         try {
@@ -168,6 +209,12 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Requests a fresh current location fix with a 10-second cancellation timeout.
+     * Navigates to [MainActivity] regardless of whether the location was obtained.
+     *
+     * @param fusedClient The [FusedLocationProviderClient] used to issue the location request.
+     */
     private fun fetchCurrentLocationAndProceed(fusedClient: FusedLocationProviderClient) {
         try {
             val cts = CancellationTokenSource()
@@ -197,6 +244,7 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
+    /** Starts [MainActivity] with a full back-stack clear and finishes this activity. */
     private fun startMainActivity() {
         val intent = Intent(this, MainActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -204,16 +252,23 @@ class LoginActivity : AppCompatActivity() {
         finish()
     }
 
+    /** Shows the progress bar and disables the login button during an in-flight request. */
     private fun showLoading() {
         binding.progressBar?.visibility = View.VISIBLE
         binding.btnLogin?.isEnabled = false
     }
 
+    /** Hides the progress bar and re-enables the login button. */
     private fun hideLoading() {
         binding.progressBar?.visibility = View.GONE
         binding.btnLogin?.isEnabled = true
     }
 
+    /**
+     * Displays [message] in a [Snackbar] anchored to the root view.
+     *
+     * @param message The error text to display.
+     */
     private fun showError(message: String) {
         Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
     }

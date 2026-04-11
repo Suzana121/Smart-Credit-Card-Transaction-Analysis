@@ -22,6 +22,19 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cardify.app.ui.home.CardifyColors
 import kotlinx.coroutines.launch
 
+/**
+ * Chat screen for a conversation linked to a specific share.
+ *
+ * Loads messages via [ChatViewModel.loadMessages] and auto-scrolls to the latest entry
+ * whenever [ChatUiState] transitions to [ChatUiState.Success]. The top bar shows
+ * [friendName] and a back button. The bottom bar provides a multi-line text input and a
+ * send button that is disabled while [ChatViewModel.isSending] is `true`.
+ *
+ * @param shareId The ID of the share whose message thread to display.
+ * @param friendName The display name of the other participant, shown in the top bar.
+ * @param onBack Called when the back button is tapped.
+ * @param viewModel The [ChatViewModel] managing message loading, polling, and sending.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
@@ -186,6 +199,12 @@ fun ChatScreen(
     }
 }
 
+/**
+ * Single message bubble. Outgoing messages are right-aligned with a teal background;
+ * incoming messages are left-aligned with a white background and include the sender's name.
+ *
+ * @param message The [ChatMessage] to render.
+ */
 @Composable
 fun ChatBubble(message: ChatMessage) {
     val isMe = message.isMyMessage
@@ -247,6 +266,12 @@ fun ChatBubble(message: ChatMessage) {
     }
 }
 
+/**
+ * Extracts the HH:mm time portion from a full ISO-style timestamp string.
+ *
+ * @param timestamp An ISO-style timestamp (e.g. `"2025-11-10T14:35:00"`).
+ * @return The time string `"HH:mm"`, or [timestamp] unchanged if it is too short or parsing fails.
+ */
 private fun formatTimestamp(timestamp: String): String {
     return try {
         // מציג רק את השעה אם זה היום

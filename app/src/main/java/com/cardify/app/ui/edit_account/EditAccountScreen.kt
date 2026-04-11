@@ -33,6 +33,17 @@ import com.cardify.app.ui.account.teal
 import com.cardify.app.ui.components.AppScaffold
 import com.cardify.app.ui.components.AppTeal
 
+/**
+ * Screen that lets the authenticated user update their name, email, phone, and password.
+ *
+ * Displays a loading spinner while [EditAccountViewModel.isLoading] is `true`. Once loaded,
+ * shows the profile avatar (tapping opens the gallery picker), four [EditField] inputs, and
+ * an "Update" button. A note informs the user that changes take effect on the next sign-in.
+ *
+ * @param onNavigate Called with the destination route when a bottom nav item is tapped.
+ * @param onBack Called on a successful update (typically pops the back stack).
+ * @param viewModel The [EditAccountViewModel] managing field state and the update API call.
+ */
 @Composable
 fun EditAccountScreen(
     onNavigate: (String) -> Unit,
@@ -127,7 +138,15 @@ fun EditAccountScreen(
     }
 }
 
-// אל תשכחי להוסיף את הפונקציה הזו בסוף הקובץ:
+/**
+ * A labelled outlined text field used in the edit-account form.
+ *
+ * @param label The field label displayed above the input and styled in teal.
+ * @param value The current field value.
+ * @param onValueChange Called on every keystroke with the updated value.
+ * @param isPassword When `true` the input is visually obscured with [PasswordVisualTransformation].
+ * @param placeholder Hint text shown inside the field when [value] is empty.
+ */
 @Composable
 fun EditField(
     label: String,

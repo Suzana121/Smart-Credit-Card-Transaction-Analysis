@@ -17,6 +17,24 @@ import com.cardify.app.ui.stats.StatsScreen
 import com.cardify.app.ui.transactions.TransactionsScreen
 import com.cardify.app.ui.chat.ChatScreen
 
+/**
+ * Root Compose navigation graph for the Cardify application.
+ *
+ * Defines all in-app destinations and wires up their arguments. The bottom navigation
+ * bar uses `popUpTo("home")` so back-stack depth stays shallow when switching tabs.
+ *
+ * Destinations:
+ * - `home` — transaction overview and file upload
+ * - `transactions` — searchable/filterable full transaction list
+ * - `shared-info` — sent and received transaction shares
+ * - `share_with_friends/{transactionId}` — friend picker for sharing a specific transaction
+ * - `chat/{shareId}/{friendName}` — per-share chat conversation
+ * - `account` — user profile and friends management
+ * - `edit_account` — profile editing form
+ * - `stats` — spending statistics (or admin dashboard for admin users)
+ *
+ * @param startDestination The route to display first. Defaults to `"home"`.
+ */
 @Composable
 fun AppNavigation(
     startDestination: String = "home"
@@ -133,7 +151,7 @@ fun AppNavigation(
             )
         }
 
-        // אדמין רואה דשבורד, משתמש רגיל רואה סטטיסטיקות רגילות
+        // Admin users see the admin dashboard; regular users see the stats screen.
         composable("stats") {
             if (UserSession.isAdmin()) {
                 AdminDashboardScreen(

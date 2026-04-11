@@ -6,8 +6,7 @@
     <string name="email_address">Email Address</string>
     <string name="password">Password</string>
     <string name="login_to_cardify">Login to Cardify</string>
-    <string name="forgot_password">Forgot password?</string>
-    <string name="dont_have_account">Don\'t have an account? Sign up</string>
+<string name="dont_have_account">Don\'t have an account? Sign up</string>
     
     <!-- Hints -->
     <string name="email_hint">user@example.com</string>

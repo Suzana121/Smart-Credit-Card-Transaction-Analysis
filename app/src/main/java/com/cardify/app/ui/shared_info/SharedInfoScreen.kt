@@ -1,5 +1,6 @@
 package com.cardify.app.ui.shared_info
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -14,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -22,6 +24,16 @@ import com.cardify.app.data.model.ShareItem
 import com.cardify.app.ui.components.AppScaffold
 import com.cardify.app.ui.home.CardifyColors
 
+/**
+ * Screen displaying transaction shares sent to and received from friends.
+ *
+ * A [DirectionSelector] toggle lets the user switch between "Sent" and "Received" views.
+ * Each share is rendered as a [SharedTransactionItem] with an "Open Chat" button that
+ * navigates to the chat screen for that share.
+ *
+ * @param onNavigate Called with the destination route for bottom-nav and chat navigation.
+ * @param viewModel The [SharedInfoViewModel] providing the filtered share list.
+ */
 @Composable
 fun SharedInfoScreen(
     onNavigate: (String) -> Unit,
@@ -30,9 +42,19 @@ fun SharedInfoScreen(
     val shares by viewModel.filteredShares.collectAsState()
     val filterState by viewModel.filterState.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         viewModel.refreshShares()
+    }
+
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            viewModel.clearError()
+        }
     }
 
     AppScaffold(currentRoute = "wallet", onNavigate = onNavigate) { padding ->
@@ -77,6 +99,13 @@ fun SharedInfoScreen(
     }
 }
 
+/**
+ * Card representing a single share entry. Shows the direction ("To:" or "From:"), the
+ * transaction details, and an "Open Chat" button.
+ *
+ * @param share The [ShareItem] to display.
+ * @param onChatClick Called when the "Open Chat" button is tapped.
+ */
 @Composable
 fun SharedTransactionItem(
     share: ShareItem,
@@ -139,6 +168,12 @@ fun SharedTransactionItem(
     }
 }
 
+/**
+ * Toggle bar that switches between "Sent" (outgoing) and "Received" (incoming) share views.
+ *
+ * @param selectedDirection The currently active direction key: `"outgoing"` or `"incoming"`.
+ * @param onDirectionSelected Called with the new direction key when a tab is tapped.
+ */
 @Composable
 fun DirectionSelector(
     selectedDirection: String,

@@ -1,5 +1,6 @@
 package com.cardify.app.ui.transactions
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -27,6 +29,16 @@ import com.cardify.app.ui.components.TransactionRowVariant
 import com.cardify.app.ui.components.TransactionItem as TransactionRowItem
 import com.cardify.app.ui.home.CardifyColors
 
+/**
+ * Full transaction list screen with a search bar, status filter chips, a transaction count
+ * summary, and a scrollable list of [TransactionRow] items.
+ *
+ * The list is driven by [TransactionsViewModel.filteredTransactions] which combines the
+ * active [TransactionFilter] with the current search query.
+ *
+ * @param onNavigate Called with the destination route when a bottom nav item is tapped.
+ * @param viewModel The [TransactionsViewModel] providing filtered transactions and share logic.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionsScreen(
@@ -39,6 +51,16 @@ fun TransactionsScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val friends by viewModel.friends.collectAsState()
     val isSendingShare by viewModel.isSendingShare.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+
+    val context = LocalContext.current
+
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            viewModel.clearError()
+        }
+    }
 
     val ibmPlexSans = FontFamily(
         Font(R.font.ibm_plex_sans_regular, FontWeight.Normal),
@@ -186,7 +208,7 @@ fun TransactionsScreen(
     }
 }
 
-// ממיר Transaction (מה-API) ל-TransactionRowItem (מה-UI component)
+/** Maps a domain [Transaction] model to the [TransactionRowItem] expected by [TransactionRow]. */
 private fun Transaction.toRowItem() = TransactionRowItem(
     id = this.id,
     title = this.businessName,

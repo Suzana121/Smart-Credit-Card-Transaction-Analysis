@@ -16,6 +16,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cardify.app.data.model.Friend
 
+/**
+ * Modal bottom sheet presented when the user taps an incoming friend request.
+ *
+ * Shows the requester's avatar, name, and phone number along with "Confirm Request"
+ * and "Delete request" actions.
+ *
+ * @param friend The [Friend] who sent the request.
+ * @param onConfirm Called when "Confirm Request" is tapped (also dismisses the sheet).
+ * @param onDelete Called when "Delete request" is tapped (also dismisses the sheet).
+ * @param onDismiss Called when the sheet is dismissed without taking an action.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FriendRequestSheet(

@@ -6,7 +6,13 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
 /**
- * Manager for secure storage of authentication tokens and user data
+ * Manages secure, persistent storage of authentication tokens and user profile data.
+ *
+ * Uses [EncryptedSharedPreferences] backed by AES-256-GCM to protect stored values at rest.
+ * Obtain the singleton instance via [getInstance].
+ *
+ * @constructor Private — use [getInstance] to obtain the application-scoped singleton.
+ * @param context Application context used to create the encrypted preferences file.
  */
 class PreferencesManager(context: Context) {
 
@@ -33,6 +39,13 @@ class PreferencesManager(context: Context) {
         @Volatile
         private var instance: PreferencesManager? = null
 
+        /**
+         * Returns the application-scoped singleton instance, creating it if necessary.
+         * Thread-safe via double-checked locking.
+         *
+         * @param context Any context; the application context is used internally.
+         * @return The singleton [PreferencesManager] instance.
+         */
         fun getInstance(context: Context): PreferencesManager {
             return instance ?: synchronized(this) {
                 instance ?: PreferencesManager(context.applicationContext).also {
@@ -42,12 +55,29 @@ class PreferencesManager(context: Context) {
         }
     }
 
+    /**
+     * Persists the JWT authentication token to encrypted storage.
+     *
+     * @param token JWT bearer token received from the server.
+     */
     fun saveToken(token: String) {
         sharedPreferences.edit().putString(KEY_TOKEN, token).apply()
     }
 
+    /**
+     * Retrieves the stored JWT authentication token.
+     *
+     * @return The stored token, or `null` if no token has been saved.
+     */
     fun getToken(): String? = sharedPreferences.getString(KEY_TOKEN, null)
 
+    /**
+     * Persists the authenticated user's core profile data and marks the session as logged in.
+     *
+     * @param userId Server-assigned user ID.
+     * @param email User's email address.
+     * @param name User's display name.
+     */
     fun saveUserData(userId: String, email: String, name: String) {
         sharedPreferences.edit().apply {
             putString(KEY_USER_ID, userId)
@@ -58,12 +88,36 @@ class PreferencesManager(context: Context) {
         }
     }
 
+    /**
+     * Retrieves the stored user ID.
+     *
+     * @return The stored user ID, or `null` if not saved.
+     */
     fun getUserId(): String? = sharedPreferences.getString(KEY_USER_ID, null)
+
+    /**
+     * Retrieves the stored user email address.
+     *
+     * @return The stored email, or `null` if not saved.
+     */
     fun getUserEmail(): String? = sharedPreferences.getString(KEY_USER_EMAIL, null)
+
+    /**
+     * Retrieves the stored display username.
+     *
+     * @return The stored username, or `null` if not saved.
+     */
     fun getUserName(): String? = sharedPreferences.getString(KEY_USER_NAME, null)
+
+    /**
+     * Returns `true` if a previous session was marked as logged in.
+     */
     fun isLoggedIn(): Boolean = sharedPreferences.getBoolean(KEY_IS_LOGGED_IN, false)
 
-    // הפונקציה החשובה לפתרון הבאג שלך:
+    /**
+     * Removes all data from encrypted storage, effectively logging the user out on disk.
+     * Should be called alongside [com.cardify.app.data.UserSession.clear] to fully sign out.
+     */
     fun clearAll() {
         sharedPreferences.edit().clear().apply()
     }

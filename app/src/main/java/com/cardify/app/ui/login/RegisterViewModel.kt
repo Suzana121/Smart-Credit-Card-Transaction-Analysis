@@ -4,64 +4,90 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.cardify.app.data.UserSession // ייבוא הקובץ שהעלית לי
-
+import com.cardify.app.data.UserSession
+import com.cardify.app.data.api.toUserMessage
 import com.cardify.app.data.repository.AuthRepository
 import kotlinx.coroutines.launch
 
 /**
- * ViewModel for Registration Screen
- * מעודכן עם שמירת נתונים ב-UserSession
+ * ViewModel for the registration screen.
+ *
+ * Submits the new-account form to [AuthRepository] and exposes the result through
+ * [registerState] LiveData. On success, the username and email are written to [UserSession]
+ * so they are immediately available if the user navigates without re-logging in.
  */
 class RegisterViewModel : ViewModel() {
 
     private val repository = AuthRepository()
 
     private val _registerState = MutableLiveData<RegisterState>(RegisterState.Idle)
+
+    /** Observable registration state. Observed by [RegisterActivity] to drive UI updates. */
     val registerState: LiveData<RegisterState> = _registerState
 
+    /**
+     * Submits a registration request to the server.
+     *
+     * Emits [RegisterState.Loading] immediately, then either [RegisterState.Success] or
+     * [RegisterState.Error] with a human-readable message.
+     *
+     * @param username Desired display username.
+     * @param email User's email address.
+     * @param phone User's phone number.
+     * @param password Chosen password.
+     */
     fun register(username: String, email: String, phone: String, password: String) {
         _registerState.value = RegisterState.Loading
 
         viewModelScope.launch {
             try {
-                // שליחת קריאת ההרשמה לשרת
                 val response = repository.register(username, email, phone, password)
 
                 if (response.isSuccessful) {
                     val registerResponse = response.body()
-
                     if (registerResponse?.success == true) {
-
-                        // ====================================================
-                        // עדכון ה-UserSession - זה מה שפותר את הבעיה ב-Account!
-                        // ====================================================
                         UserSession.username = username
                         UserSession.email = email
-                        // אם השרת מחזיר טוקן כבר בהרשמה, אפשר להוסיף:
-                        // UserSession.token = registerResponse.token
-                        // ====================================================
-
                         _registerState.value = RegisterState.Success
                     } else {
                         _registerState.value = RegisterState.Error(
-                            registerResponse?.message ?: "Registration failed"
+                            registerResponse?.message ?: "Registration failed. Please try again."
                         )
                     }
                 } else {
-                    _registerState.value = RegisterState.Error("Server error: ${response.code()}")
+                    _registerState.value = RegisterState.Error(
+                        when (response.code()) {
+                            409  -> "An account with this email or phone number already exists."
+                            400  -> "Invalid registration details. Please check your input."
+                            500, 502, 503 -> "Server error. Please try again later."
+                            else -> "Registration failed (${response.code()}). Please try again."
+                        }
+                    )
                 }
             } catch (e: Exception) {
-                _registerState.value = RegisterState.Error("Network error: ${e.localizedMessage}")
+                _registerState.value = RegisterState.Error(e.toUserMessage())
             }
         }
     }
 }
 
-// ניהול המצבים של המסך
+/**
+ * Sealed class representing all possible states of the registration flow.
+ */
 sealed class RegisterState {
+    /** Initial state before any registration attempt has been made. */
     object Idle : RegisterState()
+
+    /** A registration request is in progress. */
     object Loading : RegisterState()
+
+    /** Registration completed successfully. */
     object Success : RegisterState()
+
+    /**
+     * Registration failed.
+     *
+     * @property message Human-readable description of the failure.
+     */
     data class Error(val message: String) : RegisterState()
 }

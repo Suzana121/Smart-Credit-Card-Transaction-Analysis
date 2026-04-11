@@ -18,6 +18,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cardify.app.data.model.Friend
 
+/**
+ * Modal bottom sheet showing details for an existing friend or a pending outgoing request.
+ *
+ * Tapping the delete action opens a confirmation [AlertDialog]. For non-pending friends the
+ * dialog offers optional checkboxes to also delete shared files sent or received. Confirming
+ * delegates to [AccountViewModel.deleteFriendWithOptions].
+ *
+ * @param friend The [Friend] whose details are displayed.
+ * @param viewModel The [AccountViewModel] that handles the delete operation.
+ * @param onDismiss Called when the sheet is dismissed.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FriendSheet(

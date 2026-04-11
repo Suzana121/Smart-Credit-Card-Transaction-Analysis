@@ -16,6 +16,18 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * Modal bottom sheet for sending a friend request by phone number.
+ *
+ * The user types a phone number and taps the search icon to look up the account.
+ * If a match is found a card shows the user's name and phone with an "Add" button.
+ * A loading spinner replaces the search icon while the lookup is in progress.
+ *
+ * @param viewModel The [AccountViewModel] that owns the search state and handles the
+ *   friend-request API call.
+ * @param onDismiss Called when the sheet is dismissed (drag or cancel). Also clears the
+ *   search state via [AccountViewModel.clearSearch].
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddFriendSheet(

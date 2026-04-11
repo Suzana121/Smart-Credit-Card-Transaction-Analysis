@@ -41,16 +41,33 @@ import com.cardify.app.ui.components.TransactionItem as TransactionRowItem
 import com.cardify.app.ui.components.TransactionRow
 import com.cardify.app.ui.components.TransactionRowVariant
 
+/** Centralised colour palette used across home-screen and shared UI components. */
 object CardifyColors {
+    /** Primary dark-teal brand colour. */
     val DarkGreen = Color(0xFF006769)
+    /** Light green used for greeting and upload button text. */
     val LightGreenText = Color(0xFF9FE88D)
+    /** Pale turquoise background for filter chips and info boxes. */
     val TurquoiseBox = Color(0xFFE6F7F7)
+    /** Colour used to draw the dashed border on the upload drop zone. */
     val DashedBorder = Color(0xFF006769)
+    /** Red accent applied to irregular-transaction indicators. */
     val IrregularRed = Color(0xFFE23125)
+    /** Green accent applied to regular-transaction indicators. */
     val RegularGreen = Color(0xFF38D325)
+    /** Default text colour for body content. */
     val TextPrimary = Color(0xFF1A1A1A)
 }
 
+/**
+ * Main home screen displaying a greeting, a CSV/XLS upload section, and the user's
+ * most recent transactions.
+ *
+ * @param onNavigate Called with the destination route when a bottom nav item is tapped.
+ * @param onShareClick Called with the selected [Transaction] when the share action is triggered
+ *   from a transaction row.
+ * @param viewModel The [HomeViewModel] providing transactions, upload state, and friends data.
+ */
 @Composable
 fun HomeScreen(
     onNavigate: (String) -> Unit = {},
@@ -68,6 +85,7 @@ fun HomeScreen(
     val uploadMessage by viewModel.uploadMessage.collectAsState()
     val friends by viewModel.friends.collectAsState()
     val isSendingShare by viewModel.isSendingShare.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
 
     val ibmPlexSans = FontFamily(
         Font(R.font.ibm_plex_sans_regular, FontWeight.Normal),
@@ -85,6 +103,13 @@ fun HomeScreen(
             if (it.contains("Success", ignoreCase = true)) {
                 selectedFile = null
             }
+        }
+    }
+
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            viewModel.clearError()
         }
     }
 
@@ -187,7 +212,7 @@ fun HomeScreen(
     }
 }
 
-// ממיר Transaction ל-TransactionRowItem
+/** Maps a domain [Transaction] model to the [TransactionRowItem] expected by [TransactionRow]. */
 private fun Transaction.toRowItem() = TransactionRowItem(
     id = this.id,
     title = this.businessName,
@@ -197,6 +222,19 @@ private fun Transaction.toRowItem() = TransactionRowItem(
     category = this.category
 )
 
+/**
+ * Section that lets the user pick a CSV or XLS file and upload it.
+ *
+ * Shows a dashed drop-zone that opens the system file picker when tapped and an
+ * "Upload" button that triggers the upload. A [CircularProgressIndicator] replaces
+ * the drop-zone content while [isUploading] is `true`.
+ *
+ * @param selectedFile The URI of the file the user has chosen, or `null` if none.
+ * @param isUploading `true` while an upload request is in flight.
+ * @param ibmPlexSans The font family applied to labels in this section.
+ * @param onFileSelected Called with the chosen [Uri] (or `null`) after the picker returns.
+ * @param onUploadClicked Called when the user taps the Upload button.
+ */
 @Composable
 fun UploadSection(
     selectedFile: Uri?,
@@ -274,6 +312,17 @@ fun UploadSection(
     }
 }
 
+/**
+ * Inline dropdown that lets the user choose how many recent transactions to display.
+ *
+ * The options are 5, 10, and 15. The dropdown expands and collapses via [expanded].
+ *
+ * @param selectedLimit The currently chosen limit as a string (e.g. `"5"`).
+ * @param expanded Whether the option list is currently visible.
+ * @param onExpandChange Called with the new expanded state when the control is tapped.
+ * @param onLimitSelect Called with the chosen limit string when an option is tapped.
+ * @param ibmPlexSans The font family applied to labels in this dropdown.
+ */
 @Composable
 fun FilterDropdown(
     selectedLimit: String,
@@ -321,6 +370,15 @@ fun FilterDropdown(
     }
 }
 
+/**
+ * Local override of the top app bar used only in [HomeScreen].
+ *
+ * Displays the Cardify logo on the left. The account icon on the right clears both the
+ * in-memory [UserSession] and the persisted [PreferencesManager] state, then calls
+ * [onAccountClick] to trigger navigation to the login screen.
+ *
+ * @param onAccountClick Called after session data is cleared when the account icon is tapped.
+ */
 @Composable
 fun CleanTopBar(onAccountClick: () -> Unit) {
     val context = LocalContext.current

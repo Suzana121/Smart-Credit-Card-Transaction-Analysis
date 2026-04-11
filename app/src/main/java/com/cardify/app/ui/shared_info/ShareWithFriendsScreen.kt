@@ -20,9 +20,22 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cardify.app.ui.components.AppScaffold
 
+/**
+ * Screen that lets the user pick a friend to share a specific transaction with.
+ *
+ * Loads the friend list on launch and displays each friend as a row with a "Send" button.
+ * The button is disabled while [ShareWithFriendsViewModel.isSending] is `true` to prevent
+ * duplicate submissions. Navigates back via [onBack] on a successful share.
+ *
+ * @param transactionId The ID of the transaction to share, or `null` if missing (shows an
+ *   error toast and no share is sent).
+ * @param onNavigate Called with the destination route when a bottom nav item is tapped.
+ * @param onBack Called after a successful share (pops the back stack).
+ * @param viewModel The [ShareWithFriendsViewModel] providing the friend list and share logic.
+ */
 @Composable
 fun ShareWithFriendsScreen(
-    transactionId: String?, // קבלת ה-ID מהניווט
+    transactionId: String?,
     onNavigate: (String) -> Unit,
     onBack: () -> Unit,
     viewModel: ShareWithFriendsViewModel = viewModel()

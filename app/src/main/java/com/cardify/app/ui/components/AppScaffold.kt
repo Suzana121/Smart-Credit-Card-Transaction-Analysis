@@ -20,26 +20,43 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import com.cardify.app.R
 
+/** Primary teal brand colour used across shared UI components. */
 val AppTeal = Color(0xFF006769)
 
-// -----------------------------------------------
-// פריטי ניווט — מוגדרים פעם אחת
-// -----------------------------------------------
+/**
+ * Sealed class representing a bottom navigation bar destination.
+ *
+ * Each subclass defines the [route], [icon], and [label] for its tab.
+ */
 sealed class NavigationItem(
+    /** Compose navigation route string for this destination. */
     val route: String,
+    /** Material icon shown in the bottom bar tab. */
     val icon: ImageVector,
+    /** Short label displayed beneath the icon. */
     val label: String
 ) {
-    object Home         : NavigationItem("home",     Icons.Default.Home,        "Home")
-    object SharedInfo   : NavigationItem("shared-info",   Icons.Default.Description, "Shared Info")
+    /** Home screen — transaction overview. */
+    object Home         : NavigationItem("home",         Icons.Default.Home,        "Home")
+
+    /** Shared-info screen — sent and received shares. */
+    object SharedInfo   : NavigationItem("shared-info",  Icons.Default.Description, "Shared Info")
+
+    /** Transactions screen — full filterable transaction list. */
     object Transactions : NavigationItem("transactions", Icons.Default.List,        "Transactions")
-    object Stats        : NavigationItem("stats",    Icons.Default.BarChart,    "Stats")
-    object Account      : NavigationItem("account",  Icons.Default.Person,      "Account")
+
+    /** Stats screen — spending analytics (or admin dashboard for admins). */
+    object Stats        : NavigationItem("stats",        Icons.Default.BarChart,    "Stats")
+
+    /** Account screen — user profile and friends. */
+    object Account      : NavigationItem("account",      Icons.Default.Person,      "Account")
 }
 
-// -----------------------------------------------
-// TopBar משותף — מוגדר פעם אחת, בשימוש בכל מסך
-// -----------------------------------------------
+/**
+ * Shared top app bar showing the Cardify logo and an account icon button.
+ *
+ * @param onAccountClick Called when the account icon in the top-right corner is tapped.
+ */
 @Composable
 fun CleanTopBar(onAccountClick: () -> Unit = {}) {
     Row(
@@ -69,14 +86,25 @@ fun CleanTopBar(onAccountClick: () -> Unit = {}) {
     }
 }
 
-// -----------------------------------------------
-// AppScaffold — מוגדר פעם אחת, בשימוש בכל מסך
-// -----------------------------------------------
+/**
+ * Scaffold wrapper used by every main screen in the app.
+ *
+ * Provides a consistent [CleanTopBar] (or an optional custom top bar), a bottom
+ * navigation bar with all five main destinations, and enforces LTR layout direction
+ * for consistency across locales.
+ *
+ * @param currentRoute The route of the currently active destination, used to highlight
+ *   the correct bottom nav item.
+ * @param onNavigate Called with the destination route when a bottom nav item is tapped.
+ * @param topBarContent Optional override for the top bar. When provided it replaces the
+ *   default [CleanTopBar]. Pass `null` (default) to use the standard top bar.
+ * @param content The screen content. Receives [PaddingValues] that account for the
+ *   top and bottom bars and must be applied by the caller.
+ */
 @Composable
 fun AppScaffold(
     currentRoute: String,
     onNavigate: (String) -> Unit,
-    // אפשר לדרוס את ה-TopBar רק אם צריך משהו מיוחד (כמו search bar)
     topBarContent: (@Composable () -> Unit)? = null,
     content: @Composable (PaddingValues) -> Unit
 ) {
@@ -91,8 +119,6 @@ fun AppScaffold(
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Scaffold(
             topBar = {
-                // אם העברת topBarContent מיוחד — השתמש בו (כמו ב-ActivityScreen עם search)
-                // אחרת — CleanTopBar הרגיל
                 topBarContent?.invoke() ?: CleanTopBar(
                     onAccountClick = { onNavigate("account") }
                 )

@@ -13,11 +13,23 @@ import com.cardify.app.ui.theme.CardifyTheme
 import com.cardify.app.ui.login.LoginActivity
 import com.cardify.app.utils.PreferencesManager
 
+/**
+ * Application entry point after the user has authenticated.
+ *
+ * On creation, [MainActivity] checks [PreferencesManager] for a persisted JWT token.
+ * - If no token is found the user is redirected to [LoginActivity] and this activity finishes.
+ * - If a token exists, session data is hydrated into [UserSession] and the Compose navigation
+ *   host ([AppNavigation]) is displayed, starting on the home screen.
+ */
 class MainActivity : ComponentActivity() {
+
+    /**
+     * Bootstraps the authenticated session and sets up the Compose UI.
+     * Redirects unauthenticated users to [LoginActivity].
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // עכשיו קוראים מ-PreferencesManager במקום auth_prefs ישירות
         val prefs = PreferencesManager.getInstance(this)
         val savedToken = prefs.getToken()
 
@@ -27,7 +39,7 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        // טוענים את כל הנתונים מ-PreferencesManager
+        // Hydrate the in-memory session from persistent storage.
         UserSession.token = savedToken
         UserSession.username = prefs.getUserName()
         UserSession.id = prefs.getUserId()

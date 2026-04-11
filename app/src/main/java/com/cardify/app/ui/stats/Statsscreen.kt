@@ -33,7 +33,12 @@ import com.cardify.app.ui.components.AppScaffold
 import com.cardify.app.R
 
 
-// --- עזרי תצוגה ---
+/**
+ * Converts a 3-letter month abbreviation to its full English name.
+ *
+ * @param month A 3-letter abbreviation such as `"Jan"` or `"Dec"`.
+ * @return The full month name, or [month] unchanged if it is not recognised.
+ */
 fun fullMonthName(month: String): String = when (month) {
     "Jan" -> "January" "Feb" -> "February" "Mar" -> "March"
     "Apr" -> "April" "May" -> "May" "Jun" -> "June"
@@ -42,6 +47,12 @@ fun fullMonthName(month: String): String = when (month) {
     else -> month
 }
 
+/**
+ * Returns the brand colour associated with a spending category name.
+ *
+ * @param categoryName The category name (case-insensitive), e.g. `"Food"` or `"Shopping"`.
+ * @return A [Color] value for the category, or a neutral grey for unrecognised categories.
+ */
 fun getCategoryColor(categoryName: String?): Color {
     return when (categoryName?.lowercase()) {
         "food" -> Color(0xFF006769)
@@ -53,6 +64,15 @@ fun getCategoryColor(categoryName: String?): Color {
     }
 }
 
+/**
+ * Spending statistics screen showing monthly totals, a donut chart, and basic insights.
+ *
+ * Handles the three [StatsUiState] cases: a loading spinner, a tap-to-retry error state,
+ * and the full [StatsContent] on success.
+ *
+ * @param onNavigate Called with the destination route when a bottom nav item is tapped.
+ * @param viewModel The [StatsViewModel] providing state and month navigation.
+ */
 @Composable
 fun StatsScreen(
     onNavigate: (String) -> Unit,
@@ -84,6 +104,14 @@ fun StatsScreen(
     }
 }
 
+/**
+ * Lays out the three statistics sections inside a [LazyColumn]: the total spend card with
+ * month navigation, the donut chart, and the insights summary.
+ *
+ * @param data The [StatsResponse] containing spending totals and category breakdown.
+ * @param selectedMonth The 3-letter abbreviation of the currently displayed month.
+ * @param viewModel Used to navigate between months via [StatsViewModel.changeMonth].
+ */
 @Composable
 fun StatsContent(data: StatsResponse, selectedMonth: String, viewModel: StatsViewModel) {
     LazyColumn(
@@ -106,6 +134,17 @@ fun StatsContent(data: StatsResponse, selectedMonth: String, viewModel: StatsVie
     }
 }
 
+/**
+ * Card showing the selected month's total spend with left/right navigation arrows,
+ * regular and irregular transaction counts, and an expandable suspicious-activity list.
+ *
+ * @param selectedMonth The 3-letter month abbreviation displayed in the header.
+ * @param data The [StatsResponse] providing spend totals and transaction counts.
+ * @param onPrevMonth Called when the left arrow is tapped.
+ * @param onNextMonth Called when the right arrow is tapped.
+ * @param hasPrev Whether there is an earlier month available (enables the left arrow).
+ * @param hasNext Whether there is a later month available (enables the right arrow).
+ */
 @Composable
 fun TotalSpendSection(
     selectedMonth: String,
@@ -175,6 +214,12 @@ fun TotalSpendSection(
     }
 }
 
+/**
+ * Renders a pie/donut chart using the third-party [ir.mahozad.android.PieChart] view wrapped
+ * in an [AndroidView]. Each slice represents a spending category from [StatsResponse.expensesByCategory].
+ *
+ * @param data The [StatsResponse] whose [StatsResponse.expensesByCategory] populates the chart.
+ */
 @Composable
 fun DonutChartSection(data: StatsResponse) {
     val categories = data.expensesByCategory
@@ -216,6 +261,12 @@ fun DonutChartSection(data: StatsResponse) {
         }
     )
 }
+/**
+ * Small summary card showing the number of distinct spending categories tracked in [month].
+ *
+ * @param month The 3-letter month abbreviation used in the section heading.
+ * @param data The [StatsResponse] providing the category list.
+ */
 @Composable
 fun SimpleInsights(month: String, data: StatsResponse) {
     Surface(
@@ -229,6 +280,15 @@ fun SimpleInsights(month: String, data: StatsResponse) {
     }
 }
 
+/**
+ * Small coloured indicator showing a labelled numeric value (e.g. "Regular 12").
+ *
+ * @param label Short description of the metric.
+ * @param value The numeric string to display.
+ * @param color Accent colour applied to the icon box and value text.
+ * @param isClickable When `true` the item responds to tap events via [onClick].
+ * @param onClick Called when the item is tapped (only active when [isClickable] is `true`).
+ */
 @Composable
 fun InsightMiniItem(label: String, value: String, color: Color, isClickable: Boolean = false, onClick: () -> Unit = {}) {
     Row(

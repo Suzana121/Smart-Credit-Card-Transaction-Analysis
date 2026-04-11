@@ -9,7 +9,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.cardify.app.ui.theme.CardifyTheme
 
+/**
+ * Legacy Activity shell that embeds [HomeScreen] using Jetpack Compose.
+ *
+ * This activity is retained for backwards compatibility with older navigation paths
+ * but is largely superseded by [com.cardify.app.MainActivity] which hosts the full
+ * Compose navigation graph. Navigation callbacks from [HomeScreen] currently only log
+ * the destination route.
+ */
 class HomeActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -21,7 +30,6 @@ class HomeActivity : ComponentActivity() {
                 ) {
                     HomeScreen(
                         onNavigate = { route ->
-                            // כאן נכתוב בעתיד את הקוד שעובר מסכים באמת
                             println("User clicked to navigate to: $route")
                         }
                     )

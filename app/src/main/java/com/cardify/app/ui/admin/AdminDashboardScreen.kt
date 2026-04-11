@@ -22,6 +22,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cardify.app.ui.components.AppScaffold
 import com.cardify.app.ui.home.CardifyColors
 
+/**
+ * Admin-only dashboard screen showing system-wide statistics.
+ *
+ * Handles [AdminUiState.Loading] (spinner), [AdminUiState.Error] (warning icon with retry),
+ * and [AdminUiState.Success] (renders [AdminDashboardContent]).
+ *
+ * @param onNavigate Called with the destination route when a bottom nav item is tapped.
+ * @param viewModel The [AdminDashboardViewModel] providing dashboard data and state.
+ */
 @Composable
 fun AdminDashboardScreen(
     onNavigate: (String) -> Unit = {},
@@ -68,6 +77,13 @@ fun AdminDashboardScreen(
     }
 }
 
+/**
+ * Scrollable content area of the admin dashboard. Renders the page header, four summary
+ * stat cards, a top-suspicious-businesses list, a top-users-with-irregular list, and a
+ * category spending breakdown with progress bars.
+ *
+ * @param data The [AdminDashboardData] containing all the statistics to display.
+ */
 @Composable
 fun AdminDashboardContent(data: AdminDashboardData) {
     LazyColumn(
@@ -293,8 +309,15 @@ fun AdminDashboardContent(data: AdminDashboardData) {
     }
 }
 
-// --- קומפוננטות עזר ---
-
+/**
+ * Small summary card showing a single metric with an icon, a large value, and a label.
+ *
+ * @param modifier Additional [Modifier] applied to the card (e.g. for weight in a [Row]).
+ * @param title Short label displayed below the value.
+ * @param value The formatted metric string to show prominently.
+ * @param icon Material icon shown above the value.
+ * @param color Accent colour applied to both the icon and the value text.
+ */
 @Composable
 fun StatCard(
     modifier: Modifier = Modifier,
@@ -318,6 +341,14 @@ fun StatCard(
     }
 }
 
+/**
+ * Generic container card used in the admin dashboard to group related content under a
+ * titled header.
+ *
+ * @param title Section heading displayed next to [icon].
+ * @param icon Material icon shown in the header row.
+ * @param content Composable lambda that provides the card body content within a [ColumnScope].
+ */
 @Composable
 fun DashboardCard(
     title: String,
