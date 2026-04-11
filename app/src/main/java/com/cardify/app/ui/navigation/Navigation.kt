@@ -15,6 +15,7 @@ import com.cardify.app.ui.shared_info.SharedInfoScreen
 import com.cardify.app.ui.shared_info.ShareWithFriendsScreen
 import com.cardify.app.ui.stats.StatsScreen
 import com.cardify.app.ui.transactions.TransactionsScreen
+import com.cardify.app.ui.chat.ChatScreen
 
 @Composable
 fun AppNavigation(
@@ -112,6 +113,22 @@ fun AppNavigation(
                         navController.navigate(route) { launchSingleTop = true }
                     }
                 },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = "chat/{shareId}/{friendName}",
+            arguments = listOf(
+                navArgument("shareId") { type = NavType.StringType },
+                navArgument("friendName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val shareId = backStackEntry.arguments?.getString("shareId") ?: ""
+            val friendName = backStackEntry.arguments?.getString("friendName") ?: ""
+            ChatScreen(
+                shareId = shareId,
+                friendName = friendName,
                 onBack = { navController.popBackStack() }
             )
         }

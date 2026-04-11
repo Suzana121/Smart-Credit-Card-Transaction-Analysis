@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,7 +42,6 @@ fun SharedInfoScreen(
                 .background(Color.White)
                 .padding(padding)
         ) {
-            // בחירת כיוון השיתוף (נכנס/יוצא)
             DirectionSelector(
                 selectedDirection = filterState.direction,
                 onDirectionSelected = { viewModel.setDirection(it) }
@@ -61,7 +62,14 @@ fun SharedInfoScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(shares) { share ->
-                        SharedTransactionItem(share = share)
+                        SharedTransactionItem(
+                            share = share,
+                            onChatClick = {
+                                val friendName = if (share.direction == "outgoing")
+                                    share.sharedWith else share.sharedBy
+                                onNavigate("chat/${share.id}/$friendName")
+                            }
+                        )
                     }
                 }
             }
@@ -70,12 +78,12 @@ fun SharedInfoScreen(
 }
 
 @Composable
-fun SharedTransactionItem(share: ShareItem) {
+fun SharedTransactionItem(
+    share: ShareItem,
+    onChatClick: () -> Unit
+) {
     val txn = share.transaction
-
-    // התאמה למודל שלך: משתמשים ב-direction במקום ב-isOutgoing
     val isOutgoing = share.direction == "outgoing"
-    // מכיוון שאין friendName במודל ששלחת, נציג את הטלפון של הצד השני
     val displayContact = if (isOutgoing) share.sharedWith else share.sharedBy
 
     Card(
@@ -95,21 +103,52 @@ fun SharedTransactionItem(share: ShareItem) {
                 HorizontalDivider(color = Color(0xFFEEEEEE))
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     Text(txn.businessName, fontWeight = FontWeight.Bold)
                     Text("₪${txn.amount}")
                 }
                 Text(txn.category, fontSize = 12.sp, color = Color.Gray)
                 Text(txn.date, fontSize = 11.sp, color = Color.LightGray)
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // כפתור Open Chat
+            Button(
+                onClick = onChatClick,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = CardifyColors.DarkGreen
+                ),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(38.dp)
+            ) {
+                Icon(
+                    Icons.Default.Chat,
+                    null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("Open Chat", fontSize = 13.sp)
+            }
         }
     }
 }
 
 @Composable
-fun DirectionSelector(selectedDirection: String, onDirectionSelected: (String) -> Unit) {
+fun DirectionSelector(
+    selectedDirection: String,
+    onDirectionSelected: (String) -> Unit
+) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(16.dp).background(Color(0xFFF0F0F0), RoundedCornerShape(12.dp))
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+            .background(Color(0xFFF0F0F0), RoundedCornerShape(12.dp))
     ) {
         listOf("outgoing" to "Sent", "incoming" to "Received").forEach { (key, label) ->
             val isSelected = selectedDirection == key
@@ -117,12 +156,18 @@ fun DirectionSelector(selectedDirection: String, onDirectionSelected: (String) -
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(if (isSelected) CardifyColors.DarkGreen else Color.Transparent)
+                    .background(
+                        if (isSelected) CardifyColors.DarkGreen else Color.Transparent
+                    )
                     .clickable { onDirectionSelected(key) }
                     .padding(vertical = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(label, color = if (isSelected) Color.White else Color.Gray, fontWeight = FontWeight.Bold)
+                Text(
+                    label,
+                    color = if (isSelected) Color.White else Color.Gray,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
