@@ -226,10 +226,12 @@ class HomeViewModel : ViewModel() {
                 if (!response.isSuccessful) {
                     _transactions.value = previousList
                     Log.e("HomeViewModel", "Update status failed: HTTP ${response.code()}")
+                    _errorMessage.value = "Failed to update transaction status. Please try again."
                 }
             } catch (e: Exception) {
                 _transactions.value = previousList
                 Log.e("HomeViewModel", "Update status error", e)
+                _errorMessage.value = e.toUserMessage()
             }
         }
     }

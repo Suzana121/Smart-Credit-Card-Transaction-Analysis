@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
 fun Exception.toUserMessage(): String = when (this) {
     is java.net.UnknownHostException  -> "No internet connection. Please check your network settings."
     is java.net.SocketTimeoutException -> "Connection timed out. Please try again."
-    is java.net.ConnectException       -> "Unable to connect to the server. Please try again later."
+    is java.net.ConnectException       -> "No internet connection. Please check your connection and try again."
     is javax.net.ssl.SSLException      -> "Secure connection failed. Please try again."
     else                               -> "An unexpected error occurred. Please try again."
 }
@@ -37,7 +37,7 @@ fun Exception.toUserMessage(): String = when (this) {
 object RetrofitClient {
 
     /** Base URL of the backend API. All endpoint paths are resolved relative to this. */
-    private const val BASE_URL = "http://127.0.0.1:5001/auth/"
+    private const val BASE_URL = "http://127.0.0.1:5001/"
 
     /** Lenient Gson instance that does not throw on malformed JSON values. */
     private val gson = GsonBuilder()

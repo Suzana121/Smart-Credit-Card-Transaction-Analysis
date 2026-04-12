@@ -3,6 +3,7 @@ package com.cardify.app.ui.stats
 import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cardify.app.data.api.toUserMessage
 import com.cardify.app.data.model.StatsResponse
 import com.cardify.app.data.repository.StatsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,8 +48,10 @@ class StatsViewModel : ViewModel() {
             _uiState.value = StatsUiState.Loading
             repository.fetchMonthlyStats(month).onSuccess { data ->
                 _uiState.value = StatsUiState.Success(data)
-            }.onFailure {
-                _uiState.value = StatsUiState.Error("Failed to fetch stats")
+            }.onFailure { throwable ->
+                val msg = (throwable as? Exception)?.toUserMessage()
+                    ?: "Failed to load statistics. Please try again."
+                _uiState.value = StatsUiState.Error(msg)
             }
         }
     }

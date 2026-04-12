@@ -59,8 +59,9 @@ class RegisterViewModel : ViewModel() {
                         when (response.code()) {
                             409  -> "An account with this email or phone number already exists."
                             400  -> "Invalid registration details. Please check your input."
+                            404  -> "Registration service not found. Please try again or contact support."
                             500, 502, 503 -> "Server error. Please try again later."
-                            else -> "Registration failed (${response.code()}). Please try again."
+                            else -> "Registration failed. Please try again."
                         }
                     )
                 }

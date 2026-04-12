@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cardify.app.ui.components.AppScaffold
+import com.cardify.app.ui.home.CardifyColors
 
 /**
  * Screen that lets the user pick a friend to share a specific transaction with.
@@ -42,12 +43,19 @@ fun ShareWithFriendsScreen(
 ) {
     val friends by viewModel.friends.collectAsState()
     val isSending by viewModel.isSending.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
     val context = LocalContext.current
-    val teal = Color(0xFF006769)
+    val teal = CardifyColors.DarkGreen
 
-    // טעינת רשימת החברים במידה והיא לא נטענה אוטומטית ב-init של ה-VM
     LaunchedEffect(Unit) {
         viewModel.loadFriends()
+    }
+
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            viewModel.clearError()
+        }
     }
 
     AppScaffold(currentRoute = "wallet", onNavigate = onNavigate) { padding ->

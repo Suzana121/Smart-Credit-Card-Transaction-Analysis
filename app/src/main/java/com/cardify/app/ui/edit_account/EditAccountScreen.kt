@@ -1,6 +1,5 @@
 package com.cardify.app.ui.edit_account
 
-import EditAccountViewModel
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts

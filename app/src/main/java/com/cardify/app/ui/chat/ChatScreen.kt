@@ -1,5 +1,6 @@
 package com.cardify.app.ui.chat
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,11 +48,20 @@ fun ChatScreen(
     var messageText by remember { mutableStateOf("") }
     val uiState by viewModel.uiState.collectAsState()
     val isSending by viewModel.isSending.collectAsState()
+    val sendError by viewModel.sendError.collectAsState()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     LaunchedEffect(shareId) {
         viewModel.loadMessages(shareId)
+    }
+
+    LaunchedEffect(sendError) {
+        sendError?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            viewModel.clearSendError()
+        }
     }
 
     // גלילה אוטומטית לתחתית כשמגיעות הודעות חדשות

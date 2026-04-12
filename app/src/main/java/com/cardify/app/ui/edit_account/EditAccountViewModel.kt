@@ -1,3 +1,5 @@
+package com.cardify.app.ui.edit_account
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -54,16 +56,16 @@ class EditAccountViewModel(
             try {
                 val result = repository.fetchUserData()
                 result.onSuccess { userResponse ->
-                    // התיקון כאן: משתמשים ב-userResponse.username (או user.name תלוי במודל שחזר)
                     name = userResponse.name
                     email = userResponse.email
                     phone = userResponse.phone ?: ""
-                    password = "" // סיסמה תמיד נשארת ריקה בטעינה מטעמי אבטחה
+                    password = "" // Password is never pre-filled for security
                 }.onFailure { exception ->
-                    errorMessage = "Failed to load user data: ${exception.message}"
+                    errorMessage = (exception as? Exception)?.toUserMessage()
+                        ?: "Failed to load profile. Please try again."
                 }
             } catch (e: Exception) {
-                errorMessage = "An unexpected error occurred"
+                errorMessage = e.toUserMessage()
             } finally {
                 isLoading = false
             }
@@ -94,12 +96,13 @@ class EditAccountViewModel(
 
                 result.onSuccess {
                     successMessage = "Account updated successfully!"
-                    onSuccess() // ביצוע הניווט חזרה רק לאחר הצלחה
+                    onSuccess()
                 }.onFailure { exception ->
-                    errorMessage = exception.message ?: "Update failed"
+                    errorMessage = (exception as? Exception)?.toUserMessage()
+                        ?: "Update failed. Please try again."
                 }
             } catch (e: Exception) {
-                errorMessage = "Connection error to server"
+                errorMessage = e.toUserMessage()
             } finally {
                 isUpdating = false
             }
@@ -113,20 +116,29 @@ class EditAccountViewModel(
      * @return `true` if all checks pass; `false` and sets [errorMessage] otherwise.
      */
     private fun validateFields(): Boolean {
-        if (name.isBlank() || email.isBlank()) {
-            errorMessage = "Username and Email cannot be empty"
-            return false
+        return when {
+            name.isBlank() -> {
+                errorMessage = "Name cannot be empty."
+                false
+            }
+            email.isBlank() -> {
+                errorMessage = "Email cannot be empty."
+                false
+            }
+            !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> {
+                errorMessage = "Please enter a valid email address."
+                false
+            }
+            phone.isNotBlank() && (!phone.all { it.isDigit() } || phone.length !in 9..10) -> {
+                errorMessage = "Phone number must be 9–10 digits."
+                false
+            }
+            password.isNotEmpty() && password.length < 6 -> {
+                errorMessage = "Password must be at least 6 characters."
+                false
+            }
+            else -> true
         }
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            errorMessage = "Invalid email format"
-            return false
-        }
-        // אם הוכנסה סיסמה, אפשר להוסיף בדיקת אורך (למשל מינימום 6 תווים)
-        if (password.isNotEmpty() && password.length < 6) {
-            errorMessage = "Password must be at least 6 characters"
-            return false
-        }
-        return true
     }
 
     /** Clears both [errorMessage] and [successMessage]. */

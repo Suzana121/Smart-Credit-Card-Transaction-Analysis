@@ -21,7 +21,6 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
-import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.launch
 
 /**
@@ -93,7 +92,6 @@ class LoginActivity : AppCompatActivity() {
      */
     private fun setupUI() {
         binding.btnLogin?.setOnClickListener {
-            Toast.makeText(this, "Button clicked!", Toast.LENGTH_SHORT).show()
             val email = findViewById<android.widget.EditText>(R.id.etEmail)?.text?.toString()?.trim() ?: ""
             val password = findViewById<android.widget.EditText>(R.id.etPassword)?.text?.toString() ?: ""
 
@@ -270,6 +268,6 @@ class LoginActivity : AppCompatActivity() {
      * @param message The error text to display.
      */
     private fun showError(message: String) {
-        Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 }

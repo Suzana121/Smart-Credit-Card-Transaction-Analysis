@@ -69,7 +69,7 @@ class LoginViewModel : ViewModel() {
                         when (response.code()) {
                             401  -> "Incorrect username or password."
                             403  -> "Account access denied."
-                            404  -> "Account not found."
+                            404  -> "No account found with that username. Please check your details or create a new account."
                             429  -> "Too many attempts. Please wait and try again."
                             500, 502, 503 -> "Server error. Please try again later."
                             else -> "Login failed (${response.code()}). Please try again."

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cardify.app.data.UserSession
 import com.cardify.app.data.api.RetrofitClient
+import com.cardify.app.data.api.toUserMessage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -73,6 +74,17 @@ class ChatViewModel : ViewModel() {
     /** `true` while a send-message request is in flight. */
     val isSending: StateFlow<Boolean> = _isSending.asStateFlow()
 
+    private val _sendError = MutableStateFlow<String?>(null)
+
+    /**
+     * One-shot error message set when a message fails to send. The UI should display this
+     * and then call [clearSendError] to reset it.
+     */
+    val sendError: StateFlow<String?> = _sendError.asStateFlow()
+
+    /** Clears [sendError] after it has been shown to the user. */
+    fun clearSendError() { _sendError.value = null }
+
     /** The share ID whose messages are currently being loaded and polled. */
     private var currentShareId: String = ""
 
@@ -106,14 +118,23 @@ class ChatViewModel : ViewModel() {
                 val messages = parseMessages(response.body())
                 _uiState.value = ChatUiState.Success(messages)
             } else {
+                Log.e("ChatViewModel", "Fetch messages HTTP ${response.code()}")
                 if (_uiState.value is ChatUiState.Loading) {
-                    _uiState.value = ChatUiState.Error("Failed to load messages")
+                    _uiState.value = ChatUiState.Error(
+                        when (response.code()) {
+                            401  -> "Session expired. Please log in again."
+                            403  -> "Access denied to this conversation."
+                            404  -> "Conversation not found."
+                            500, 502, 503 -> "Server error. Please try again later."
+                            else -> "Failed to load messages (${response.code()})."
+                        }
+                    )
                 }
             }
         } catch (e: Exception) {
             Log.e("ChatViewModel", "Error fetching messages", e)
             if (_uiState.value is ChatUiState.Loading) {
-                _uiState.value = ChatUiState.Error("Network error")
+                _uiState.value = ChatUiState.Error(e.toUserMessage())
             }
         }
     }
@@ -134,9 +155,13 @@ class ChatViewModel : ViewModel() {
                 )
                 if (response.isSuccessful) {
                     fetchMessages()
+                } else {
+                    Log.e("ChatViewModel", "Send message HTTP ${response.code()}")
+                    _sendError.value = "Message not sent. Please try again."
                 }
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error sending message", e)
+                _sendError.value = e.toUserMessage()
             } finally {
                 _isSending.value = false
             }

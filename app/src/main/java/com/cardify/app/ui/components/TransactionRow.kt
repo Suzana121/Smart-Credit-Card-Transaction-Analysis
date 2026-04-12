@@ -35,8 +35,26 @@ import androidx.compose.ui.unit.sp
 import com.cardify.app.R
 import com.cardify.app.data.model.Friend
 
+/**
+ * Controls the visual density and layout of a [TransactionRow].
+ *
+ * - [FULL]    — full-size card with icons, amounts, and an expandable action panel.
+ * - [SHARED]  — same as [FULL] but prepends the friend's avatar on the left.
+ * - [COMPACT] — reduced padding and font sizes for use inside tighter layouts.
+ */
 enum class TransactionRowVariant { FULL, SHARED, COMPACT }
 
+/**
+ * UI model representing a single transaction row in the transaction list.
+ *
+ * @property id Unique transaction identifier used as a list key.
+ * @property title Business or merchant name displayed as the row heading.
+ * @property date Human-readable transaction date string.
+ * @property amount Transaction amount in the local currency.
+ * @property isIrregular `true` when the transaction is flagged as suspicious/irregular.
+ * @property category Spending category name used to select the row icon.
+ * @property sharedWith The [Friend] this transaction was shared with, or `null` when not shared.
+ */
 data class TransactionItem(
     val id: String,
     val title: String,
@@ -47,6 +65,12 @@ data class TransactionItem(
     val sharedWith: Friend? = null
 )
 
+/**
+ * Returns the drawable resource ID for the icon that represents [category].
+ *
+ * @param category The spending category name (case-insensitive).
+ * @return A drawable resource ID from the app's icon set, falling back to `R.drawable.other`.
+ */
 fun getCategoryIcon(category: String): Int = when (category.lowercase()) {
     "food"      -> R.drawable.food1
     "health"    -> R.drawable.health
@@ -56,9 +80,14 @@ fun getCategoryIcon(category: String): Int = when (category.lowercase()) {
     else        -> R.drawable.other
 }
 
-// -----------------------------------------------
-// Dialog אישור שינוי סטטוס
-// -----------------------------------------------
+/**
+ * Confirmation dialog shown before toggling a transaction's Regular/Irregular status.
+ *
+ * @param isCurrentlyIrregular `true` when the transaction is currently irregular; determines
+ *   the dialog message and confirm-button colour.
+ * @param onConfirm Called when the user taps the confirm button.
+ * @param onDismiss Called when the user taps Cancel or dismisses the dialog.
+ */
 @Composable
 fun ConfirmStatusChangeDialog(
     isCurrentlyIrregular: Boolean,
@@ -108,9 +137,18 @@ fun ConfirmStatusChangeDialog(
     )
 }
 
-// -----------------------------------------------
-// Bottom Sheet לשיתוף עם חברים
-// -----------------------------------------------
+/**
+ * Modal bottom sheet that displays the user's friend list for sharing a transaction.
+ *
+ * When [friends] is empty it shows an empty-state illustration with a hint to visit the
+ * Account screen. Otherwise it renders a scrollable list of friend rows each with a
+ * "Send" button. The button is disabled while [isSending] is `true`.
+ *
+ * @param friends The list of friends to display.
+ * @param isSending `true` while a share request is in flight (disables all Send buttons).
+ * @param onSend Called with the selected [Friend] when a Send button is tapped.
+ * @param onDismiss Called when the sheet is dismissed without selecting a friend.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShareBottomSheet(
@@ -215,9 +253,24 @@ fun ShareBottomSheet(
     }
 }
 
-// -----------------------------------------------
-// TransactionRow הראשי
-// -----------------------------------------------
+/**
+ * Primary reusable transaction card composable used in the home and transactions screens.
+ *
+ * Renders the transaction's category icon, merchant name, amount, and
+ * Regular/Irregular status. Tapping the card expands an [ExpandedTransactionDetails] panel
+ * with the date, a Share button, and a status-toggle button. The status toggle shows a
+ * [ConfirmStatusChangeDialog] before committing the change. Sharing opens a [ShareBottomSheet].
+ *
+ * Local `isIrregular` state is keyed on [TransactionItem.id] so it resets correctly when
+ * the list is recomposed with different items.
+ *
+ * @param transaction The [TransactionItem] data to display.
+ * @param variant Controls the visual density and optional friend-avatar prefix.
+ * @param friends Friend list forwarded to [ShareBottomSheet].
+ * @param isSendingShare `true` while a share request is in flight.
+ * @param onSendShare Called with the selected [Friend] when the user confirms a share.
+ * @param onStatusChange Called with the new `isIrregular` value after the user confirms a status change.
+ */
 @Composable
 fun TransactionRow(
     transaction: TransactionItem,
@@ -354,9 +407,18 @@ fun TransactionRow(
     }
 }
 
-// -----------------------------------------------
-// Expanded Details
-// -----------------------------------------------
+/**
+ * Animated expanded section shown below the main transaction row when the card is tapped.
+ *
+ * Displays the transaction date and, when the transaction is irregular, a prominent warning
+ * message. Also renders a Share button and a status-toggle button.
+ *
+ * @param transaction The [TransactionItem] whose expanded details are shown.
+ * @param padH Horizontal padding matching the parent row's padding.
+ * @param padV Vertical padding matching the parent row's padding.
+ * @param onShareClick Called when the Share button is tapped (opens [ShareBottomSheet]).
+ * @param onStatusChange Called when the status-toggle button is tapped (opens [ConfirmStatusChangeDialog]).
+ */
 @Composable
 fun ExpandedTransactionDetails(
     transaction: TransactionItem,
