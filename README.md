@@ -23,15 +23,16 @@ An Android application that helps users track, categorize, and analyze their cre
 ## Features
 
 - **Authentication** — Register and log in with username/email/password. JWT tokens are stored in encrypted `SharedPreferences` and sent automatically on every request.
-- **Transaction Dashboard** — View all credit card transactions with category icons, amounts, and status badges. Filter by status (Regular / Irregular) or search by merchant name.
-- **File Upload** — Upload a `.xlsx` bank statement file to import transactions in bulk.
-- **Spending Statistics** — Monthly spending breakdown with a donut chart by category, total spend, and regular vs. irregular transaction counts.
-- **Irregular Transaction Detection** — Mark individual transactions as Regular or Irregular. The server analyses patterns and auto-classifies transactions on upload.
-- **Friends System** — Add friends by phone number, accept/decline incoming requests, and manage existing connections.
-- **Transaction Sharing** — Share any transaction with a friend. Shared transactions appear in a dedicated "Shared Info" screen with sent/received filters.
-- **In-App Chat** — Each shared transaction has a private chat thread with real-time polling (5-second interval).
-- **Edit Account** — Update username, email, phone number, and password with client-side validation.
-- **Admin Dashboard** — Admin users see a system-wide dashboard with user counts, transaction totals, and upload statistics instead of the regular stats screen.
+- **Transaction Dashboard** — View recent transactions on the home screen with category icons, amounts, and status badges. Share or toggle the status of any transaction inline.
+- **Full Transaction List** — A separate screen with real-time business-name search, status filter chips (All / Regular / Irregular), and infinite-scroll pagination (20 items per page, cursor-based).
+- **File Upload** — Upload a `.xlsx` bank statement directly from the home screen to import transactions in bulk. The transaction list refreshes automatically on success.
+- **Spending Statistics** — Monthly spending breakdown with an interactive donut chart by category, total spend, and regular vs. irregular transaction counts. Navigate across up to 6 months with arrow controls.
+- **Irregular Transaction Detection** — Mark individual transactions as Regular or Irregular with an optimistic UI update that reverts automatically if the server call fails.
+- **Friends System** — Add friends by phone number (with server-side user lookup), accept/decline incoming requests, and remove connections with optional cascade-deletion of associated shares.
+- **Transaction Sharing** — Share any transaction with an approved friend. Shared transactions appear in a dedicated "Shared Info" screen with sent/received direction filters.
+- **In-App Chat** — Each shared transaction has a private chat thread that polls for new messages every 5 seconds. Messages are auto-scrolled on arrival and display timestamps in HH:mm format.
+- **Edit Account** — Update username, email, phone number, and password with field-level client-side validation before any network call is made.
+- **Admin Dashboard** — Admin-role users see a system-wide dashboard (user counts, transaction totals, fraud rate, top suspicious businesses) instead of the regular stats screen. Non-admins receive HTTP 403 if they attempt to access it directly.
 
 ---
 
@@ -81,6 +82,16 @@ Data Layer     →  Models, UserSession (in-memory), PreferencesManager (encrypt
 ```
 
 All network errors are converted to user-friendly strings by a single `Exception.toUserMessage()` extension function in `RetrofitClient.kt`. Every ViewModel exposes an `errorMessage: StateFlow<String?>` and a `clearError()` function; every screen collects it and shows a `Toast`.
+
+Key patterns used throughout the codebase:
+
+| Pattern | Where used |
+|---|---|
+| Optimistic UI updates | Transaction status toggle — updates list immediately, reverts on server failure |
+| Cursor-based pagination | `TransactionsViewModel` — tracks `lastDocId` and `isLastPage`; loads 20 items per page |
+| Long-polling | `ChatViewModel` — re-fetches messages every 5 seconds via a `while(true)` + `delay(5000)` loop in `viewModelScope` |
+| One-shot error flow | All ViewModels — `errorMessage` StateFlow set then cleared after display |
+| Role-based routing | `AppNavigation` — `"stats"` route renders `AdminDashboardScreen` for admins, `StatsScreen` for regular users |
 
 ---
 
@@ -137,8 +148,8 @@ Smart-Credit-Card-Transaction-Analysis/
                 │   └── HomeViewModel.kt
                 │
                 ├── transactions/
-                │   ├── TransactionsScreen.kt     # Full list with search & filter
-                │   └── TransactionsViewModel.kt
+                │   ├── TransactionsScreen.kt     # Full list with search, filter, pagination
+                │   └── TransactionsViewModel.kt  # Cursor-based pagination, filter + search state
                 │
                 ├── stats/
                 │   ├── Statsscreen.kt            # Monthly stats + donut chart
@@ -151,8 +162,8 @@ Smart-Credit-Card-Transaction-Analysis/
                 │   └── ShareWithFriendsViewModel.kt
                 │
                 ├── chat/
-                │   ├── ChatScreen.kt             # Per-share chat with polling
-                │   └── ChatViewModel.kt
+                │   ├── ChatScreen.kt             # Per-share chat with 5s polling + auto-scroll
+                │   └── ChatViewModel.kt          # Message polling loop, send + refetch
                 │
                 ├── account/
                 │   ├── AccountScreen.kt          # Profile + friends management
@@ -170,8 +181,8 @@ Smart-Credit-Card-Transaction-Analysis/
                 │   └── AdminDashboardViewModel.kt
                 │
                 └── activity/
-                    ├── ActivityActivity.kt
-                    └── ActivityScreen.kt
+                    ├── ActivityActivity.kt       # Legacy Activity host (not in main nav graph)
+                    └── ActivityScreen.kt         # Legacy activity feed using mock data
 ```
 
 ---
@@ -311,7 +322,7 @@ All authenticated requests include an `Authorization: Bearer <token>` header inj
 | POST | `/auth/add-friend` | Send a friend request by phone number |
 | POST | `/auth/confirm-friend` | Accept an incoming friend request |
 | POST | `/auth/delete-friend` | Remove a friend |
-| POST | `/auth/delete-friend-smart` | Remove a friend and optionally cascade-delete shares |
+| POST | `/auth/delete-friend-smart` | Remove a friend; body accepts `delete_sent` and `delete_received` booleans to cascade-delete associated shares |
 | GET | `/auth/search_user/{phone}` | Look up a user by phone number |
 
 ### Statistics & Admin (`/auth/`)
@@ -325,7 +336,7 @@ All authenticated requests include an `Authorization: Bearer <token>` header inj
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/transactions` | List the current user's transactions |
+| GET | `/api/transactions?limit=N&last_doc_id=X` | Paginated transaction list; `last_doc_id` is `null` for first page |
 | PUT | `/api/transactions/{id}` | Update a transaction's status (Regular / Irregular) |
 | GET | `/api/shares` | List all sent and received shares |
 | POST | `/api/shares` | Share a transaction with a friend |
@@ -343,7 +354,7 @@ The app never fails silently. Every network call is wrapped in a `try/catch`, an
 |-----------|---------------------|
 | No internet | "No internet connection. Please check your network settings." |
 | Request timeout | "Connection timed out. Please try again." |
-| Server unreachable | "Unable to connect to the server. Please try again later." |
+| Server unreachable | "No internet connection. Please check your connection and try again." |
 | SSL error | "Secure connection failed. Please try again." |
 | HTTP 401 | "Session expired. Please log in again." |
 | HTTP 403 | "Access denied." |

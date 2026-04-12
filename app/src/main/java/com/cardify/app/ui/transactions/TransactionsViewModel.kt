@@ -37,10 +37,15 @@ class TransactionsViewModel : ViewModel() {
     /** Backing store for the complete unfiltered list of transactions. */
     private val _allTransactions = MutableStateFlow<List<Transaction>>(emptyList())
 
-    // משתנים חדשים לניהול ה-Pagination
+    /** ID of the last transaction received from the server, used as the cursor for the next page. `null` before the first fetch. */
     private var lastDocId: String? = null
+
+    /** `true` once the server returns an empty page, indicating there are no more transactions to load. */
     private var isLastPage = false
+
     private val _isPaginationLoading = MutableStateFlow(false)
+
+    /** `true` while a subsequent page is being fetched (i.e. not the initial load). */
     val isPaginationLoading: StateFlow<Boolean> = _isPaginationLoading.asStateFlow()
 
     private val _activeFilter = MutableStateFlow(TransactionFilter.ALL)
