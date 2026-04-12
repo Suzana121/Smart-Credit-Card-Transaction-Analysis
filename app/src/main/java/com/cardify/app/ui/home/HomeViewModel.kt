@@ -80,7 +80,7 @@ class HomeViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val response = RetrofitClient.apiService.getTransactions()
+                val response = RetrofitClient.apiService.getTransactions(limit = 20, lastDocId = null)
                 if (response.isSuccessful) {
                     _transactions.value = response.body() ?: emptyList()
                 } else {
