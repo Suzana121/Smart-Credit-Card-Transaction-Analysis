@@ -144,12 +144,17 @@ interface AuthApiService {
     // --- Transactions & Shares ---
 
     /**
-     * Returns all transactions belonging to the authenticated user.
+     * Returns a paginated batch of transactions belonging to the authenticated user.
      *
-     * @return List of [com.cardify.app.data.model.Transaction] objects.
+     * @param limit Maximum number of transactions to return per page.
+     * @param lastDocId ID of the last transaction from the previous page, or `null` for the first page.
+     * @return List of [com.cardify.app.data.model.Transaction] objects for the requested page.
      */
     @GET("api/transactions")
-    suspend fun getTransactions(): Response<List<com.cardify.app.data.model.Transaction>>
+    suspend fun getTransactions(
+        @Query("limit") limit: Int,
+        @Query("last_doc_id") lastDocId: String?
+    ): Response<List<com.cardify.app.data.model.Transaction>>
 
     /**
      * Updates the status (Regular/Irregular) of a single transaction.

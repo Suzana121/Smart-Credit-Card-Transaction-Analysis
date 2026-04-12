@@ -40,13 +40,30 @@ def _serialize_share(doc, direction):
             }
     return share
 
-# --- שליפת עסקאות של המשתמש ---
+# --- שליפת עסקאות של המשתמש עם Pagination (מתוקן) ---
 @upload_bp.route('/transactions', methods=['GET'])
 @jwt_required()
 def get_transactions():
     try:
         user_id = get_jwt_identity()
-        docs = db.collection('transactions').where('user_id', '==', user_id).stream()
+
+        # קבלת פרמטרים מהבקשה (לדרישת ה-Pagination)
+        limit_val = int(request.args.get('limit', 20))
+        last_doc_id = request.args.get('last_doc_id')
+
+        # בניית השאילתה עם סינון לפי המשתמש ומיון לפי תאריך
+        query = db.collection('transactions') \
+            .where('user_id', '==', user_id) \
+            .order_by('date', direction='DESCENDING')
+
+        # אם יש לנו מזהה של הדף הקודם, נמשיך ממנו
+        if last_doc_id:
+            last_doc_ref = db.collection('transactions').document(last_doc_id).get()
+            if last_doc_ref.exists:
+                query = query.start_after(last_doc_ref)
+
+        # הפעלת ה-Limit (כאן מתבצע ה-Pagination בפועל)
+        docs = query.limit(limit_val).stream()
 
         transactions = []
         for doc in docs:
@@ -54,10 +71,13 @@ def get_transactions():
             t['id'] = doc.id
             transactions.append(t)
 
+        # הדפסה לטרמינל בשביל הבדיקה שלך
+        print(f"Pagination active (User: {user_id}): Sent {len(transactions)} transactions")
+
         return jsonify(transactions), 200
     except Exception as e:
+        print(f"DEBUG: Error in get_transactions: {e}")
         return jsonify({"error": str(e)}), 500
-
 # --- עדכון סטטוס עסקה ---
 @upload_bp.route('/transactions/<transaction_id>', methods=['PUT'])
 @jwt_required()

@@ -8,12 +8,7 @@ import com.cardify.app.data.api.toUserMessage
 import com.cardify.app.data.model.Friend
 import com.cardify.app.data.model.ShareRequest
 import com.cardify.app.data.model.Transaction
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 /**
@@ -41,6 +36,12 @@ class TransactionsViewModel : ViewModel() {
 
     /** Backing store for the complete unfiltered list of transactions. */
     private val _allTransactions = MutableStateFlow<List<Transaction>>(emptyList())
+
+    // משתנים חדשים לניהול ה-Pagination
+    private var lastDocId: String? = null
+    private var isLastPage = false
+    private val _isPaginationLoading = MutableStateFlow(false)
+    val isPaginationLoading: StateFlow<Boolean> = _isPaginationLoading.asStateFlow()
 
     private val _activeFilter = MutableStateFlow(TransactionFilter.ALL)
 
@@ -100,21 +101,47 @@ class TransactionsViewModel : ViewModel() {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
-        fetchTransactions()
+        fetchTransactions(isFirstLoad = true)
         loadFriends()
     }
 
     /**
-     * Fetches all transactions for the current user from the server.
-     * Sets [isLoading] to `true` while the request is in flight.
+     * Fetches transactions for the current user from the server.
+     *
+     * @param isFirstLoad `true` to reset the list and start from page 1; `false` to append the
+     *   next page. No-ops if a fetch is already in flight or there are no more pages to load.
      */
-    fun fetchTransactions() {
+    fun fetchTransactions(isFirstLoad: Boolean = false) {
+        if (_isLoading.value || _isPaginationLoading.value || (isLastPage && !isFirstLoad)) return
+
         viewModelScope.launch {
-            _isLoading.value = true
+            if (isFirstLoad) {
+                _isLoading.value = true
+                lastDocId = null
+                isLastPage = false
+            } else {
+                _isPaginationLoading.value = true
+            }
+
             try {
-                val response = RetrofitClient.apiService.getTransactions()
+                // קריאה ל-API עם הפרמטרים החדשים (limit ו-lastDocId)
+                val response = RetrofitClient.apiService.getTransactions(
+                    limit = 20,
+                    lastDocId = lastDocId
+                )
+
                 if (response.isSuccessful) {
-                    _allTransactions.value = response.body() ?: emptyList()
+                    val newBatch = response.body() ?: emptyList()
+                    if (newBatch.isEmpty()) {
+                        isLastPage = true
+                    } else {
+                        lastDocId = newBatch.lastOrNull()?.id
+                        if (isFirstLoad) {
+                            _allTransactions.value = newBatch
+                        } else {
+                            _allTransactions.value += newBatch
+                        }
+                    }
                 } else {
                     Log.e("TransactionsViewModel", "Fetch HTTP ${response.code()}")
                     _errorMessage.value = when (response.code()) {
@@ -129,6 +156,7 @@ class TransactionsViewModel : ViewModel() {
                 _errorMessage.value = e.toUserMessage()
             } finally {
                 _isLoading.value = false
+                _isPaginationLoading.value = false
             }
         }
     }
