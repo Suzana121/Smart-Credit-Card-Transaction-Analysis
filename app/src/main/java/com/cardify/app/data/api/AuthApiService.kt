@@ -2,8 +2,10 @@ package com.cardify.app.data.api
 
 import com.cardify.app.data.model.*
 import okhttp3.MultipartBody
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.*
+import retrofit2.http.Query
 
 interface AuthApiService {
 
@@ -31,10 +33,22 @@ interface AuthApiService {
     suspend fun deleteFriendWithOptions(
         @Body options: Map<String, @JvmSuppressWildcards Any>
     ): Response<ShareResponse>
+
+    @GET("auth/search_user/{phone}")
+    suspend fun searchUserByPhone(
+        @Path("phone") phone: String
+    ): Response<UserSearchResponse>
+
+    @POST("auth/update")
+    suspend fun updateUserDetails(@Body request: UpdateUserRequest): Response<UpdateResponse>
+
     // --- Transactions & Shares (Prefix: /api) ---
 
     @GET("api/transactions")
-    suspend fun getTransactions(): Response<List<Transaction>>
+    suspend fun getTransactions(
+        @Query("limit")  limit:  Int     = 20,
+        @Query("cursor") cursor: String? = null
+    ): Response<TransactionPage>
 
     @GET("api/shares")
     suspend fun getShares(): Response<List<ShareItem>>
@@ -52,11 +66,18 @@ interface AuthApiService {
         @Body statusRequest: Map<String, String>
     ): Response<Transaction>
 
-    @GET("auth/search_user/{phone}")
-    suspend fun searchUserByPhone(
-        @Path("phone") phone: String
-    ): Response<UserSearchResponse>
+    // --- PDF Report ---
+    @GET("api/report")
+    @Streaming
+    suspend fun downloadReport(): Response<ResponseBody>
 
-    @POST("auth/update") suspend fun updateUserDetails(@Body request: UpdateUserRequest): Response<UpdateResponse>
+    // --- Profile Update ---
+    @POST("api/profile/update")
+    suspend fun updateProfile(
+        @Body body: Map<String, @JvmSuppressWildcards Any>
+    ): Response<Map<String, String>>
 
+    // --- Admin ---
+    @GET("auth/admin/dashboard")
+    suspend fun getAdminDashboard(): Response<Map<String, Any>>
 }

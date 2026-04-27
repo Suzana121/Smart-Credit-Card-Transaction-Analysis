@@ -42,3 +42,7 @@ backend/serviceAccountKey.json
 firebase-debug.log
 serviceAccountKey.json
 google-services.json
+
+data/
+models/
+*.pkl

@@ -1,5 +1,6 @@
 package com.cardify.app.ui.home
 
+import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -16,7 +17,6 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
-import android.content.Context
 
 class HomeViewModel : ViewModel() {
 
@@ -36,9 +36,9 @@ class HomeViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val response = RetrofitClient.apiService.getTransactions()
+                val response = RetrofitClient.apiService.getTransactions(limit = 5)
                 if (response.isSuccessful) {
-                    _transactions.value = response.body() ?: emptyList()
+                    _transactions.value = response.body()?.transactions ?: emptyList()
                 }
             } catch (e: Exception) {
                 Log.e("HomeViewModel", "Fetch error", e)
@@ -55,9 +55,11 @@ class HomeViewModel : ViewModel() {
             try {
                 val file = getFileFromUri(context, uri)
                 if (file != null) {
-                    val requestFile = file.asRequestBody("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet".toMediaTypeOrNull())
+                    val requestFile = file.asRequestBody(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                            .toMediaTypeOrNull()
+                    )
                     val body = MultipartBody.Part.createFormData("file", file.name, requestFile)
-
                     val response = RetrofitClient.apiService.uploadFile(body)
                     if (response.isSuccessful) {
                         _uploadMessage.value = "Success! Data processed."
@@ -77,28 +79,40 @@ class HomeViewModel : ViewModel() {
 
     fun updateTransactionStatus(transactionId: String, newStatus: String) {
         val previousList = _transactions.value
-        // Optimistic update — reflect the change in the UI immediately
         _transactions.value = previousList.map { t ->
             if (t.id == transactionId) t.copy(status = newStatus) else t
         }
         viewModelScope.launch {
             try {
-                Log.d("HomeViewModel", "PUT /api/transactions/$transactionId  status=$newStatus")
                 val response = RetrofitClient.apiService.updateTransactionStatus(
                     transactionId, mapOf("status" to newStatus)
                 )
                 if (!response.isSuccessful) {
-                    // Revert if the backend rejected the update
                     _transactions.value = previousList
-                    val errorBody = response.errorBody()?.string() ?: "empty"
-                    Log.e("HomeViewModel", "Update status failed: HTTP ${response.code()} | id=$transactionId | body=$errorBody")
-                } else {
-                    Log.d("HomeViewModel", "Update status success: id=$transactionId -> $newStatus")
+                    Log.e("HomeViewModel", "Update failed: ${response.code()}")
                 }
             } catch (e: Exception) {
-                // Revert on network error
                 _transactions.value = previousList
-                Log.e("HomeViewModel", "Update status error", e)
+                Log.e("HomeViewModel", "Update error", e)
+            }
+        }
+    }
+
+    // --- עדכון פרופיל לאחר תיקונים ידניים ---
+    fun updateProfile(overrides: Map<String, String>, onSuccess: () -> Unit) {
+        if (overrides.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                val body = mapOf<String, Any>("overrides" to overrides)
+                val response = RetrofitClient.apiService.updateProfile(body)
+                if (response.isSuccessful) {
+                    Log.d("HomeViewModel", "Profile updated with ${overrides.size} override(s)")
+                    onSuccess()
+                } else {
+                    Log.e("HomeViewModel", "Profile update failed: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Profile update error", e)
             }
         }
     }

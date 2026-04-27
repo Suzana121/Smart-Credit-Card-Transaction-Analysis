@@ -22,24 +22,18 @@ import com.cardify.app.R
 
 val AppTeal = Color(0xFF006769)
 
-// -----------------------------------------------
-// פריטי ניווט — מוגדרים פעם אחת
-// -----------------------------------------------
 sealed class NavigationItem(
     val route: String,
     val icon: ImageVector,
     val label: String
 ) {
-    object Home         : NavigationItem("home",     Icons.Default.Home,        "Home")
-    object SharedInfo   : NavigationItem("wallet",   Icons.Default.Description, "Shared Info")
-    object Transactions : NavigationItem("activity", Icons.Default.List,        "Transactions")
-    object Stats        : NavigationItem("stats",    Icons.Default.BarChart,    "Stats")
-    object Account      : NavigationItem("account",  Icons.Default.Person,      "Account")
+    object Home         : NavigationItem("home",         Icons.Default.Home,        "Home")
+    object SharedInfo   : NavigationItem("wallet",       Icons.Default.Description, "Shared Info")
+    object Transactions : NavigationItem("transactions", Icons.Default.List,        "Transactions") // תוקן מ-"activity"
+    object Stats        : NavigationItem("stats",        Icons.Default.BarChart,    "Stats")
+    object Account      : NavigationItem("account",      Icons.Default.Person,      "Account")
 }
 
-// -----------------------------------------------
-// TopBar משותף — מוגדר פעם אחת, בשימוש בכל מסך
-// -----------------------------------------------
 @Composable
 fun CleanTopBar(onAccountClick: () -> Unit = {}) {
     Row(
@@ -69,14 +63,10 @@ fun CleanTopBar(onAccountClick: () -> Unit = {}) {
     }
 }
 
-// -----------------------------------------------
-// AppScaffold — מוגדר פעם אחת, בשימוש בכל מסך
-// -----------------------------------------------
 @Composable
 fun AppScaffold(
     currentRoute: String,
     onNavigate: (String) -> Unit,
-    // אפשר לדרוס את ה-TopBar רק אם צריך משהו מיוחד (כמו search bar)
     topBarContent: (@Composable () -> Unit)? = null,
     content: @Composable (PaddingValues) -> Unit
 ) {
@@ -91,8 +81,6 @@ fun AppScaffold(
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Scaffold(
             topBar = {
-                // אם העברת topBarContent מיוחד — השתמש בו (כמו ב-ActivityScreen עם search)
-                // אחרת — CleanTopBar הרגיל
                 topBarContent?.invoke() ?: CleanTopBar(
                     onAccountClick = { onNavigate("account") }
                 )
@@ -104,11 +92,11 @@ fun AppScaffold(
                 ) {
                     items.forEach { item ->
                         NavigationBarItem(
-                            icon = { Icon(item.icon, contentDescription = item.label) },
-                            label = { Text(item.label, fontSize = 10.sp, maxLines = 1) },
+                            icon     = { Icon(item.icon, contentDescription = item.label) },
+                            label    = { Text(item.label, fontSize = 10.sp, maxLines = 1) },
                             selected = currentRoute == item.route,
-                            onClick = { onNavigate(item.route) },
-                            colors = NavigationBarItemDefaults.colors(
+                            onClick  = { onNavigate(item.route) },
+                            colors   = NavigationBarItemDefaults.colors(
                                 selectedIconColor   = AppTeal,
                                 selectedTextColor   = AppTeal,
                                 unselectedIconColor = Color(0xFF666666).copy(0.6f),

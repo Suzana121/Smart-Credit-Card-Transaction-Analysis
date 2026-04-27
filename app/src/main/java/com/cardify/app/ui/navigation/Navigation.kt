@@ -11,45 +11,35 @@ import com.cardify.app.ui.account.AccountScreen
 import com.cardify.app.ui.edit_account.EditAccountScreen
 import com.cardify.app.ui.shared_info.SharedInfoScreen
 import com.cardify.app.ui.shared_info.ShareWithFriendsScreen
+import com.cardify.app.ui.transactions.TransactionsScreen
 
 @Composable
-fun AppNavigation(
-    startDestination: String = "home"
-) {
+fun AppNavigation(startDestination: String = "home") {
     val navController = rememberNavController()
 
-    NavHost(
-        navController = navController,
-        startDestination = startDestination
-    ) {
+    NavHost(navController = navController, startDestination = startDestination) {
+
         composable("home") {
             HomeScreen(
                 onNavigate = { route ->
-                    if (route != "home") {
-                        navController.navigate(route) {
-                            popUpTo("home") { inclusive = false }
-                            launchSingleTop = true
-                        }
+                    if (route != "home") navController.navigate(route) {
+                        popUpTo("home") { inclusive = false }
+                        launchSingleTop = true
                     }
                 },
                 onShareClick = { transaction ->
-                    // מעבירים את ה-ID כחלק מהנתיב
                     navController.navigate("share_with_friends/${transaction.id}")
                 }
             )
         }
 
-        // הגדרת המסלול עם פרמטר transactionId
         composable(
             route = "share_with_friends/{transactionId}",
-            arguments = listOf(
-                navArgument("transactionId") { type = NavType.StringType }
-            )
+            arguments = listOf(navArgument("transactionId") { type = NavType.StringType })
         ) { backStackEntry ->
             val txnId = backStackEntry.arguments?.getString("transactionId")
-
             ShareWithFriendsScreen(
-                transactionId = txnId, // המסך יקבל ID במקום אובייקט שלם
+                transactionId = txnId,
                 onNavigate = { route ->
                     navController.navigate(route) {
                         popUpTo("home") { inclusive = false }
@@ -63,11 +53,20 @@ fun AppNavigation(
         composable("wallet") {
             SharedInfoScreen(
                 onNavigate = { route ->
-                    if (route != "wallet") {
-                        navController.navigate(route) {
-                            popUpTo("home") { inclusive = false }
-                            launchSingleTop = true
-                        }
+                    if (route != "wallet") navController.navigate(route) {
+                        popUpTo("home") { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+
+        composable("transactions") {
+            TransactionsScreen(
+                onNavigate = { route ->
+                    if (route != "transactions") navController.navigate(route) {
+                        popUpTo("home") { inclusive = false }
+                        launchSingleTop = true
                     }
                 }
             )
@@ -77,14 +76,17 @@ fun AppNavigation(
             val context = androidx.compose.ui.platform.LocalContext.current
             AccountScreen(
                 onNavigate = { route ->
-                    if (route != "account") {
-                        navController.navigate(route) { launchSingleTop = true }
+                    if (route != "account") navController.navigate(route) {
+                        launchSingleTop = true
                     }
                 },
                 onEditProfile = { navController.navigate("edit_account") },
                 onLogout = {
-                    val intent = android.content.Intent(context, com.cardify.app.ui.login.LoginActivity::class.java)
-                    intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    val intent = android.content.Intent(
+                        context, com.cardify.app.ui.login.LoginActivity::class.java
+                    )
+                    intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                            android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
                     context.startActivity(intent)
                 }
             )
@@ -93,8 +95,8 @@ fun AppNavigation(
         composable("edit_account") {
             EditAccountScreen(
                 onNavigate = { route ->
-                    if (route != "edit_account") {
-                        navController.navigate(route) { launchSingleTop = true }
+                    if (route != "edit_account") navController.navigate(route) {
+                        launchSingleTop = true
                     }
                 },
                 onBack = { navController.popBackStack() }

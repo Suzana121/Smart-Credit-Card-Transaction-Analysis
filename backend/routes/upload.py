@@ -11,6 +11,35 @@ import logging
 logger = logging.getLogger(__name__)
 upload_bp = Blueprint('upload', __name__)
 
+# תרגום קטגוריות עברית → אנגלית
+CATEGORY_TRANSLATION = {
+    'מזון וצריכה': 'Food & Grocery',
+    'מסעדות, קפה וברים': 'Restaurants & Cafes',
+    'מסעדות': 'Restaurants',
+    'אופנה': 'Fashion',
+    'בריאות': 'Health',
+    'תחבורה': 'Transport',
+    'חינוך': 'Education',
+    'שירותי תקשורת': 'Telecommunications',
+    'עירייה וממשלה': 'Government',
+    'שונות': 'Other',
+    'כללי': 'General',
+    'בידור': 'Entertainment',
+    'ביטוח': 'Insurance',
+    'בנקאות ופיננסים': 'Finance',
+    'רכב': 'Automotive',
+    'מחשבים ואלקטרוניקה': 'Electronics',
+    'ספורט': 'Sports',
+    'תיירות ונסיעות': 'Travel',
+    'שירותים מקצועיים': 'Professional Services',
+    'קניות': 'Shopping',
+}
+
+def translate_category(cat):
+    if not cat:
+        return 'General'
+    return CATEGORY_TRANSLATION.get(cat, cat if not any(ord(c) > 127 for c in str(cat)) else 'General')
+
 
 def _serialize_share(doc, direction):
     data = doc.to_dict()
@@ -47,14 +76,81 @@ def _serialize_share(doc, direction):
 def get_transactions():
     try:
         user_id = get_jwt_identity()
-        docs = db.collection('transactions').where('user_id', '==', user_id).stream()
+        limit   = int(request.args.get('limit', 20))
+        cursor  = request.args.get('cursor', None)  # ID של העסקה האחרונה
+
+        from google.cloud.firestore_v1.base_query import FieldFilter
+
+        query = db.collection('transactions')                  .where(filter=FieldFilter('user_id', '==', user_id))                  .limit(limit)
+
+        if cursor:
+            last_doc = db.collection('transactions').document(cursor).get()
+            if last_doc.exists:
+                query = query.start_after(last_doc)
+
+        docs = query.stream()
         transactions = []
+        last_id = None
         for doc in docs:
             t = doc.to_dict()
             t['id'] = doc.id
             transactions.append(t)
-        return jsonify(transactions), 200
+            last_id = doc.id
+
+        # מיון בצד הלקוח לפי תאריך
+        transactions.sort(key=lambda x: x.get('date', ''), reverse=True)
+
+        return jsonify({
+            "transactions": transactions,
+            "nextCursor":   last_id if len(transactions) == limit else None,
+            "hasMore":      len(transactions) == limit
+        }), 200
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@upload_bp.route('/profile/update', methods=['POST'])
+@jwt_required()
+def update_profile():
+    """מעדכן פרופיל משתמש לאחר תיקונים ידניים."""
+    try:
+        user_id = get_jwt_identity()
+        data    = request.get_json()
+        overrides = data.get('overrides', {})  # {transaction_id: new_status}
+
+        if not overrides:
+            return jsonify({"message": "No overrides provided"}), 200
+
+        # שליפת פרופיל קיים
+        profile_ref = db.collection('user_profiles').document(user_id)
+        profile_doc = profile_ref.get()
+        user_profile = profile_doc.to_dict() if profile_doc.exists else {}
+
+        # שליפת העסקאות המתוקנות לעדכון הפרופיל
+        known_merchants = set(user_profile.get('known_merchants', []))
+        cat_counts      = dict(user_profile.get('category_counts', {}))
+
+        for txn_id, new_status in overrides.items():
+            txn_doc = db.collection('transactions').document(txn_id).get()
+            if txn_doc.exists:
+                t = txn_doc.to_dict()
+                if new_status == 'REGULAR':
+                    # המשתמש אמר שזו עסקה רגילה - נוסיף לפרופיל
+                    merchant = t.get('businessName', '')
+                    category = t.get('category', 'General')
+                    if merchant:
+                        known_merchants.add(merchant)
+                    if category:
+                        cat_counts[category] = cat_counts.get(category, 0) + 1
+
+        user_profile['known_merchants'] = list(known_merchants)
+        user_profile['category_counts'] = cat_counts
+        profile_ref.set(user_profile, merge=True)
+
+        return jsonify({"message": f"Profile updated with {len(overrides)} correction(s)"}), 200
+
+    except Exception as e:
+        logger.error(f"Profile update error: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -166,7 +262,7 @@ def upload_file():
                 "businessName":      txn['businessName'],
                 "amount":            txn['amount'],
                 "date":              txn['date'],
-                "category":          txn['category'],
+                "category":          translate_category(txn['category']),
                 "txn_type":          txn.get('txn_type', ''),
                 "currency":          txn['currency'],
                 "original_amount":   txn.get('original_amount', txn['amount']),
