@@ -5,7 +5,6 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -88,7 +87,6 @@ fun HomeScreen(
                 .background(Color.White)
                 .padding(padding)
         ) {
-            // Banner outside LazyColumn — recomposes immediately when manualOverrides changes
             if (manualOverrides.isNotEmpty()) {
                 UpdateProfileBannerHome(
                     count = manualOverrides.size,
@@ -112,8 +110,14 @@ fun HomeScreen(
                 item {
                     Spacer(Modifier.height(10.dp))
                     Column(Modifier.fillMaxWidth()) {
+                        val greeting = when (java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)) {
+                            in 5..11  -> "Good Morning!"
+                            in 12..16 -> "Good Afternoon!"
+                            in 17..20 -> "Good Evening!"
+                            else      -> "Good Night!"
+                        }
                         Text(
-                            "Good Morning!",
+                            greeting,
                             color = CardifyColors.LightGreenText,
                             fontSize = 18.sp,
                             fontFamily = ibmPlexSans
@@ -162,13 +166,10 @@ fun HomeScreen(
                                 expanded = false
                                 viewModel.fetchTransactions(limit = it.toIntOrNull() ?: 5)
                             },
-                            ibmPlexSans    = ibmPlexSans
+                            ibmPlexSans = ibmPlexSans
                         )
                     }
                 }
-
-                val limitInt    = selectedLimit.toIntOrNull() ?: 5
-                val displayList = transactions.take(limitInt)
 
                 if (isLoading) {
                     item {
@@ -186,7 +187,6 @@ fun HomeScreen(
                         )
                     }
                 } else {
-                    // ─── Using TransactionRow component ───
                     items(transactions) { transaction ->
                         val currentStatus = manualOverrides[transaction.id] ?: transaction.status
                         val txItem = transaction
@@ -219,7 +219,7 @@ fun TransactionRowWithConfirm(
     onShareClick: () -> Unit,
     onStatusConfirmed: (Boolean) -> Unit
 ) {
-    var showConfirm by remember { mutableStateOf(false) }
+    var showConfirm      by remember { mutableStateOf(false) }
     var pendingIrregular by remember { mutableStateOf(false) }
 
     if (showConfirm) {
@@ -250,7 +250,7 @@ fun TransactionRowWithConfirm(
             dismissButton = {
                 OutlinedButton(
                     onClick = { showConfirm = false },
-                    shape = RoundedCornerShape(10.dp)
+                    shape   = RoundedCornerShape(10.dp)
                 ) { Text("Cancel") }
             },
             shape = RoundedCornerShape(16.dp)
@@ -258,9 +258,9 @@ fun TransactionRowWithConfirm(
     }
 
     TransactionRow(
-        transaction = transaction,
-        variant     = TransactionRowVariant.FULL,
-        onShareClick = onShareClick,
+        transaction    = transaction,
+        variant        = TransactionRowVariant.FULL,
+        onShareClick   = onShareClick,
         onStatusChange = { markIrregular ->
             pendingIrregular = markIrregular
             showConfirm = true
@@ -286,7 +286,7 @@ fun UploadSection(
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
             "Upload Your Latest Transactions",
-            fontSize = 15.sp,
+            fontSize   = 15.sp,
             fontWeight = FontWeight.Bold,
             fontFamily = ibmPlexSans
         )
@@ -316,19 +316,19 @@ fun UploadSection(
                     Icon(
                         painterResource(R.drawable.ic_upload_custom),
                         contentDescription = null,
-                        tint = CardifyColors.DarkGreen,
+                        tint     = CardifyColors.DarkGreen,
                         modifier = Modifier.size(26.dp)
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
                         if (selectedFile != null) "File Ready" else "Tap to choose file",
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp
+                        fontSize   = 13.sp
                     )
                     Text(
                         selectedFile?.lastPathSegment ?: "CSV, XLS up to 10MB",
                         fontSize = 11.sp,
-                        color = Color.Gray
+                        color    = Color.Gray
                     )
                 }
             }
@@ -359,31 +359,22 @@ fun UpdateProfileBannerHome(count: Int, onUpdate: () -> Unit, modifier: Modifier
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            Icons.Default.AutoFixHigh,
-            contentDescription = null,
-            tint = CardifyColors.DarkGreen,
-            modifier = Modifier.size(20.dp)
-        )
+        Icon(Icons.Default.AutoFixHigh, contentDescription = null,
+            tint = CardifyColors.DarkGreen, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(8.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                "Profile Update Available",
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp,
-                color = CardifyColors.DarkGreen
-            )
+            Text("Profile Update Available",
+                fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
+                color = CardifyColors.DarkGreen)
             Text(
                 "You corrected $count transaction(s). Update your profile to improve future detection.",
-                fontSize = 11.sp,
-                color = Color.Gray
-            )
+                fontSize = 11.sp, color = Color.Gray)
         }
         Spacer(Modifier.width(8.dp))
         Button(
-            onClick = onUpdate,
-            colors  = ButtonDefaults.buttonColors(containerColor = CardifyColors.DarkGreen),
-            shape   = RoundedCornerShape(10.dp),
+            onClick  = onUpdate,
+            colors   = ButtonDefaults.buttonColors(containerColor = CardifyColors.DarkGreen),
+            shape    = RoundedCornerShape(10.dp),
             modifier = Modifier.height(34.dp),
             contentPadding = PaddingValues(horizontal = 12.dp)
         ) { Text("Update", fontSize = 12.sp) }
@@ -410,31 +401,23 @@ fun FilterDropdown(
     ) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "Limit: $selectedLimit",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = ibmPlexSans
-                )
+                Text("Limit: $selectedLimit",
+                    fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = ibmPlexSans)
                 Spacer(Modifier.weight(1f))
                 Icon(
-                    if (expanded) Icons.Default.KeyboardArrowUp
-                    else Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp)
+                    if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = null, modifier = Modifier.size(14.dp)
                 )
             }
             AnimatedVisibility(visible = expanded) {
                 Column {
                     listOf("5", "10", "15").forEach {
-                        Text(
-                            it,
+                        Text(it,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onLimitSelect(it) }
                                 .padding(vertical = 4.dp),
-                            fontSize = 12.sp
-                        )
+                            fontSize = 12.sp)
                     }
                 }
             }
