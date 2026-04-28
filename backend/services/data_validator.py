@@ -77,9 +77,7 @@ class DataValidator:
         # --- 2. ניקוי שמות עסקים ---
         before = len(df)
         df['businessName'] = df['businessName'].astype(str).str.strip()
-        # הסרת שורות עם שם ריק או קצר מדי
         df = df[df['businessName'].str.len() > 1]
-        # הסרת שורות שהן סיכום
         skip_keywords = ['סה"כ', 'סהכ', 'total', 'Total', '---', 'סך הכל']
         mask = df['businessName'].apply(
             lambda x: not any(k in str(x) for k in skip_keywords)
@@ -98,7 +96,6 @@ class DataValidator:
             report.fixed_fields.append(f"amount: {null_amounts} non-numeric values set to 0")
             df['amount'] = df['amount'].fillna(0)
 
-        # הסרת סכומים מחוץ לטווח סביר
         df = df[(df['amount'] >= DataValidator.MIN_AMOUNT) &
                 (df['amount'] <= DataValidator.MAX_AMOUNT)]
         removed = before - len(df)
@@ -158,14 +155,16 @@ class DataValidator:
             report.warnings.append(f"Removed {removed} duplicate transactions")
 
         # --- 8. בדיקת מינימום שורות ---
-        if len(df) < 3:
-            report.errors.append(
-                f"Too few valid transactions after cleaning: {len(df)}. "
-                f"Minimum required: 3"
+        # מינימום 1 — קבצים קטנים יתקבלו עם אזהרה במקום שגיאה
+        if len(df) < 1:
+            report.errors.append("No valid transactions found after cleaning")
+        elif len(df) < 3:
+            report.warnings.append(
+                f"Only {len(df)} transaction(s) found — anomaly detection may be less accurate"
             )
 
         df = df.reset_index(drop=True)
-        report.final_rows  = len(df)
+        report.final_rows   = len(df)
         report.removed_rows = report.original_rows - report.final_rows
 
         return df, report

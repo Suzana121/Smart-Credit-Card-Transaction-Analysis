@@ -56,21 +56,25 @@ class HomeViewModel : ViewModel() {
             _isUploading.value = true
             _uploadMessage.value = "Uploading..."
             try {
-                // שמירת שם הקובץ האמיתי לפני העתקה
                 val originalName = getOriginalFileName(context, uri) ?: "upload.xlsx"
                 val file = getFileFromUri(context, uri, originalName)
 
                 if (file != null) {
                     val mimeType = when {
-                        originalName.endsWith(".csv")  -> "text/csv"
-                        originalName.endsWith(".xls")  -> "application/vnd.ms-excel"
+                        originalName.endsWith(".csv") -> "text/csv"
+                        originalName.endsWith(".xls") -> "application/vnd.ms-excel"
                         else -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     }
                     val requestFile = file.asRequestBody(mimeType.toMediaTypeOrNull())
                     val body = MultipartBody.Part.createFormData("file", originalName, requestFile)
                     val response = RetrofitClient.apiService.uploadFile(body)
                     if (response.isSuccessful) {
-                        _uploadMessage.value = "Success! Data processed."
+                        val warnings = response.body()?.warnings
+                        if (!warnings.isNullOrEmpty()) {
+                            _uploadMessage.value = "Success! Note: ${warnings.first()}"
+                        } else {
+                            _uploadMessage.value = "Success! Data processed."
+                        }
                         delay(2000)
                         fetchTransactions()
                     } else {
@@ -85,7 +89,6 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    /** מחזיר את השם האמיתי של הקובץ מה-URI */
     private fun getOriginalFileName(context: Context, uri: Uri): String? {
         return try {
             val cursor = context.contentResolver.query(uri, null, null, null, null)
@@ -96,7 +99,6 @@ class HomeViewModel : ViewModel() {
         } catch (e: Exception) { null }
     }
 
-    /** שומר את הקובץ עם השם המקורי שלו */
     private fun getFileFromUri(context: Context, uri: Uri, fileName: String): File? {
         return try {
             val inputStream = context.contentResolver.openInputStream(uri)

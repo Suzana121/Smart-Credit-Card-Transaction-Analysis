@@ -112,14 +112,8 @@ fun HomeScreen(
                 item {
                     Spacer(Modifier.height(10.dp))
                     Column(Modifier.fillMaxWidth()) {
-                        val greeting = when (java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)) {
-                            in 5..11  -> "Good Morning!"
-                            in 12..16 -> "Good Afternoon!"
-                            in 17..20 -> "Good Evening!"
-                            else      -> "Good Night!"
-                        }
                         Text(
-                            greeting,
+                            "Good Morning!",
                             color = CardifyColors.LightGreenText,
                             fontSize = 18.sp,
                             fontFamily = ibmPlexSans

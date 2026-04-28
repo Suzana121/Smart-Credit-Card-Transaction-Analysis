@@ -181,7 +181,10 @@ data class UploadResponse(
     val message: String? = null,
 
     @SerializedName("error")
-    val error: String? = null
+    val error: String? = null,
+
+    @SerializedName("warnings")
+    val warnings: List<String>? = null
 )
 /**
  * מודל לשליחת בקשת חברות (רק טלפון)

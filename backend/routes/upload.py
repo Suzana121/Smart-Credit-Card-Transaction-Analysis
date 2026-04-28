@@ -312,6 +312,8 @@ def upload_file():
 
         # 2. ולידציה
         df, report = DataValidator.validate(df)
+        print("VALIDATOR ERRORS:", report.errors)
+        print("VALIDATOR WARNINGS:", report.warnings)
         if not report.is_valid():
             return jsonify({"error": report.errors[0]}), 400
         if report.warnings:
