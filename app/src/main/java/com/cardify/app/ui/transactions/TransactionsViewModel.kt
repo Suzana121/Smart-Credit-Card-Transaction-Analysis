@@ -11,6 +11,7 @@ import com.cardify.app.data.api.RetrofitClient
 import com.cardify.app.data.model.Friend
 import com.cardify.app.data.model.ShareRequest
 import com.cardify.app.data.model.Transaction
+import com.cardify.app.data.model.UploadedFile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -38,20 +39,28 @@ class TransactionsViewModel : ViewModel() {
     private val _errorMessage     = MutableStateFlow<String?>(null)
     private val _manualOverrides  = MutableStateFlow<Map<String, String>>(emptyMap())
 
+    // ── קבצים שהועלו ──
+    private val _uploads         = MutableStateFlow<List<UploadedFile>>(emptyList())
+    private val _selectedFileId  = MutableStateFlow<String?>(null)  // null = הכל
+    private val _isLoadingUploads = MutableStateFlow(false)
+
     private var nextCursor: String? = null
     private val pageSize = 20
 
-    val activeFilter:     StateFlow<TransactionFilter>   = _activeFilter.asStateFlow()
-    val searchQuery:      StateFlow<String>              = _searchQuery.asStateFlow()
-    val isLoading:        StateFlow<Boolean>             = _isLoading.asStateFlow()
-    val isLoadingMore:    StateFlow<Boolean>             = _isLoadingMore.asStateFlow()
-    val hasMore:          StateFlow<Boolean>             = _hasMore.asStateFlow()
-    val friends:          StateFlow<List<Friend>>        = _friends.asStateFlow()
-    val isSendingShare:   StateFlow<Boolean>             = _isSendingShare.asStateFlow()
-    val isDownloadingPdf: StateFlow<Boolean>             = _isDownloadingPdf.asStateFlow()
-    val pdfUri:           StateFlow<Uri?>                = _pdfUri.asStateFlow()
-    val errorMessage:     StateFlow<String?>             = _errorMessage.asStateFlow()
-    val manualOverrides:  StateFlow<Map<String, String>> = _manualOverrides.asStateFlow()
+    val activeFilter:      StateFlow<TransactionFilter>   = _activeFilter.asStateFlow()
+    val searchQuery:       StateFlow<String>              = _searchQuery.asStateFlow()
+    val isLoading:         StateFlow<Boolean>             = _isLoading.asStateFlow()
+    val isLoadingMore:     StateFlow<Boolean>             = _isLoadingMore.asStateFlow()
+    val hasMore:           StateFlow<Boolean>             = _hasMore.asStateFlow()
+    val friends:           StateFlow<List<Friend>>        = _friends.asStateFlow()
+    val isSendingShare:    StateFlow<Boolean>             = _isSendingShare.asStateFlow()
+    val isDownloadingPdf:  StateFlow<Boolean>             = _isDownloadingPdf.asStateFlow()
+    val pdfUri:            StateFlow<Uri?>                = _pdfUri.asStateFlow()
+    val errorMessage:      StateFlow<String?>             = _errorMessage.asStateFlow()
+    val manualOverrides:   StateFlow<Map<String, String>> = _manualOverrides.asStateFlow()
+    val uploads:           StateFlow<List<UploadedFile>>  = _uploads.asStateFlow()
+    val selectedFileId:    StateFlow<String?>             = _selectedFileId.asStateFlow()
+    val isLoadingUploads:  StateFlow<Boolean>             = _isLoadingUploads.asStateFlow()
 
     val filteredTransactions: StateFlow<List<Transaction>> = combine(
         _allTransactions, _activeFilter, _searchQuery
@@ -73,6 +82,31 @@ class TransactionsViewModel : ViewModel() {
     init {
         fetchTransactions()
         loadFriends()
+        fetchUploads()
+    }
+
+    // ── טעינת רשימת הקבצים ──
+    fun fetchUploads() {
+        viewModelScope.launch {
+            _isLoadingUploads.value = true
+            try {
+                val response = RetrofitClient.apiService.getUploads()
+                if (response.isSuccessful) {
+                    _uploads.value = response.body() ?: emptyList()
+                }
+            } catch (e: Exception) {
+                Log.e("TransactionsVM", "Uploads fetch error", e)
+            } finally {
+                _isLoadingUploads.value = false
+            }
+        }
+    }
+
+    // ── בחירת קובץ — מאפס ומביא עסקאות חדשות ──
+    fun selectFile(fileId: String?) {
+        if (_selectedFileId.value == fileId) return  // לא צריך לטעון מחדש
+        _selectedFileId.value = fileId
+        fetchTransactions()
     }
 
     fun fetchTransactions() {
@@ -82,7 +116,9 @@ class TransactionsViewModel : ViewModel() {
             _hasMore.value = true
             try {
                 val response = RetrofitClient.apiService.getTransactions(
-                    limit = pageSize, cursor = null
+                    limit  = pageSize,
+                    cursor = null,
+                    fileId = _selectedFileId.value   // ← מעביר את הקובץ הנבחר
                 )
                 if (response.isSuccessful) {
                     val page = response.body()
@@ -104,7 +140,9 @@ class TransactionsViewModel : ViewModel() {
             _isLoadingMore.value = true
             try {
                 val response = RetrofitClient.apiService.getTransactions(
-                    limit = pageSize, cursor = nextCursor
+                    limit  = pageSize,
+                    cursor = nextCursor,
+                    fileId = _selectedFileId.value
                 )
                 if (response.isSuccessful) {
                     val page = response.body()
@@ -222,7 +260,7 @@ class TransactionsViewModel : ViewModel() {
                 val body = mapOf<String, Any>("overrides" to _manualOverrides.value)
                 val response = RetrofitClient.apiService.updateProfile(body)
                 if (response.isSuccessful) {
-                    _manualOverrides.value = emptyMap()  // מנקה את הבאנר
+                    _manualOverrides.value = emptyMap()
                     onSuccess()
                 } else {
                     _errorMessage.value = "Profile update failed: ${response.code()}"

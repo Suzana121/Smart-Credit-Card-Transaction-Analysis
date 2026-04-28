@@ -7,11 +7,11 @@ from services.data_validator import DataValidator
 from services.user_profile_schema import validate_profile, merge_profile
 from google.cloud import firestore
 import logging
+import uuid
 
 logger = logging.getLogger(__name__)
 upload_bp = Blueprint('upload', __name__)
 
-# תרגום קטגוריות עברית → אנגלית
 CATEGORY_TRANSLATION = {
     'מזון וצריכה': 'Food & Grocery',
     'מסעדות, קפה וברים': 'Restaurants & Cafes',
@@ -71,34 +71,48 @@ def _serialize_share(doc, direction):
     return share
 
 
+# ─────────────────────────────────────────────
+# GET /api/transactions
+# ─────────────────────────────────────────────
 @upload_bp.route('/transactions', methods=['GET'])
 @jwt_required()
 def get_transactions():
     try:
         user_id = get_jwt_identity()
         limit   = int(request.args.get('limit', 20))
-        cursor  = request.args.get('cursor', None)  # ID של העסקה האחרונה
+        cursor  = request.args.get('cursor', None)
+        file_id = request.args.get('file_id', None)
 
         from google.cloud.firestore_v1.base_query import FieldFilter
 
-        query = db.collection('transactions')                  .where(filter=FieldFilter('user_id', '==', user_id))                  .limit(limit)
+        # אם לא נבחר קובץ ספציפי — משתמשים ב-latest_file_id מהפרופיל
+        if not file_id:
+            profile_doc = db.collection('user_profiles').document(user_id).get()
+            if profile_doc.exists:
+                file_id = profile_doc.to_dict().get('latest_file_id')
+
+        query = (db.collection('transactions')
+                 .where(filter=FieldFilter('user_id', '==', user_id)))
+
+        if file_id:
+            query = query.where(filter=FieldFilter('file_id', '==', file_id))
+
+        query = query.order_by('date', direction=firestore.Query.DESCENDING)
 
         if cursor:
             last_doc = db.collection('transactions').document(cursor).get()
             if last_doc.exists:
                 query = query.start_after(last_doc)
 
-        docs = query.stream()
+        query = query.limit(limit)
+
         transactions = []
         last_id = None
-        for doc in docs:
+        for doc in query.stream():
             t = doc.to_dict()
             t['id'] = doc.id
             transactions.append(t)
             last_id = doc.id
-
-        # מיון בצד הלקוח לפי תאריך
-        transactions.sort(key=lambda x: x.get('date', ''), reverse=True)
 
         return jsonify({
             "transactions": transactions,
@@ -106,27 +120,76 @@ def get_transactions():
             "hasMore":      len(transactions) == limit
         }), 200
     except Exception as e:
+        import traceback
+        print("GET_TRANSACTIONS ERROR:", str(e))
+        print(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
 
+
+# ─────────────────────────────────────────────
+# GET /api/uploads  — רשימת קבצים שהמשתמש העלה
+# ─────────────────────────────────────────────
+@upload_bp.route('/uploads', methods=['GET'])
+@jwt_required()
+def get_uploads():
+    try:
+        user_id = get_jwt_identity()
+
+        from google.cloud.firestore_v1.base_query import FieldFilter
+
+        docs = (db.collection('uploads')
+                .where(filter=FieldFilter('user_id', '==', user_id))
+                .stream())
+
+        uploads = []
+        for doc in docs:
+            d = doc.to_dict()
+            ts = d.get('uploaded_at')
+            date_str = ts.isoformat() if hasattr(ts, 'isoformat') else str(ts) if ts else ''
+            uploads.append({
+                'id':                doc.id,
+                'fileName':          d.get('file_name', 'Unknown'),
+                'uploadedAt':        date_str,
+                'transactionCount':  d.get('transaction_count', 0),
+                'irregularCount':    d.get('irregular_count', 0),
+                '_ts':               ts,  # לצורך מיון
+            })
+
+        # מיון לפי תאריך העלאה — החדש ביותר ראשון
+        uploads.sort(key=lambda x: x.get('uploadedAt', ''), reverse=True)
+        uploads = uploads[:6]
+
+        # הסרת שדה העזר לפני החזרה
+        for u in uploads:
+            u.pop('_ts', None)
+
+        return jsonify(uploads), 200
+    except Exception as e:
+        import traceback
+        print("GET_UPLOADS ERROR:", str(e))
+        print(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+# ─────────────────────────────────────────────
+# POST /api/profile/update
+# ─────────────────────────────────────────────
 @upload_bp.route('/profile/update', methods=['POST'])
 @jwt_required()
 def update_profile():
-    """מעדכן פרופיל משתמש לאחר תיקונים ידניים."""
     try:
         user_id = get_jwt_identity()
         data    = request.get_json()
-        overrides = data.get('overrides', {})  # {transaction_id: new_status}
+        overrides = data.get('overrides', {})
 
         if not overrides:
             return jsonify({"message": "No overrides provided"}), 200
 
-        # שליפת פרופיל קיים
         profile_ref = db.collection('user_profiles').document(user_id)
         profile_doc = profile_ref.get()
         user_profile = profile_doc.to_dict() if profile_doc.exists else {}
 
-        # שליפת העסקאות המתוקנות לעדכון הפרופיל
         known_merchants = set(user_profile.get('known_merchants', []))
         cat_counts      = dict(user_profile.get('category_counts', {}))
 
@@ -135,7 +198,6 @@ def update_profile():
             if txn_doc.exists:
                 t = txn_doc.to_dict()
                 if new_status == 'REGULAR':
-                    # המשתמש אמר שזו עסקה רגילה - נוסיף לפרופיל
                     merchant = t.get('businessName', '')
                     category = t.get('category', 'General')
                     if merchant:
@@ -154,6 +216,9 @@ def update_profile():
         return jsonify({"error": str(e)}), 500
 
 
+# ─────────────────────────────────────────────
+# PUT /api/transactions/<id>
+# ─────────────────────────────────────────────
 @upload_bp.route('/transactions/<transaction_id>', methods=['PUT'])
 @jwt_required()
 def update_transaction_status(transaction_id):
@@ -177,6 +242,9 @@ def update_transaction_status(transaction_id):
         return jsonify({"error": str(e)}), 500
 
 
+# ─────────────────────────────────────────────
+# GET /api/shares
+# ─────────────────────────────────────────────
 @upload_bp.route('/shares', methods=['GET'])
 @jwt_required()
 def get_shares():
@@ -198,6 +266,9 @@ def get_shares():
         return jsonify({"error": str(e)}), 500
 
 
+# ─────────────────────────────────────────────
+# POST /api/shares
+# ─────────────────────────────────────────────
 @upload_bp.route('/shares', methods=['POST'])
 @jwt_required()
 def post_share():
@@ -222,6 +293,9 @@ def post_share():
         return jsonify({"error": str(e)}), 500
 
 
+# ─────────────────────────────────────────────
+# POST /api/upload
+# ─────────────────────────────────────────────
 @upload_bp.route('/upload', methods=['POST'])
 @jwt_required()
 def upload_file():
@@ -233,32 +307,41 @@ def upload_file():
 
     try:
         # 1. קריאה וניקוי
+        original_filename = file.filename or 'unknown'
         df = FileService.validate_and_process_file(file)
 
-        # 2. ולידציה של הנתונים
+        # 2. ולידציה
         df, report = DataValidator.validate(df)
         if not report.is_valid():
             return jsonify({"error": report.errors[0]}), 400
         if report.warnings:
             logger.warning(f"Validation warnings for user {user_id}: {report.warnings}")
 
-        # 3. פרופיל משתמש מ-Firestore
+        # 3. פרופיל משתמש
         profile_ref = db.collection('user_profiles').document(user_id)
         profile_doc = profile_ref.get()
         raw_profile  = profile_doc.to_dict() if profile_doc.exists else {}
-        user_profile = validate_profile(raw_profile)  # ודא שכל השדות קיימים
+        user_profile = validate_profile(raw_profile)
 
         # 4. הרצת המודל
         ml = MLService.get_instance()
         classified = ml.classify_transactions(df, user_profile)
 
-        # 5. שמירה ל-Firestore
+        # 5. יצירת מזהה קובץ ייחודי
+        file_id = str(uuid.uuid4())
+
+        # 6. שמירת הטרנזקציות עם file_id
         batch = db.batch()
         count = 0
+        irregular_count = 0
         for txn in classified:
             doc_ref = db.collection('transactions').document()
+            is_irregular = txn['status'] == 'IRREGULAR'
+            if is_irregular:
+                irregular_count += 1
             batch.set(doc_ref, {
                 "user_id":           user_id,
+                "file_id":           file_id,          # ← חדש
                 "businessName":      txn['businessName'],
                 "amount":            txn['amount'],
                 "date":              txn['date'],
@@ -278,7 +361,17 @@ def upload_file():
                 batch = db.batch()
         batch.commit()
 
-        # 6. עדכון פרופיל עם merge_profile
+        # 7. שמירת מטאדטה של הקובץ ב-uploads collection
+        upload_ref = db.collection('uploads').document(file_id)
+        upload_ref.set({
+            "user_id":           user_id,
+            "file_name":         original_filename,
+            "transaction_count": count,
+            "irregular_count":   irregular_count,
+            "uploaded_at":       firestore.SERVER_TIMESTAMP,
+        })
+
+        # 8. עדכון פרופיל + שמירת latest_file_id ביחד
         new_profile_data = {
             "new_amounts":    df['amount'].tolist(),
             "new_merchants":  df['businessName'].tolist(),
@@ -287,9 +380,9 @@ def upload_file():
             "count":          len(df),
         }
         updated_profile = merge_profile(user_profile, new_profile_data)
+        updated_profile['latest_file_id'] = file_id  # ← נשמר יחד עם הפרופיל
         profile_ref.set(updated_profile)
 
-        irregular_count = sum(1 for t in classified if t['status'] == 'IRREGULAR')
         return jsonify({
             "message":        f"Successfully saved {count} transactions.",
             "total":          count,
@@ -297,6 +390,7 @@ def upload_file():
             "regular":        count - irregular_count,
             "removed_rows":   report.removed_rows,
             "warnings":       report.warnings,
+            "file_id":        file_id,
         }), 200
 
     except ValueError as e:

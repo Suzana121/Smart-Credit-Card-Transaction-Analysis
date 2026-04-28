@@ -32,11 +32,14 @@ class HomeViewModel : ViewModel() {
     private val _uploadMessage = MutableStateFlow<String?>(null)
     val uploadMessage: StateFlow<String?> = _uploadMessage.asStateFlow()
 
-    fun fetchTransactions() {
+    private val _manualOverrides = MutableStateFlow<Map<String, String>>(emptyMap())
+    val manualOverrides: StateFlow<Map<String, String>> = _manualOverrides.asStateFlow()
+
+    fun fetchTransactions(limit: Int = 5) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val response = RetrofitClient.apiService.getTransactions(limit = 5)
+                val response = RetrofitClient.apiService.getTransactions(limit = limit)
                 if (response.isSuccessful) {
                     _transactions.value = response.body()?.transactions ?: emptyList()
                 }
@@ -53,13 +56,18 @@ class HomeViewModel : ViewModel() {
             _isUploading.value = true
             _uploadMessage.value = "Uploading..."
             try {
-                val file = getFileFromUri(context, uri)
+                // שמירת שם הקובץ האמיתי לפני העתקה
+                val originalName = getOriginalFileName(context, uri) ?: "upload.xlsx"
+                val file = getFileFromUri(context, uri, originalName)
+
                 if (file != null) {
-                    val requestFile = file.asRequestBody(
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                            .toMediaTypeOrNull()
-                    )
-                    val body = MultipartBody.Part.createFormData("file", file.name, requestFile)
+                    val mimeType = when {
+                        originalName.endsWith(".csv")  -> "text/csv"
+                        originalName.endsWith(".xls")  -> "application/vnd.ms-excel"
+                        else -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    }
+                    val requestFile = file.asRequestBody(mimeType.toMediaTypeOrNull())
+                    val body = MultipartBody.Part.createFormData("file", originalName, requestFile)
                     val response = RetrofitClient.apiService.uploadFile(body)
                     if (response.isSuccessful) {
                         _uploadMessage.value = "Success! Data processed."
@@ -77,11 +85,37 @@ class HomeViewModel : ViewModel() {
         }
     }
 
+    /** מחזיר את השם האמיתי של הקובץ מה-URI */
+    private fun getOriginalFileName(context: Context, uri: Uri): String? {
+        return try {
+            val cursor = context.contentResolver.query(uri, null, null, null, null)
+            cursor?.use {
+                val nameIndex = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (it.moveToFirst() && nameIndex >= 0) it.getString(nameIndex) else null
+            }
+        } catch (e: Exception) { null }
+    }
+
+    /** שומר את הקובץ עם השם המקורי שלו */
+    private fun getFileFromUri(context: Context, uri: Uri, fileName: String): File? {
+        return try {
+            val inputStream = context.contentResolver.openInputStream(uri)
+            val file = File(context.cacheDir, fileName)
+            val outputStream = FileOutputStream(file)
+            inputStream?.copyTo(outputStream)
+            inputStream?.close()
+            outputStream.close()
+            file
+        } catch (e: Exception) { null }
+    }
+
     fun updateTransactionStatus(transactionId: String, newStatus: String) {
         val previousList = _transactions.value
         _transactions.value = previousList.map { t ->
             if (t.id == transactionId) t.copy(status = newStatus) else t
         }
+        _manualOverrides.value = _manualOverrides.value + (transactionId to newStatus)
+
         viewModelScope.launch {
             try {
                 val response = RetrofitClient.apiService.updateTransactionStatus(
@@ -89,24 +123,26 @@ class HomeViewModel : ViewModel() {
                 )
                 if (!response.isSuccessful) {
                     _transactions.value = previousList
+                    _manualOverrides.value = _manualOverrides.value - transactionId
                     Log.e("HomeViewModel", "Update failed: ${response.code()}")
                 }
             } catch (e: Exception) {
                 _transactions.value = previousList
+                _manualOverrides.value = _manualOverrides.value - transactionId
                 Log.e("HomeViewModel", "Update error", e)
             }
         }
     }
 
-    // --- עדכון פרופיל לאחר תיקונים ידניים ---
-    fun updateProfile(overrides: Map<String, String>, onSuccess: () -> Unit) {
-        if (overrides.isEmpty()) return
+    fun updateProfile(onSuccess: () -> Unit) {
+        if (_manualOverrides.value.isEmpty()) return
         viewModelScope.launch {
             try {
-                val body = mapOf<String, Any>("overrides" to overrides)
+                val body = mapOf<String, Any>("overrides" to _manualOverrides.value)
                 val response = RetrofitClient.apiService.updateProfile(body)
                 if (response.isSuccessful) {
-                    Log.d("HomeViewModel", "Profile updated with ${overrides.size} override(s)")
+                    _manualOverrides.value = emptyMap()
+                    Log.d("HomeViewModel", "Profile updated")
                     onSuccess()
                 } else {
                     Log.e("HomeViewModel", "Profile update failed: ${response.code()}")
@@ -115,17 +151,5 @@ class HomeViewModel : ViewModel() {
                 Log.e("HomeViewModel", "Profile update error", e)
             }
         }
-    }
-
-    private fun getFileFromUri(context: Context, uri: Uri): File? {
-        return try {
-            val inputStream = context.contentResolver.openInputStream(uri)
-            val file = File(context.cacheDir, "temp_upload.xlsx")
-            val outputStream = FileOutputStream(file)
-            inputStream?.copyTo(outputStream)
-            inputStream?.close()
-            outputStream.close()
-            file
-        } catch (e: Exception) { null }
     }
 }

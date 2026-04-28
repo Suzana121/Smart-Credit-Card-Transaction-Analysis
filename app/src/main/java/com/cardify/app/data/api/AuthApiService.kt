@@ -46,9 +46,13 @@ interface AuthApiService {
 
     @GET("api/transactions")
     suspend fun getTransactions(
-        @Query("limit")  limit:  Int     = 20,
-        @Query("cursor") cursor: String? = null
+        @Query("limit")   limit:  Int     = 20,
+        @Query("cursor")  cursor: String? = null,
+        @Query("file_id") fileId: String? = null   // ← חדש: פילטר לפי קובץ
     ): Response<TransactionPage>
+
+    @GET("api/uploads")
+    suspend fun getUploads(): Response<List<UploadedFile>>   // ← חדש
 
     @GET("api/shares")
     suspend fun getShares(): Response<List<ShareItem>>

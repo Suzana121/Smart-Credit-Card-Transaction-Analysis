@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cardify.app.R
 import com.cardify.app.data.model.Friend
+import com.cardify.app.data.model.Transaction
 
 enum class TransactionRowVariant { FULL, SHARED, COMPACT }
 
@@ -43,13 +44,32 @@ data class TransactionItem(
     val sharedWith: Friend? = null
 )
 
-fun getCategoryIcon(category: String): Int = when (category.lowercase()) {
-    "food"       -> R.drawable.food1
-    "health"     -> R.drawable.health
-    "shopping"   -> R.drawable.shopping1
-    "transport"  -> R.drawable.transport
-    "education"  -> R.drawable.education
-    else         -> R.drawable.other
+/** Converts a backend [Transaction] to the UI model [TransactionItem]. */
+fun Transaction.toTransactionItem(sharedWith: Friend? = null) = TransactionItem(
+    id          = id,
+    title       = businessName,
+    date        = date,
+    amount      = amount,
+    isIrregular = status == "IRREGULAR",
+    category    = category,
+    sharedWith  = sharedWith
+)
+
+fun getCategoryIcon(category: String): Int = when {
+    category.contains("Food", ignoreCase = true) ||
+            category.contains("Grocery", ignoreCase = true) ||
+            category.contains("מזון", ignoreCase = true)        -> R.drawable.food1
+    category.contains("Health", ignoreCase = true) ||
+            category.contains("בריאות", ignoreCase = true)      -> R.drawable.health
+    category.contains("Shopping", ignoreCase = true) ||
+            category.contains("Fashion", ignoreCase = true) ||
+            category.contains("אופנה", ignoreCase = true) ||
+            category.contains("קניות", ignoreCase = true)       -> R.drawable.shopping1
+    category.contains("Transport", ignoreCase = true) ||
+            category.contains("תחבורה", ignoreCase = true)      -> R.drawable.transport
+    category.contains("Education", ignoreCase = true) ||
+            category.contains("חינוך", ignoreCase = true)       -> R.drawable.education
+    else                                                -> R.drawable.other
 }
 
 @Composable
@@ -76,7 +96,9 @@ fun TransactionRow(
             Image(
                 painter = painterResource(id = transaction.sharedWith?.photoResource ?: R.drawable.user),
                 contentDescription = transaction.sharedWith?.name,
-                modifier = Modifier.size(36.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
             )
             Spacer(modifier = Modifier.width(10.dp))
         }
@@ -113,8 +135,6 @@ fun TransactionRow(
                         color = Color.Black,
                         modifier = Modifier.weight(1f)
                     )
-
-
                     Column(
                         horizontalAlignment = Alignment.End,
                         verticalArrangement = Arrangement.spacedBy(-9.dp)
@@ -206,15 +226,21 @@ fun ExpandedTransactionDetails(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                Icon(Icons.Default.Share, contentDescription = null,
-                    tint = Color(0xFF2E7D32), modifier = Modifier.size(16.dp))
+                Icon(
+                    Icons.Default.Share,
+                    contentDescription = null,
+                    tint = Color(0xFF2E7D32),
+                    modifier = Modifier.size(16.dp)
+                )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text("Share", fontSize = 12.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.SemiBold)
             }
 
             Button(
                 onClick = { onStatusChange(!transaction.isIrregular) },
-                modifier = Modifier.height(38.dp).widthIn(min = 170.dp),
+                modifier = Modifier
+                    .height(38.dp)
+                    .widthIn(min = 170.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006769)),
                 contentPadding = PaddingValues(horizontal = 16.dp)

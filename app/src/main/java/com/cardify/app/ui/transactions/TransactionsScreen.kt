@@ -2,16 +2,12 @@ package com.cardify.app.ui.transactions
 
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,12 +29,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cardify.app.data.model.Friend
 import com.cardify.app.data.model.Transaction
 import com.cardify.app.ui.components.AppScaffold
+import com.cardify.app.ui.components.TransactionRow
+import com.cardify.app.ui.components.TransactionRowVariant
+import com.cardify.app.data.model.UploadedFile
+import com.cardify.app.ui.components.toTransactionItem
 
 // --- Cardify Colors ---
 private val DarkGreen    = Color(0xFF006769)
 private val IrregularRed = Color(0xFFE23125)
 private val RegularGreen = Color(0xFF38D325)
-private val LightBg      = Color(0xFFF5F5F5)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,11 +58,18 @@ fun TransactionsScreen(
     val manualOverrides  by viewModel.manualOverrides.collectAsState()
     val isLoadingMore    by viewModel.isLoadingMore.collectAsState()
     val hasMore          by viewModel.hasMore.collectAsState()
+    val uploads          by viewModel.uploads.collectAsState()
+    val selectedFileId   by viewModel.selectedFileId.collectAsState()
+    val isLoadingUploads by viewModel.isLoadingUploads.collectAsState()
 
-    // LazyColumn state לזיהוי הגעה לסוף
+    // Share sheet state — lifted here so TransactionRow's onShareClick can open it
+    var shareTarget      by remember { mutableStateOf<Transaction?>(null) }
+    var filtersVisible   by remember { mutableStateOf(true) }
+    var showFileHistory  by remember { mutableStateOf(false) }
+
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
 
-    // Infinite Scroll - טעינה כשמגיעים לסוף
+    // Infinite scroll
     LaunchedEffect(listState) {
         snapshotFlow {
             val layoutInfo  = listState.layoutInfo
@@ -77,7 +83,7 @@ fun TransactionsScreen(
         }
     }
 
-    // PDF שיתוף אוטומטי אחרי הורדה
+    // Auto-share PDF after download
     LaunchedEffect(pdfUri) {
         pdfUri?.let { uri ->
             viewModel.sharePdf(context, uri)
@@ -93,6 +99,35 @@ fun TransactionsScreen(
         }
     }
 
+    // File History bottom sheet
+    if (showFileHistory) {
+        FileHistoryBottomSheet(
+            uploads        = uploads,
+            selectedFileId = selectedFileId,
+            isLoading      = isLoadingUploads,
+            onSelect       = { fileId ->
+                viewModel.selectFile(fileId)
+                showFileHistory = false
+            },
+            onDismiss = { showFileHistory = false }
+        )
+    }
+
+    // Share bottom sheet
+    shareTarget?.let { transaction ->
+        ShareBottomSheet(
+            friends   = friends,
+            isSending = isSendingShare,
+            onSend    = { friend ->
+                viewModel.sendShare(friend.phone, transaction.id) {
+                    Toast.makeText(context, "Shared!", Toast.LENGTH_SHORT).show()
+                }
+                shareTarget = null
+            },
+            onDismiss = { shareTarget = null }
+        )
+    }
+
     AppScaffold(
         currentRoute = "transactions",
         onNavigate   = onNavigate
@@ -102,115 +137,206 @@ fun TransactionsScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // --- Search Bar ---
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { viewModel.setSearchQuery(it) },
-                placeholder = { Text("Search by merchant name...", fontSize = 13.sp, color = Color.Gray) },
-                leadingIcon  = { Icon(Icons.Default.Search, null, tint = Color.Gray) },
-                trailingIcon = {
-                    if (searchQuery.isNotBlank()) {
-                        IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                            Icon(Icons.Default.Close, null, tint = Color.Gray)
-                        }
-                    }
-                },
+            // --- Search Bar + Filter Toggle ---
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 10.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor   = DarkGreen,
-                    unfocusedBorderColor = Color(0xFFDDDDDD),
-                    focusedContainerColor   = Color.White,
-                    unfocusedContainerColor = Color.White
-                ),
-                singleLine = true
-            )
-
-            // --- Filter Chips ---
-            LazyRow(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                items(TransactionFilter.entries) { filter ->
-                    val isSelected = filter == activeFilter
-                    FilterChip(
-                        selected = isSelected,
-                        onClick  = { viewModel.setFilter(filter) },
-                        label = {
-                            Text(
-                                when (filter) {
-                                    TransactionFilter.ALL       -> "All"
-                                    TransactionFilter.REGULAR   -> "Regular"
-                                    TransactionFilter.IRREGULAR -> "Irregular"
-                                },
-                                fontSize = 12.sp
-                            )
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = DarkGreen,
-                            selectedLabelColor     = Color.White
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled             = true,
-                            selected            = isSelected,
-                            borderColor         = Color(0xFFDDDDDD),
-                            selectedBorderColor = DarkGreen
-                        )
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "${transactions.size} transactions",
-                fontSize = 12.sp,
-                color = Color.Gray,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            Spacer(Modifier.height(4.dp))
-
-            // --- PDF + Profile Banner ---
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.White)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = { viewModel.downloadPdf(context) },
-                    modifier = Modifier.fillMaxWidth().height(46.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = DarkGreen),
-                    enabled = !isDownloadingPdf
-                ) {
-                    if (isDownloadingPdf) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Generating...", color = Color.White)
-                    } else {
-                        Icon(Icons.Default.PictureAsPdf, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Download & Share Report", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    }
-                }
-                if (manualOverrides.isNotEmpty()) {
-                    UpdateProfileBanner(
-                        count = manualOverrides.size,
-                        onUpdate = {
-                            viewModel.updateProfile {
-                                Toast.makeText(context,
-                                    "Profile updated successfully!",
-                                    Toast.LENGTH_SHORT).show()
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { viewModel.setSearchQuery(it) },
+                    placeholder = {
+                        Text("Search by merchant name...", fontSize = 13.sp, color = Color.Gray)
+                    },
+                    leadingIcon  = { Icon(Icons.Default.Search, null, tint = Color.Gray) },
+                    trailingIcon = {
+                        if (searchQuery.isNotBlank()) {
+                            IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                Icon(Icons.Default.Close, null, tint = Color.Gray)
                             }
                         }
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor      = DarkGreen,
+                        unfocusedBorderColor    = Color(0xFFDDDDDD),
+                        focusedContainerColor   = Color.White,
+                        unfocusedContainerColor = Color.White
+                    ),
+                    singleLine = true
+                )
+                Spacer(Modifier.width(8.dp))
+                IconButton(
+                    onClick = { filtersVisible = !filtersVisible },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            if (filtersVisible) DarkGreen.copy(alpha = 0.1f)
+                            else Color(0xFFF0F0F0)
+                        )
+                ) {
+                    Icon(
+                        Icons.Default.FilterList,
+                        contentDescription = if (filtersVisible) "Hide filters" else "Show filters",
+                        tint = if (filtersVisible) DarkGreen else Color.Gray
                     )
                 }
             }
 
-            // --- List ---
+            // --- Collapsible Section: Filters + Count + Buttons ---
+            androidx.compose.animation.AnimatedVisibility(
+                visible = filtersVisible,
+                enter   = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
+                exit    = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()
+            ) {
+                Column {
+                    // Filter Chips
+                    LazyRow(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(TransactionFilter.entries) { filter ->
+                            val isSelected = filter == activeFilter
+                            FilterChip(
+                                selected = isSelected,
+                                onClick  = { viewModel.setFilter(filter) },
+                                label = {
+                                    Text(
+                                        when (filter) {
+                                            TransactionFilter.ALL       -> "All"
+                                            TransactionFilter.REGULAR   -> "Regular"
+                                            TransactionFilter.IRREGULAR -> "Irregular"
+                                        },
+                                        fontSize = 12.sp
+                                    )
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = DarkGreen,
+                                    selectedLabelColor     = Color.White
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled             = true,
+                                    selected            = isSelected,
+                                    borderColor         = Color(0xFFDDDDDD),
+                                    selectedBorderColor = DarkGreen
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(4.dp))
+
+                    // מספר עסקאות + אינדיקטור קובץ נבחר
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "${transactions.size} transactions",
+                            fontSize = 12.sp,
+                            color = Color.Gray,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (selectedFileId != null) {
+                            val selectedFile = uploads.find { it.id == selectedFileId }
+                            if (selectedFile != null) {
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(DarkGreen.copy(alpha = 0.1f))
+                                        .clickable { viewModel.selectFile(null) }
+                                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        selectedFile.fileName.substringBeforeLast(".").take(12),
+                                        fontSize = 11.sp,
+                                        color = DarkGreen,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Icon(Icons.Default.Close, null,
+                                        tint = DarkGreen, modifier = Modifier.size(12.dp))
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(4.dp))
+
+                    // כפתורי Share Report + History
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White)
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick  = { viewModel.downloadPdf(context) },
+                                modifier = Modifier.weight(1f).height(46.dp),
+                                shape    = RoundedCornerShape(12.dp),
+                                colors   = ButtonDefaults.buttonColors(containerColor = DarkGreen),
+                                enabled  = !isDownloadingPdf
+                            ) {
+                                if (isDownloadingPdf) {
+                                    CircularProgressIndicator(
+                                        color = Color.White,
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Generating...", color = Color.White, fontSize = 12.sp)
+                                } else {
+                                    Icon(Icons.Default.PictureAsPdf, null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Share Report", color = Color.White,
+                                        fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            }
+                            // כפתור היסטוריית קבצים
+                            OutlinedButton(
+                                onClick  = { showFileHistory = true },
+                                modifier = Modifier.height(46.dp),
+                                shape    = RoundedCornerShape(12.dp),
+                                border   = androidx.compose.foundation.BorderStroke(1.dp, DarkGreen),
+                                colors   = ButtonDefaults.outlinedButtonColors(contentColor = DarkGreen)
+                            ) {
+                                Icon(Icons.Default.History, null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("History", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+
+                        if (manualOverrides.isNotEmpty()) {
+                            UpdateProfileBanner(
+                                count = manualOverrides.size,
+                                onUpdate = {
+                                    viewModel.updateProfile {
+                                        Toast.makeText(
+                                            context,
+                                            "Profile updated successfully!",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            )
+                        }
+                    }  // end Column (buttons)
+                }  // end Column (collapsible)
+            }  // end AnimatedVisibility
+
+            // --- Transaction List ---
             when {
                 isLoading -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -220,8 +346,12 @@ fun TransactionsScreen(
                 transactions.isEmpty() -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.SearchOff, null,
-                                tint = Color.LightGray, modifier = Modifier.size(52.dp))
+                            Icon(
+                                Icons.Default.SearchOff,
+                                contentDescription = null,
+                                tint = Color.LightGray,
+                                modifier = Modifier.size(52.dp)
+                            )
                             Spacer(Modifier.height(8.dp))
                             Text("No transactions found", color = Color.Gray)
                         }
@@ -230,30 +360,36 @@ fun TransactionsScreen(
                 else -> {
                     LazyColumn(
                         state   = listState,
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(bottom = 16.dp)
                     ) {
+                        // ─── Using TransactionRow component ───
                         items(transactions, key = { it.id }) { transaction ->
-                            TransactionCard(
-                                transaction   = transaction,
-                                friends       = friends,
-                                isSending     = isSendingShare,
-                                onToggleStatus = { id, newStatus ->
-                                    viewModel.updateTransactionStatus(id, newStatus)
-                                },
-                                onSendShare   = { friendPhone, txnId ->
-                                    viewModel.sendShare(friendPhone, txnId) {
-                                        Toast.makeText(context, "Shared!", Toast.LENGTH_SHORT).show()
-                                    }
+                            val currentStatus = manualOverrides[transaction.id] ?: transaction.status
+                            val txItem = transaction
+                                .copy(status = currentStatus)
+                                .toTransactionItem()
+
+                            TransactionRowWithConfirm(
+                                transaction = txItem,
+                                onShareClick = { shareTarget = transaction },
+                                onStatusConfirmed = { markIrregular ->
+                                    val newStatus = if (markIrregular) "IRREGULAR" else "REGULAR"
+                                    viewModel.updateTransactionStatus(transaction.id, newStatus)
                                 }
                             )
                         }
-                        // Loading More Indicator
+
+                        // Loading more indicator
                         if (isLoadingMore) {
                             item {
                                 Box(
-                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     CircularProgressIndicator(
@@ -264,15 +400,18 @@ fun TransactionsScreen(
                                 }
                             }
                         }
+
                         // End of list indicator
                         if (!hasMore && transactions.isNotEmpty()) {
                             item {
                                 Text(
                                     "All transactions loaded",
-                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
                                     textAlign = TextAlign.Center,
-                                    fontSize = 12.sp,
-                                    color = Color.Gray
+                                    fontSize  = 12.sp,
+                                    color     = Color.Gray
                                 )
                             }
                         }
@@ -283,35 +422,149 @@ fun TransactionsScreen(
     }
 }
 
+
 // ─────────────────────────────────────────────
-// Transaction Card
+// File History Bottom Sheet
+// ─────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FileHistoryBottomSheet(
+    uploads:        List<UploadedFile>,
+    selectedFileId: String?,
+    isLoading:      Boolean,
+    onSelect:       (String?) -> Unit,
+    onDismiss:      () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState       = sheetState,
+        containerColor   = Color.White,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Uploaded Files",
+                    fontWeight = FontWeight.Bold,
+                    fontSize   = 18.sp,
+                    modifier   = Modifier.weight(1f)
+                )
+                // כפתור "הכל" לניקוי הסינון
+                if (selectedFileId != null) {
+                    TextButton(onClick = { onSelect(null) }) {
+                        Text("Show All", color = DarkGreen, fontSize = 13.sp)
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+
+            if (isLoading) {
+                Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = DarkGreen)
+                }
+            } else if (uploads.isEmpty()) {
+                Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.UploadFile, null,
+                            tint = Color.LightGray, modifier = Modifier.size(40.dp))
+                        Spacer(Modifier.height(8.dp))
+                        Text("No uploaded files yet", color = Color.Gray, fontSize = 14.sp)
+                    }
+                }
+            } else {
+                uploads.forEach { upload ->
+                    val isSelected = upload.id == selectedFileId
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                if (isSelected) DarkGreen.copy(alpha = 0.08f)
+                                else Color(0xFFF5F5F5)
+                            )
+                            .border(
+                                width = if (isSelected) 1.5.dp else 0.dp,
+                                color = if (isSelected) DarkGreen else Color.Transparent,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .clickable { onSelect(upload.id) }
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // אייקון קובץ
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(DarkGreen.copy(alpha = 0.12f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.InsertDriveFile, null,
+                                tint = DarkGreen, modifier = Modifier.size(22.dp))
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                upload.fileName.substringBeforeLast("."),
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize   = 14.sp,
+                                maxLines   = 1
+                            )
+                            Text(
+                                "${upload.transactionCount} transactions · ${upload.uploadedAt.take(10)}",
+                                fontSize = 12.sp,
+                                color    = Color.Gray
+                            )
+                            if (upload.irregularCount > 0) {
+                                Text(
+                                    "${upload.irregularCount} irregular",
+                                    fontSize = 11.sp,
+                                    color    = IrregularRed,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                        if (isSelected) {
+                            Icon(Icons.Default.CheckCircle, null,
+                                tint = DarkGreen, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────
+// TransactionRow + Confirm Dialog wrapper
 // ─────────────────────────────────────────────
 @Composable
-fun TransactionCard(
-    transaction:   Transaction,
-    friends:       List<Friend>,
-    isSending:     Boolean,
-    onToggleStatus: (String, String) -> Unit,
-    onSendShare:   (String, String) -> Unit
+fun TransactionRowWithConfirm(
+    transaction: com.cardify.app.ui.components.TransactionItem,
+    onShareClick: () -> Unit,
+    onStatusConfirmed: (Boolean) -> Unit
 ) {
-    var isExpanded          by remember { mutableStateOf(false) }
-    var showConfirmDialog   by remember { mutableStateOf(false) }
-    var showShareSheet      by remember { mutableStateOf(false) }
-    var isIrregular         by remember(transaction.id) { mutableStateOf(transaction.status == "IRREGULAR") }
+    var showConfirm      by remember { mutableStateOf(false) }
+    var pendingIrregular by remember { mutableStateOf(false) }
 
-    // Sync with external changes
-    LaunchedEffect(transaction.status) {
-        isIrregular = transaction.status == "IRREGULAR"
-    }
-
-    // --- Confirm Dialog ---
-    if (showConfirmDialog) {
+    if (showConfirm) {
         AlertDialog(
-            onDismissRequest = { showConfirmDialog = false },
+            onDismissRequest = { showConfirm = false },
             title = { Text("Are you sure?", fontWeight = FontWeight.Bold) },
             text = {
                 Text(
-                    if (isIrregular) "Mark this transaction as Regular?"
+                    if (transaction.isIrregular) "Mark this transaction as Regular?"
                     else "Mark this transaction as Suspicious (Irregular)?",
                     color = Color.Gray
                 )
@@ -319,20 +572,18 @@ fun TransactionCard(
             confirmButton = {
                 Button(
                     onClick = {
-                        showConfirmDialog = false
-                        isIrregular = !isIrregular
-                        val newStatus = if (isIrregular) "IRREGULAR" else "REGULAR"
-                        onToggleStatus(transaction.id, newStatus)
+                        showConfirm = false
+                        onStatusConfirmed(pendingIrregular)
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isIrregular) Color(0xFF2E7D32) else IrregularRed
+                        containerColor = if (transaction.isIrregular) Color(0xFF2E7D32) else IrregularRed
                     ),
                     shape = RoundedCornerShape(10.dp)
                 ) { Text("Yes", color = Color.White, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
                 OutlinedButton(
-                    onClick = { showConfirmDialog = false },
+                    onClick = { showConfirm = false },
                     shape = RoundedCornerShape(10.dp)
                 ) { Text("Cancel") }
             },
@@ -340,213 +591,15 @@ fun TransactionCard(
         )
     }
 
-    // --- Share Bottom Sheet ---
-    if (showShareSheet) {
-        ShareBottomSheet(
-            friends   = friends,
-            isSending = isSending,
-            onSend    = { friend ->
-                onSendShare(friend.phone, transaction.id)
-                showShareSheet = false
-            },
-            onDismiss = { showShareSheet = false }
-        )
-    }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { isExpanded = !isExpanded },
-        shape  = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(
-            1.5.dp,
-            if (isIrregular) IrregularRed else Color(0xFFEEEEEE)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column {
-            // --- Main Row ---
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Status indicator dot
-                Icon(
-                    imageVector = when {
-                        isIrregular -> Icons.Default.Warning
-                        transaction.category.contains("Food", ignoreCase = true) ||
-                                transaction.category.contains("Restaurant", ignoreCase = true) ||
-                                transaction.category.contains("Grocery", ignoreCase = true) -> Icons.Default.Restaurant
-                        transaction.category.contains("Transport", ignoreCase = true) -> Icons.Default.DirectionsCar
-                        transaction.category.contains("Health", ignoreCase = true) -> Icons.Default.LocalHospital
-                        transaction.category.contains("Education", ignoreCase = true) -> Icons.Default.School
-                        transaction.category.contains("Entertainment", ignoreCase = true) -> Icons.Default.Movie
-                        transaction.category.contains("Travel", ignoreCase = true) -> Icons.Default.Flight
-                        transaction.category.contains("Finance", ignoreCase = true) ||
-                                transaction.category.contains("Bank", ignoreCase = true) -> Icons.Default.AccountBalance
-                        transaction.category.contains("Shopping", ignoreCase = true) ||
-                                transaction.category.contains("Fashion", ignoreCase = true) -> Icons.Default.ShoppingBag
-                        transaction.category.contains("Telecom", ignoreCase = true) -> Icons.Default.PhoneAndroid
-                        else -> Icons.Default.Receipt
-                    },
-                    contentDescription = null,
-                    tint = if (isIrregular) IrregularRed else DarkGreen,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(Modifier.width(10.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        transaction.businessName,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp
-                    )
-                }
-
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        "₪${transaction.amount}",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
-                    Text(
-                        if (isIrregular) "Irregular" else "Regular",
-                        color    = if (isIrregular) IrregularRed else RegularGreen,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-
-                Spacer(Modifier.width(6.dp))
-                Icon(
-                    if (isExpanded) Icons.Default.KeyboardArrowUp
-                    else Icons.Default.KeyboardArrowDown,
-                    null,
-                    tint = Color.Gray,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-
-            // --- Expanded Section ---
-            AnimatedVisibility(
-                visible = isExpanded,
-                enter   = expandVertically() + fadeIn(),
-                exit    = shrinkVertically() + fadeOut()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFFFAFAFA))
-                        .padding(horizontal = 14.dp, vertical = 10.dp)
-                ) {
-                    HorizontalDivider(color = Color(0xFFEEEEEE))
-                    Spacer(Modifier.height(8.dp))
-
-                    Row {
-                        Text("Date: ", fontSize = 12.sp, color = Color.Gray)
-                        Text(transaction.date, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                    Spacer(Modifier.height(4.dp))
-
-                    // Category with translation
-                    val catDisplay = mapOf(
-                        "מזון וצריכה" to "Food & Grocery", "מסעדות, קפה וברים" to "Restaurants & Cafes",
-                        "מסעדות" to "Restaurants", "אופנה" to "Fashion", "בריאות" to "Health",
-                        "תחבורה" to "Transport", "חינוך" to "Education",
-                        "שירותי תקשורת" to "Telecommunications", "עירייה וממשלה" to "Government",
-                        "שונות" to "Other", "כללי" to "General", "בידור" to "Entertainment",
-                        "קניות" to "Shopping"
-                    ).getOrDefault(transaction.category, transaction.category)
-                    Row {
-                        Text("Category: ", fontSize = 12.sp, color = Color.Gray)
-                        Text(catDisplay, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    }
-
-                    // XAI Explanation
-                    val explanationText = when {
-                        !transaction.explanation.isNullOrBlank() &&
-                                transaction.explanation != "Unusual transaction pattern detected" ->
-                            transaction.explanation
-                        isIrregular -> "Transaction pattern deviates from your usual spending behavior"
-                        else -> ""
-                    }
-                    if (isIrregular) {
-                        Spacer(Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(IrregularRed.copy(alpha = 0.08f))
-                                .padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Warning, null,
-                                tint = IrregularRed,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                explanationText,
-                                color    = IrregularRed,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(12.dp))
-
-                    // Action Buttons
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        // Share button
-                        OutlinedButton(
-                            onClick = { showShareSheet = true },
-                            shape   = RoundedCornerShape(10.dp),
-                            colors  = ButtonDefaults.outlinedButtonColors(
-                                contentColor = DarkGreen
-                            ),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, DarkGreen),
-                            modifier = Modifier.weight(1f).height(38.dp)
-                        ) {
-                            Icon(Icons.Default.Share, null, modifier = Modifier.size(15.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Share", fontSize = 12.sp)
-                        }
-
-                        // Toggle status button
-                        Button(
-                            onClick = { showConfirmDialog = true },
-                            shape   = RoundedCornerShape(10.dp),
-                            colors  = ButtonDefaults.buttonColors(
-                                containerColor = if (isIrregular) Color(0xFF2E7D32) else IrregularRed
-                            ),
-                            modifier = Modifier.weight(1f).height(38.dp),
-                            contentPadding = PaddingValues(horizontal = 6.dp)
-                        ) {
-                            Icon(
-                                if (isIrregular) Icons.Default.CheckCircle else Icons.Default.Warning,
-                                null,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(Modifier.width(3.dp))
-                            Text(
-                                if (isIrregular) "Mark Regular" else "Mark Irregular",
-                                fontSize = 10.sp,
-                                maxLines = 1
-                            )
-                        }
-                    }
-                }
-            }
+    TransactionRow(
+        transaction = transaction,
+        variant     = TransactionRowVariant.FULL,
+        onShareClick = onShareClick,
+        onStatusChange = { markIrregular ->
+            pendingIrregular = markIrregular
+            showConfirm = true
         }
-    }
+    )
 }
 
 // ─────────────────────────────────────────────
@@ -588,8 +641,12 @@ fun ShareBottomSheet(
                         .padding(vertical = 32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(Icons.Default.People, null,
-                        tint = Color.LightGray, modifier = Modifier.size(52.dp))
+                    Icon(
+                        Icons.Default.People,
+                        contentDescription = null,
+                        tint = Color.LightGray,
+                        modifier = Modifier.size(52.dp)
+                    )
                     Spacer(Modifier.height(12.dp))
                     Text(
                         "You haven't added any friends yet",
@@ -598,10 +655,10 @@ fun ShareBottomSheet(
                     )
                     Text(
                         "Go to Account to add friends",
-                        color    = Color.LightGray,
-                        fontSize = 12.sp,
+                        color     = Color.LightGray,
+                        fontSize  = 12.sp,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier  = Modifier.padding(top = 4.dp)
                     )
                 }
             } else {
@@ -664,8 +721,12 @@ fun UpdateProfileBanner(count: Int, onUpdate: () -> Unit) {
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Default.AutoFixHigh, null,
-            tint = DarkGreen, modifier = Modifier.size(20.dp))
+        Icon(
+            Icons.Default.AutoFixHigh,
+            contentDescription = null,
+            tint = DarkGreen,
+            modifier = Modifier.size(20.dp)
+        )
         Spacer(Modifier.width(8.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
