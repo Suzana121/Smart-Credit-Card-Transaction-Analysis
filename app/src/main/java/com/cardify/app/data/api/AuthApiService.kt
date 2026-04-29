@@ -48,11 +48,11 @@ interface AuthApiService {
     suspend fun getTransactions(
         @Query("limit")   limit:  Int     = 20,
         @Query("cursor")  cursor: String? = null,
-        @Query("file_id") fileId: String? = null   // ← חדש: פילטר לפי קובץ
+        @Query("file_id") fileId: String? = null
     ): Response<TransactionPage>
 
     @GET("api/uploads")
-    suspend fun getUploads(): Response<List<UploadedFile>>   // ← חדש
+    suspend fun getUploads(): Response<List<UploadedFile>>
 
     @GET("api/shares")
     suspend fun getShares(): Response<List<ShareItem>>
@@ -70,10 +70,19 @@ interface AuthApiService {
         @Body statusRequest: Map<String, String>
     ): Response<Transaction>
 
+    // --- Stats ---
+    @GET("api/stats")
+    suspend fun getStats(
+        @Query("month") month: String,
+        @Query("year")  year:  String
+    ): Response<Map<String, @JvmSuppressWildcards Any>>
+
     // --- PDF Report ---
     @GET("api/report")
     @Streaming
-    suspend fun downloadReport(): Response<ResponseBody>
+    suspend fun downloadReport(
+        @Query("file_id") fileId: String? = null
+    ): Response<ResponseBody>
 
     // --- Profile Update ---
     @POST("api/profile/update")

@@ -222,7 +222,9 @@ class TransactionsViewModel : ViewModel() {
         viewModelScope.launch {
             _isDownloadingPdf.value = true
             try {
-                val response = RetrofitClient.apiService.downloadReport()
+                val response = RetrofitClient.apiService.downloadReport(
+                    fileId = _selectedFileId.value
+                )
                 if (response.isSuccessful) {
                     val body = response.body() ?: return@launch
                     val file = File(context.cacheDir, "cardify_report.pdf")

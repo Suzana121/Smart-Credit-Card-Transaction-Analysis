@@ -56,10 +56,11 @@ fun HomeScreen(
     onShareClick: (Transaction) -> Unit = {},
     viewModel: HomeViewModel = viewModel()
 ) {
-    val context       = LocalContext.current
-    var expanded      by remember { mutableStateOf(false) }
-    var selectedLimit by remember { mutableStateOf("5") }
-    var selectedFile  by remember { mutableStateOf<Uri?>(null) }
+    val context         = LocalContext.current
+    var expanded        by remember { mutableStateOf(false) }
+    var selectedLimit   by remember { mutableStateOf("5") }
+    var selectedFile    by remember { mutableStateOf<Uri?>(null) }
+    var bannerDismissed by remember { mutableStateOf(false) }
 
     val transactions    by viewModel.transactions.collectAsState()
     val isLoading       by viewModel.isLoading.collectAsState()
@@ -73,6 +74,7 @@ fun HomeScreen(
     )
 
     LaunchedEffect(Unit) { viewModel.fetchTransactions(limit = selectedLimit.toIntOrNull() ?: 5) }
+    LaunchedEffect(manualOverrides) { if (manualOverrides.isNotEmpty()) bannerDismissed = false }
     LaunchedEffect(uploadMessage) {
         uploadMessage?.let {
             Toast.makeText(context, it, Toast.LENGTH_LONG).show()
@@ -88,15 +90,38 @@ fun HomeScreen(
                 .padding(padding)
         ) {
             if (manualOverrides.isNotEmpty()) {
-                UpdateProfileBannerHome(
-                    count = manualOverrides.size,
-                    onUpdate = {
-                        viewModel.updateProfile {
-                            Toast.makeText(context, "Profile updated successfully!", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
+                if (!bannerDismissed) {
+                    UpdateProfileBannerHome(
+                        count     = manualOverrides.size,
+                        onUpdate  = {
+                            viewModel.updateProfile {
+                                Toast.makeText(context, "Profile updated successfully!", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        onDismiss = { bannerDismissed = true },
+                        modifier  = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(CardifyColors.DarkGreen.copy(alpha = 0.1f))
+                            .clickable { bannerDismissed = false }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.AutoFixHigh, null,
+                            tint = CardifyColors.DarkGreen, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("${manualOverrides.size} pending update",
+                            fontSize = 12.sp, color = CardifyColors.DarkGreen,
+                            fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.width(4.dp))
+                        Icon(Icons.Default.KeyboardArrowRight, null,
+                            tint = CardifyColors.DarkGreen, modifier = Modifier.size(14.dp))
+                    }
+                }
             }
 
             LazyColumn(
@@ -106,7 +131,6 @@ fun HomeScreen(
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Header
                 item {
                     Spacer(Modifier.height(10.dp))
                     Column(Modifier.fillMaxWidth()) {
@@ -116,12 +140,8 @@ fun HomeScreen(
                             in 17..20 -> "Good Evening!"
                             else      -> "Good Night!"
                         }
-                        Text(
-                            greeting,
-                            color = CardifyColors.LightGreenText,
-                            fontSize = 18.sp,
-                            fontFamily = ibmPlexSans
-                        )
+                        Text(greeting, color = CardifyColors.LightGreenText,
+                            fontSize = 18.sp, fontFamily = ibmPlexSans)
                         Text(
                             text       = UserSession.username ?: "Guest",
                             modifier   = Modifier.offset(y = (-12).dp),
@@ -133,7 +153,6 @@ fun HomeScreen(
                     }
                 }
 
-                // Upload
                 item {
                     UploadSection(
                         selectedFile    = selectedFile,
@@ -144,19 +163,15 @@ fun HomeScreen(
                     )
                 }
 
-                // Title + Filter
                 item {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            "Your Last Transactions",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            fontFamily = ibmPlexSans
-                        )
+                        Text("Your Last Transactions",
+                            fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+                            fontFamily = ibmPlexSans)
                         FilterDropdown(
                             selectedLimit  = selectedLimit,
                             expanded       = expanded,
@@ -179,20 +194,14 @@ fun HomeScreen(
                     }
                 } else if (transactions.isEmpty()) {
                     item {
-                        Text(
-                            "No transactions found.",
-                            color = Color.Gray,
+                        Text("No transactions found.", color = Color.Gray,
                             fontFamily = ibmPlexSans,
-                            modifier = Modifier.padding(vertical = 16.dp)
-                        )
+                            modifier = Modifier.padding(vertical = 16.dp))
                     }
                 } else {
                     items(transactions) { transaction ->
                         val currentStatus = manualOverrides[transaction.id] ?: transaction.status
-                        val txItem = transaction
-                            .copy(status = currentStatus)
-                            .toTransactionItem()
-
+                        val txItem = transaction.copy(status = currentStatus).toTransactionItem()
                         TransactionRowWithConfirm(
                             transaction = txItem,
                             onShareClick = { onShareClick(transaction) },
@@ -210,9 +219,6 @@ fun HomeScreen(
     }
 }
 
-// ─────────────────────────────────────────────
-// TransactionRow + Confirm Dialog wrapper
-// ─────────────────────────────────────────────
 @Composable
 fun TransactionRowWithConfirm(
     transaction: com.cardify.app.ui.components.TransactionItem,
@@ -230,28 +236,21 @@ fun TransactionRowWithConfirm(
                 Text(
                     if (transaction.isIrregular) "Mark this transaction as Regular?"
                     else "Mark this transaction as Suspicious (Irregular)?",
-                    color = Color.Gray,
-                    fontSize = 14.sp
+                    color = Color.Gray, fontSize = 14.sp
                 )
             },
             confirmButton = {
                 Button(
-                    onClick = {
-                        showConfirm = false
-                        onStatusConfirmed(pendingIrregular)
-                    },
-                    colors = ButtonDefaults.buttonColors(
+                    onClick = { showConfirm = false; onStatusConfirmed(pendingIrregular) },
+                    colors  = ButtonDefaults.buttonColors(
                         containerColor = if (transaction.isIrregular) Color(0xFF2E7D32)
-                        else CardifyColors.IrregularRed
-                    ),
+                        else CardifyColors.IrregularRed),
                     shape = RoundedCornerShape(10.dp)
                 ) { Text("Yes", color = Color.White, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
-                OutlinedButton(
-                    onClick = { showConfirm = false },
-                    shape   = RoundedCornerShape(10.dp)
-                ) { Text("Cancel") }
+                OutlinedButton(onClick = { showConfirm = false },
+                    shape = RoundedCornerShape(10.dp)) { Text("Cancel") }
             },
             shape = RoundedCornerShape(16.dp)
         )
@@ -268,9 +267,6 @@ fun TransactionRowWithConfirm(
     )
 }
 
-// ─────────────────────────────────────────────
-// Upload Section
-// ─────────────────────────────────────────────
 @Composable
 fun UploadSection(
     selectedFile: Uri?,
@@ -284,25 +280,18 @@ fun UploadSection(
     ) { onFileSelected(it) }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(
-            "Upload Your Latest Transactions",
-            fontSize   = 15.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = ibmPlexSans
-        )
+        Text("Upload Your Latest Transactions",
+            fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = ibmPlexSans)
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(150.dp)
+                .fillMaxWidth().height(150.dp)
                 .clip(RoundedCornerShape(10.dp))
                 .background(Color(0xFFE0F2F1).copy(alpha = 0.5f))
                 .drawBehind {
                     drawRoundRect(
-                        color  = CardifyColors.DashedBorder.copy(alpha = 0.4f),
-                        style  = Stroke(
-                            width = 2f,
-                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
-                        ),
+                        color = CardifyColors.DashedBorder.copy(alpha = 0.4f),
+                        style = Stroke(width = 2f,
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)),
                         cornerRadius = CornerRadius(10.dp.toPx())
                     )
                 }
@@ -313,43 +302,33 @@ fun UploadSection(
                 CircularProgressIndicator(color = CardifyColors.DarkGreen)
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        painterResource(R.drawable.ic_upload_custom),
-                        contentDescription = null,
-                        tint     = CardifyColors.DarkGreen,
-                        modifier = Modifier.size(26.dp)
-                    )
+                    Icon(painterResource(R.drawable.ic_upload_custom), null,
+                        tint = CardifyColors.DarkGreen, modifier = Modifier.size(26.dp))
                     Spacer(Modifier.height(6.dp))
-                    Text(
-                        if (selectedFile != null) "File Ready" else "Tap to choose file",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize   = 13.sp
-                    )
-                    Text(
-                        selectedFile?.lastPathSegment ?: "CSV, XLS up to 10MB",
-                        fontSize = 11.sp,
-                        color    = Color.Gray
-                    )
+                    Text(if (selectedFile != null) "File Ready" else "Tap to choose file",
+                        fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Text(selectedFile?.lastPathSegment ?: "CSV, XLS up to 10MB",
+                        fontSize = 11.sp, color = Color.Gray)
                 }
             }
         }
         Button(
-            onClick  = onUploadClicked,
+            onClick = onUploadClicked,
             modifier = Modifier.fillMaxWidth().height(48.dp),
-            shape    = RoundedCornerShape(12.dp),
-            colors   = ButtonDefaults.buttonColors(
-                containerColor = CardifyColors.LightGreenText,
-                contentColor   = Color.Black
-            )
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = CardifyColors.LightGreenText, contentColor = Color.Black)
         ) { Text("Upload", fontSize = 15.sp, fontWeight = FontWeight.Bold) }
     }
 }
 
-// ─────────────────────────────────────────────
-// Update Profile Banner
-// ─────────────────────────────────────────────
 @Composable
-fun UpdateProfileBannerHome(count: Int, onUpdate: () -> Unit, modifier: Modifier = Modifier) {
+fun UpdateProfileBannerHome(
+    count: Int,
+    onUpdate: () -> Unit,
+    onDismiss: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -359,31 +338,32 @@ fun UpdateProfileBannerHome(count: Int, onUpdate: () -> Unit, modifier: Modifier
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Default.AutoFixHigh, contentDescription = null,
+        Icon(Icons.Default.AutoFixHigh, null,
             tint = CardifyColors.DarkGreen, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(8.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text("Profile Update Available",
                 fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
                 color = CardifyColors.DarkGreen)
-            Text(
-                "You corrected $count transaction(s). Update your profile to improve future detection.",
+            Text("You corrected $count transaction(s). Update your profile to improve future detection.",
                 fontSize = 11.sp, color = Color.Gray)
         }
         Spacer(Modifier.width(8.dp))
         Button(
-            onClick  = onUpdate,
-            colors   = ButtonDefaults.buttonColors(containerColor = CardifyColors.DarkGreen),
-            shape    = RoundedCornerShape(10.dp),
+            onClick = onUpdate,
+            colors  = ButtonDefaults.buttonColors(containerColor = CardifyColors.DarkGreen),
+            shape   = RoundedCornerShape(10.dp),
             modifier = Modifier.height(34.dp),
             contentPadding = PaddingValues(horizontal = 12.dp)
         ) { Text("Update", fontSize = 12.sp) }
+        Spacer(Modifier.width(4.dp))
+        IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+            Icon(Icons.Default.Close, null,
+                tint = CardifyColors.DarkGreen, modifier = Modifier.size(16.dp))
+        }
     }
 }
 
-// ─────────────────────────────────────────────
-// Filter Dropdown
-// ─────────────────────────────────────────────
 @Composable
 fun FilterDropdown(
     selectedLimit: String,
@@ -406,18 +386,14 @@ fun FilterDropdown(
                 Spacer(Modifier.weight(1f))
                 Icon(
                     if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = null, modifier = Modifier.size(14.dp)
-                )
+                    null, modifier = Modifier.size(14.dp))
             }
             AnimatedVisibility(visible = expanded) {
                 Column {
                     listOf("5", "10", "15").forEach {
-                        Text(it,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onLimitSelect(it) }
-                                .padding(vertical = 4.dp),
-                            fontSize = 12.sp)
+                        Text(it, modifier = Modifier.fillMaxWidth()
+                            .clickable { onLimitSelect(it) }
+                            .padding(vertical = 4.dp), fontSize = 12.sp)
                     }
                 }
             }

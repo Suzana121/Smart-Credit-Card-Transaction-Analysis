@@ -1,13 +1,11 @@
 """
 report.py - PDF report with full Hebrew support
-Requirements:
-    pip install python-bidi arabic-reshaper
-    fonts/DavidLibre-Regular.ttf (or any Hebrew TTF font)
 """
 
-from flask import Blueprint, make_response
+from flask import Blueprint, make_response, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from firebase_config import db
+from google.cloud.firestore_v1.base_query import FieldFilter
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -23,7 +21,6 @@ import logging
 logger = logging.getLogger(__name__)
 report_bp = Blueprint('report', __name__)
 
-# ── Colors ──────────────────────────────────────
 TEAL       = colors.HexColor('#006769')
 RED        = colors.HexColor('#E23125')
 GREEN      = colors.HexColor('#38D325')
@@ -31,12 +28,10 @@ LIGHT_GRAY = colors.HexColor('#F5F5F5')
 DARK_GRAY  = colors.HexColor('#333333')
 LIGHT_RED  = colors.HexColor('#FDECEA')
 
-# ── Hebrew font setup ────────────────────────────
-HEBREW_FONT = 'Helvetica'          # fallback
+HEBREW_FONT = 'Helvetica'
 HEBREW_FONT_BOLD = 'Helvetica-Bold'
 
 def _setup_hebrew_font():
-    """טוען פונט עברי אם קיים."""
     global HEBREW_FONT, HEBREW_FONT_BOLD
     font_path      = os.path.join(os.path.dirname(__file__), '..', 'fonts', 'DavidLibre-Regular.ttf')
     font_bold_path = os.path.join(os.path.dirname(__file__), '..', 'fonts', 'DavidLibre-Bold.ttf')
@@ -44,21 +39,18 @@ def _setup_hebrew_font():
         if os.path.exists(font_path):
             pdfmetrics.registerFont(TTFont('Hebrew', font_path))
             HEBREW_FONT = 'Hebrew'
-            logger.info("Hebrew font loaded successfully")
         if os.path.exists(font_bold_path):
             pdfmetrics.registerFont(TTFont('HebrewBold', font_bold_path))
             HEBREW_FONT_BOLD = 'HebrewBold'
     except Exception as e:
-        logger.warning(f"Hebrew font not loaded, using fallback: {e}")
+        logger.warning(f"Hebrew font not loaded: {e}")
 
 _setup_hebrew_font()
 
-# ── Hebrew text helper ───────────────────────────
 def has_hebrew(text):
     return any('\u0590' <= c <= '\u05FF' for c in str(text))
 
 def smart_text(text):
-    """מחזיר טקסט נכון - עברית עם bidi+reshape, אנגלית כמו שהיא."""
     if not text:
         return 'Unknown'
     s = str(text).strip()
@@ -70,11 +62,9 @@ def smart_text(text):
         reshaped = arabic_reshaper.reshape(s)
         return get_display(reshaped)
     except Exception:
-        # fallback - הצג רק חלק אנגלי אם קיים
         english = ' '.join(w for w in s.split() if all(ord(c) < 128 for c in w) and len(w) > 1)
         return english if english else f'Business #{abs(hash(s)) % 9999}'
 
-# ── Category translation ─────────────────────────
 CATEGORY_TRANSLATION = {
     'מזון וצריכה': 'Food & Grocery', 'מסעדות, קפה וברים': 'Restaurants & Cafes',
     'מסעדות': 'Restaurants', 'אופנה': 'Fashion', 'בריאות': 'Health',
@@ -91,16 +81,31 @@ def translate_cat(cat):
                                     cat if not any(ord(c) > 127 for c in str(cat)) else 'General')
 
 
-# ── Report endpoint ──────────────────────────────
 @report_bp.route('/report', methods=['GET'])
 @jwt_required()
 def generate_report():
     user_id = get_jwt_identity()
+    # ← פרמטר אופציונלי — אם נשלח, מסנן לפי קובץ ספציפי
+    file_id = request.args.get('file_id', None)
+
     try:
-        txn_docs     = db.collection('transactions').where('user_id', '==', user_id).stream()
+        query = db.collection('transactions').where(filter=FieldFilter('user_id', '==', user_id))
+        if file_id:
+            query = query.where(filter=FieldFilter('file_id', '==', file_id))
+
+        txn_docs     = query.stream()
         transactions = [doc.to_dict() for doc in txn_docs]
         user_doc     = db.collection('users').document(user_id).get()
         username     = user_doc.to_dict().get('username', 'User') if user_doc.exists else 'User'
+
+        # שם הקובץ בדוח
+        report_title = "Cardify - Transaction Report"
+        if file_id:
+            upload_doc = db.collection('uploads').document(file_id).get()
+            if upload_doc.exists:
+                fname = upload_doc.to_dict().get('file_name', '')
+                if fname:
+                    report_title = f"Cardify - Report: {fname.rsplit('.', 1)[0]}"
 
         total     = len(transactions)
         irregular = [t for t in transactions if t.get('status') == 'IRREGULAR']
@@ -113,30 +118,22 @@ def generate_report():
         styles = getSampleStyleSheet()
         story  = []
 
-        # ── Styles ──
         h1_style = ParagraphStyle('h1', parent=styles['Title'],
                                   textColor=TEAL, fontSize=20, fontName=HEBREW_FONT_BOLD, spaceAfter=4)
         h2_style = ParagraphStyle('h2', parent=styles['Normal'],
                                   textColor=TEAL, fontSize=13, fontName=HEBREW_FONT_BOLD, spaceAfter=6, spaceBefore=8)
-        h2_red   = ParagraphStyle('h2r', parent=h2_style, textColor=RED)
         body_style = ParagraphStyle('body', parent=styles['Normal'],
                                     fontSize=9, textColor=DARK_GRAY, fontName=HEBREW_FONT, spaceAfter=3)
         small_style = ParagraphStyle('small', parent=styles['Normal'],
                                      fontSize=8, textColor=colors.gray, fontName=HEBREW_FONT)
 
-        def hpara(text, style):
-            """Paragraph עם טיפול נכון בעברית."""
-            return Paragraph(smart_text(text) if has_hebrew(text) else text, style)
-
-        # ── Header ──
         story += [
-            Paragraph("Cardify - Transaction Report", h1_style),
+            Paragraph(report_title, h1_style),
             Paragraph(f"Account: {username}  |  Date: {datetime.now().strftime('%d/%m/%Y %H:%M')}",
                       small_style),
             HRFlowable(width="100%", thickness=2, color=TEAL, spaceAfter=12),
         ]
 
-        # ── Summary ──
         summary = Table(
             [['Total', 'Regular', 'Irregular', 'Total Spend'],
              [str(total), str(regular), str(len(irregular)),
@@ -154,17 +151,16 @@ def generate_report():
         ]))
         story += [summary, Spacer(1, 16)]
 
-        # ── All transactions ──
         story += [
             HRFlowable(width="100%", thickness=1, color=colors.lightgrey, spaceAfter=6),
             Paragraph("All Transactions", h2_style),
         ]
 
         rows = [['Business', 'Amount', 'Date', 'Category', 'Status']]
-        for t in sorted(transactions, key=lambda x: x.get('date',''), reverse=True):
-            biz_raw = t.get('businessName','Unknown')
+        sorted_txns = sorted(transactions, key=lambda x: x.get('date',''), reverse=True)
+        for t in sorted_txns:
             rows.append([
-                smart_text(biz_raw)[:28],
+                smart_text(t.get('businessName','Unknown'))[:28],
                 f"{float(t.get('amount',0)):,.2f}",
                 t.get('date',''),
                 translate_cat(t.get('category','General'))[:16],
@@ -172,9 +168,7 @@ def generate_report():
             ])
 
         irregular_indices = [
-            i+1 for i, t in enumerate(
-                sorted(transactions, key=lambda x: x.get('date',''), reverse=True))
-            if t.get('status') == 'IRREGULAR'
+            i+1 for i, t in enumerate(sorted_txns) if t.get('status') == 'IRREGULAR'
         ]
         row_colors = []
         for idx in irregular_indices:
@@ -197,7 +191,6 @@ def generate_report():
                                   ] + row_colors))
         story.append(all_t)
 
-        # ── Footer ──
         story += [
             Spacer(1, 20),
             HRFlowable(width="100%", thickness=1, color=TEAL),
@@ -207,7 +200,7 @@ def generate_report():
         ]
 
         doc.build(story)
-        pdf  = buffer.getvalue()
+        pdf = buffer.getvalue()
         buffer.close()
 
         resp = make_response(pdf)

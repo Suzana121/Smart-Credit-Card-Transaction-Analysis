@@ -12,6 +12,7 @@ import com.cardify.app.ui.edit_account.EditAccountScreen
 import com.cardify.app.ui.shared_info.SharedInfoScreen
 import com.cardify.app.ui.shared_info.ShareWithFriendsScreen
 import com.cardify.app.ui.transactions.TransactionsScreen
+import com.cardify.app.ui.stats.StatsScreen
 
 @Composable
 fun AppNavigation(startDestination: String = "home") {
@@ -72,6 +73,16 @@ fun AppNavigation(startDestination: String = "home") {
             )
         }
 
+        composable("stats") {
+            StatsScreen(
+                onNavigate = { route ->
+                    if (route != "stats") navController.navigate(route) {
+                        popUpTo("home") { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
         composable("account") {
             val context = androidx.compose.ui.platform.LocalContext.current
             AccountScreen(

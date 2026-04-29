@@ -65,6 +65,7 @@ fun TransactionsScreen(
     // Share sheet state — lifted here so TransactionRow's onShareClick can open it
     var shareTarget      by remember { mutableStateOf<Transaction?>(null) }
     var filtersVisible   by remember { mutableStateOf(true) }
+    var bannerDismissed  by remember { mutableStateOf(false) }
     var showFileHistory  by remember { mutableStateOf(false) }
 
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -90,6 +91,9 @@ fun TransactionsScreen(
             viewModel.clearPdfUri()
         }
     }
+
+    // Reset banner dismiss when new overrides added
+    LaunchedEffect(manualOverrides) { if (manualOverrides.isNotEmpty()) bannerDismissed = false }
 
     // Error toast
     LaunchedEffect(errorMessage) {
@@ -319,18 +323,41 @@ fun TransactionsScreen(
                         }
 
                         if (manualOverrides.isNotEmpty()) {
-                            UpdateProfileBanner(
-                                count = manualOverrides.size,
-                                onUpdate = {
-                                    viewModel.updateProfile {
-                                        Toast.makeText(
-                                            context,
-                                            "Profile updated successfully!",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
+                            if (!bannerDismissed) {
+                                UpdateProfileBanner(
+                                    count = manualOverrides.size,
+                                    onUpdate = {
+                                        viewModel.updateProfile {
+                                            Toast.makeText(
+                                                context,
+                                                "Profile updated successfully!",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    },
+                                    onDismiss = { bannerDismissed = true }
+                                )
+                            } else {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(DarkGreen.copy(alpha = 0.1f))
+                                        .clickable { bannerDismissed = false }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.AutoFixHigh, null,
+                                        tint = DarkGreen, modifier = Modifier.size(14.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("${manualOverrides.size} pending update",
+                                        fontSize = 12.sp, color = DarkGreen,
+                                        fontWeight = FontWeight.SemiBold)
+                                    Spacer(Modifier.weight(1f))
+                                    Icon(Icons.Default.KeyboardArrowRight, null,
+                                        tint = DarkGreen, modifier = Modifier.size(14.dp))
                                 }
-                            )
+                            }
                         }
                     }  // end Column (buttons)
                 }  // end Column (collapsible)
@@ -711,7 +738,7 @@ fun ShareBottomSheet(
 // Update Profile Banner
 // ─────────────────────────────────────────────
 @Composable
-fun UpdateProfileBanner(count: Int, onUpdate: () -> Unit) {
+fun UpdateProfileBanner(count: Int, onUpdate: () -> Unit, onDismiss: () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -749,5 +776,13 @@ fun UpdateProfileBanner(count: Int, onUpdate: () -> Unit) {
             modifier = Modifier.height(34.dp),
             contentPadding = PaddingValues(horizontal = 12.dp)
         ) { Text("Update", fontSize = 12.sp) }
+        Spacer(Modifier.width(4.dp))
+        IconButton(
+            onClick = onDismiss,
+            modifier = Modifier.size(28.dp)
+        ) {
+            Icon(Icons.Default.Close, contentDescription = "Dismiss",
+                tint = DarkGreen, modifier = Modifier.size(16.dp))
+        }
     }
 }
