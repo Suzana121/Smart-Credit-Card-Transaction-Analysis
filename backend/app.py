@@ -32,4 +32,4 @@ def home():
     return jsonify({"message": "Welcome to Smart Credit Card Transaction Analysis API"})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=True, use_reloader=False)
