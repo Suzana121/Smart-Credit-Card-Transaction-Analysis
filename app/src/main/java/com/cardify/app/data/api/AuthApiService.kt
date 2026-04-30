@@ -48,7 +48,8 @@ interface AuthApiService {
     suspend fun getTransactions(
         @Query("limit")   limit:  Int     = 20,
         @Query("cursor")  cursor: String? = null,
-        @Query("file_id") fileId: String? = null
+        @Query("file_id") fileId: String? = null,
+        @Query("status")  status: String? = null   // ← REGULAR / IRREGULAR / null
     ): Response<TransactionPage>
 
     @GET("api/uploads")

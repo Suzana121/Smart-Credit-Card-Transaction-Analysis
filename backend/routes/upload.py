@@ -89,6 +89,7 @@ def get_transactions():
         limit   = int(request.args.get('limit', 20))
         cursor  = request.args.get('cursor', None)
         file_id = request.args.get('file_id', None)
+        status  = request.args.get('status', None)  # 'REGULAR' / 'IRREGULAR' / None
 
         if not file_id:
             profile_doc = db.collection('user_profiles').document(user_id).get()
@@ -98,29 +99,53 @@ def get_transactions():
         if not file_id:
             return jsonify({"transactions": [], "nextCursor": None, "hasMore": False}), 200
 
-        col   = txn_col(user_id, file_id)
-        query = col.order_by('date', direction=firestore.Query.DESCENDING)
+        col = txn_col(user_id, file_id)
 
-        if cursor:
-            last_doc = col.document(cursor).get()
-            if last_doc.exists:
-                query = query.start_after(last_doc)
+        if status:
+            # סינון לפי סטטוס — שליפת כל הרלוונטיות ומיון בצד השרת
+            from google.cloud.firestore_v1.base_query import FieldFilter
+            docs = col.where(filter=FieldFilter('status', '==', status)).stream()
+            all_transactions = []
+            for doc in docs:
+                t = doc.to_dict()
+                t['id'] = doc.id
+                all_transactions.append(t)
+            all_transactions.sort(key=lambda x: x.get('date', ''), reverse=True)
 
-        query = query.limit(limit)
+            if cursor:
+                ids = [t['id'] for t in all_transactions]
+                if cursor in ids:
+                    all_transactions = all_transactions[ids.index(cursor) + 1:]
 
-        transactions = []
-        last_id = None
-        for doc in query.stream():
-            t = doc.to_dict()
-            t['id'] = doc.id
-            transactions.append(t)
-            last_id = doc.id
+            transactions = all_transactions[:limit]
+            last_id = transactions[-1]['id'] if transactions else None
+            return jsonify({
+                "transactions": transactions,
+                "nextCursor":   last_id if len(transactions) == limit else None,
+                "hasMore":      len(all_transactions) > limit
+            }), 200
+        else:
+            # ללא סינון — order_by עם pagination תקין
+            query = col.order_by('date', direction=firestore.Query.DESCENDING)
+            if cursor:
+                last_doc = col.document(cursor).get()
+                if last_doc.exists:
+                    query = query.start_after(last_doc)
+            query = query.limit(limit)
 
-        return jsonify({
-            "transactions": transactions,
-            "nextCursor":   last_id if len(transactions) == limit else None,
-            "hasMore":      len(transactions) == limit
-        }), 200
+            transactions = []
+            last_id = None
+            for doc in query.stream():
+                t = doc.to_dict()
+                t['id'] = doc.id
+                transactions.append(t)
+                last_id = doc.id
+
+            return jsonify({
+                "transactions": transactions,
+                "nextCursor":   last_id if len(transactions) == limit else None,
+                "hasMore":      len(transactions) == limit
+            }), 200
     except Exception as e:
         import traceback
         print("GET_TRANSACTIONS ERROR:", str(e))

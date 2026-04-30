@@ -62,21 +62,14 @@ class TransactionsViewModel : ViewModel() {
     val selectedFileId:    StateFlow<String?>             = _selectedFileId.asStateFlow()
     val isLoadingUploads:  StateFlow<Boolean>             = _isLoadingUploads.asStateFlow()
 
+    // סינון בצד הלקוח — רק לחיפוש טקסט. סינון Regular/Irregular נעשה בשרת
     val filteredTransactions: StateFlow<List<Transaction>> = combine(
-        _allTransactions, _activeFilter, _searchQuery
-    ) { transactions, filter, query ->
-        transactions
-            .filter { t ->
-                when (filter) {
-                    TransactionFilter.ALL       -> true
-                    TransactionFilter.REGULAR   -> t.status == "REGULAR"
-                    TransactionFilter.IRREGULAR -> t.status == "IRREGULAR"
-                }
-            }
-            .filter { t ->
-                if (query.isBlank()) true
-                else t.businessName.contains(query, ignoreCase = true)
-            }
+        _allTransactions, _searchQuery
+    ) { transactions, query ->
+        if (query.isBlank()) transactions
+        else transactions.filter { t ->
+            t.businessName.contains(query, ignoreCase = true)
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
@@ -115,10 +108,16 @@ class TransactionsViewModel : ViewModel() {
             nextCursor = null
             _hasMore.value = true
             try {
+                val statusFilter = when (_activeFilter.value) {
+                    TransactionFilter.REGULAR   -> "REGULAR"
+                    TransactionFilter.IRREGULAR -> "IRREGULAR"
+                    TransactionFilter.ALL       -> null
+                }
                 val response = RetrofitClient.apiService.getTransactions(
                     limit  = pageSize,
                     cursor = null,
-                    fileId = _selectedFileId.value   // ← מעביר את הקובץ הנבחר
+                    fileId = _selectedFileId.value,
+                    status = statusFilter
                 )
                 if (response.isSuccessful) {
                     val page = response.body()
@@ -139,10 +138,16 @@ class TransactionsViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoadingMore.value = true
             try {
+                val statusFilter = when (_activeFilter.value) {
+                    TransactionFilter.REGULAR   -> "REGULAR"
+                    TransactionFilter.IRREGULAR -> "IRREGULAR"
+                    TransactionFilter.ALL       -> null
+                }
                 val response = RetrofitClient.apiService.getTransactions(
                     limit  = pageSize,
                     cursor = nextCursor,
-                    fileId = _selectedFileId.value
+                    fileId = _selectedFileId.value,
+                    status = statusFilter
                 )
                 if (response.isSuccessful) {
                     val page = response.body()
@@ -171,7 +176,11 @@ class TransactionsViewModel : ViewModel() {
         }
     }
 
-    fun setFilter(filter: TransactionFilter) { _activeFilter.value = filter }
+    fun setFilter(filter: TransactionFilter) {
+        if (_activeFilter.value == filter) return
+        _activeFilter.value = filter
+        fetchTransactions()  // טוען מחדש מהשרת עם הסינון הנכון
+    }
     fun setSearchQuery(query: String)        { _searchQuery.value = query }
     fun clearError()                         { _errorMessage.value = null }
     fun clearPdfUri()                        { _pdfUri.value = null }
