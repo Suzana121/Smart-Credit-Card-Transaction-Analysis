@@ -29,6 +29,9 @@ class HomeViewModel : ViewModel() {
     private val _isUploading = MutableStateFlow(false)
     val isUploading: StateFlow<Boolean> = _isUploading.asStateFlow()
 
+    private val _isProcessing = MutableStateFlow(false)
+    val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
+
     private val _uploadMessage = MutableStateFlow<String?>(null)
     val uploadMessage: StateFlow<String?> = _uploadMessage.asStateFlow()
 
@@ -50,11 +53,15 @@ class HomeViewModel : ViewModel() {
             }
         }
     }
-
+    private val _isSuccess = MutableStateFlow(false)
+    val isSuccess: StateFlow<Boolean> = _isSuccess.asStateFlow()
     fun uploadFile(uri: Uri, context: Context) {
         viewModelScope.launch {
+            // שלב 1: תחילת העלאה (ספינר בכפתור)
             _isUploading.value = true
+            _isSuccess.value = false
             _uploadMessage.value = "Uploading..."
+
             try {
                 val originalName = getOriginalFileName(context, uri) ?: "upload.xlsx"
                 val file = getFileFromUri(context, uri, originalName)
@@ -67,28 +74,51 @@ class HomeViewModel : ViewModel() {
                     }
                     val requestFile = file.asRequestBody(mimeType.toMediaTypeOrNull())
                     val body = MultipartBody.Part.createFormData("file", originalName, requestFile)
+
+                    // שליחה לשרת
                     val response = RetrofitClient.apiService.uploadFile(body)
+
                     if (response.isSuccessful) {
+                        // שלב 2: הקובץ הגיע לשרת, עכשיו מציגים את ה-Overlay עם ה-ProgressBar
+                        _isUploading.value = false
+                        _isProcessing.value = true
+
+                        // השהיה בזמן שהבר מתמלא (האנימציה ב-UI נמשכת 3 שניות)
+                        delay(3000)
+
+                        // שלב 3: העיבוד הסתיים, מציגים את מסך ה-"All Done" (ה-V הירוק)
+                        _isSuccess.value = true
+
                         val warnings = response.body()?.warnings
-                        if (!warnings.isNullOrEmpty()) {
-                            _uploadMessage.value = "Success! Note: ${warnings.first()}"
+                        _uploadMessage.value = if (!warnings.isNullOrEmpty()) {
+                            "Success! Note: ${warnings.first()}"
                         } else {
-                            _uploadMessage.value = "Success! Data processed."
+                            "Success! Data processed."
                         }
-                        delay(2000)
+
+                        // רענון הנתונים ברקע בזמן שהמשתמש רואה את מסך ההצלחה
                         fetchTransactions()
+
+                        // השהיה נוספת כדי שהמשתמש יספיק לראות את ה-V וההודעה "All Done"
+                        delay(2500)
+
+                        // סגירת ה-Overlay וחזרה למסך הבית הרגיל
+                        _isProcessing.value = false
+                        _isSuccess.value = false
                     } else {
+                        _isUploading.value = false
                         _uploadMessage.value = "Failed: ${response.code()}"
                     }
                 }
             } catch (e: Exception) {
-                _uploadMessage.value = "Error: ${e.localizedMessage}"
-            } finally {
+                Log.e("HomeViewModel", "Upload error", e)
                 _isUploading.value = false
+                _isProcessing.value = false
+                _isSuccess.value = false
+                _uploadMessage.value = "Error: ${e.localizedMessage}"
             }
         }
     }
-
     private fun getOriginalFileName(context: Context, uri: Uri): String? {
         return try {
             val cursor = context.contentResolver.query(uri, null, null, null, null)
@@ -126,12 +156,10 @@ class HomeViewModel : ViewModel() {
                 if (!response.isSuccessful) {
                     _transactions.value = previousList
                     _manualOverrides.value = _manualOverrides.value - transactionId
-                    Log.e("HomeViewModel", "Update failed: ${response.code()}")
                 }
             } catch (e: Exception) {
                 _transactions.value = previousList
                 _manualOverrides.value = _manualOverrides.value - transactionId
-                Log.e("HomeViewModel", "Update error", e)
             }
         }
     }
@@ -144,10 +172,7 @@ class HomeViewModel : ViewModel() {
                 val response = RetrofitClient.apiService.updateProfile(body)
                 if (response.isSuccessful) {
                     _manualOverrides.value = emptyMap()
-                    Log.d("HomeViewModel", "Profile updated")
                     onSuccess()
-                } else {
-                    Log.e("HomeViewModel", "Profile update failed: ${response.code()}")
                 }
             } catch (e: Exception) {
                 Log.e("HomeViewModel", "Profile update error", e)

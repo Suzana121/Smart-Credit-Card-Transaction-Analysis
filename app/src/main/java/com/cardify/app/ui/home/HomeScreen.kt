@@ -2,8 +2,9 @@ package com.cardify.app.ui.home
 
 import android.net.Uri
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -39,6 +40,7 @@ import com.cardify.app.ui.components.AppScaffold
 import com.cardify.app.ui.components.TransactionRow
 import com.cardify.app.ui.components.TransactionRowVariant
 import com.cardify.app.ui.components.toTransactionItem
+import com.cardify.app.ui.components.ProcessingOverlay
 
 object CardifyColors {
     val DarkGreen      = Color(0xFF006769)
@@ -65,6 +67,8 @@ fun HomeScreen(
     val transactions    by viewModel.transactions.collectAsState()
     val isLoading       by viewModel.isLoading.collectAsState()
     val isUploading     by viewModel.isUploading.collectAsState()
+    val isProcessing    by viewModel.isProcessing.collectAsState() // האזנה למצב העיבוד החדש
+    val isSuccess       by viewModel.isSuccess.collectAsState()
     val uploadMessage   by viewModel.uploadMessage.collectAsState()
     val manualOverrides by viewModel.manualOverrides.collectAsState()
 
@@ -83,137 +87,144 @@ fun HomeScreen(
     }
 
     AppScaffold(currentRoute = "home", onNavigate = onNavigate) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.White)
-                .padding(padding)
-        ) {
-            if (manualOverrides.isNotEmpty()) {
-                if (!bannerDismissed) {
-                    UpdateProfileBannerHome(
-                        count     = manualOverrides.size,
-                        onUpdate  = {
-                            viewModel.updateProfile {
-                                Toast.makeText(context, "Profile updated successfully!", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        onDismiss = { bannerDismissed = true },
-                        modifier  = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
-                } else {
-                    Row(
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(CardifyColors.DarkGreen.copy(alpha = 0.1f))
-                            .clickable { bannerDismissed = false }
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.AutoFixHigh, null,
-                            tint = CardifyColors.DarkGreen, modifier = Modifier.size(14.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("${manualOverrides.size} pending update",
-                            fontSize = 12.sp, color = CardifyColors.DarkGreen,
-                            fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.width(4.dp))
-                        Icon(Icons.Default.KeyboardArrowRight, null,
-                            tint = CardifyColors.DarkGreen, modifier = Modifier.size(14.dp))
-                    }
-                }
-            }
-
-            LazyColumn(
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.White)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(padding)
             ) {
-                item {
-                    Spacer(Modifier.height(10.dp))
-                    Column(Modifier.fillMaxWidth()) {
-                        val greeting = when (java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)) {
-                            in 5..11  -> "Good Morning!"
-                            in 12..16 -> "Good Afternoon!"
-                            in 17..20 -> "Good Evening!"
-                            else      -> "Good Night!"
-                        }
-                        Text(greeting, color = CardifyColors.LightGreenText,
-                            fontSize = 18.sp, fontFamily = ibmPlexSans)
-                        Text(
-                            text       = UserSession.username ?: "Guest",
-                            modifier   = Modifier.offset(y = (-12).dp),
-                            color      = CardifyColors.DarkGreen,
-                            fontSize   = 34.sp,
-                            fontFamily = ibmPlexSans,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-
-                item {
-                    UploadSection(
-                        selectedFile    = selectedFile,
-                        isUploading     = isUploading,
-                        ibmPlexSans     = ibmPlexSans,
-                        onFileSelected  = { selectedFile = it },
-                        onUploadClicked = { selectedFile?.let { viewModel.uploadFile(it, context) } }
-                    )
-                }
-
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Your Last Transactions",
-                            fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
-                            fontFamily = ibmPlexSans)
-                        FilterDropdown(
-                            selectedLimit  = selectedLimit,
-                            expanded       = expanded,
-                            onExpandChange = { expanded = it },
-                            onLimitSelect  = {
-                                selectedLimit = it
-                                expanded = false
-                                viewModel.fetchTransactions(limit = it.toIntOrNull() ?: 5)
+                if (manualOverrides.isNotEmpty()) {
+                    if (!bannerDismissed) {
+                        UpdateProfileBannerHome(
+                            count     = manualOverrides.size,
+                            onUpdate  = {
+                                viewModel.updateProfile {
+                                    Toast.makeText(context, "Profile updated successfully!", Toast.LENGTH_SHORT).show()
+                                }
                             },
-                            ibmPlexSans = ibmPlexSans
+                            onDismiss = { bannerDismissed = true },
+                            modifier  = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         )
-                    }
-                }
-
-                if (isLoading) {
-                    item {
-                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = CardifyColors.DarkGreen)
+                    } else {
+                        Row(
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp, vertical = 4.dp)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(CardifyColors.DarkGreen.copy(alpha = 0.1f))
+                                .clickable { bannerDismissed = false }
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.AutoFixHigh, null,
+                                tint = CardifyColors.DarkGreen, modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("${manualOverrides.size} pending update",
+                                fontSize = 12.sp, color = CardifyColors.DarkGreen,
+                                fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.width(4.dp))
+                            Icon(Icons.Default.KeyboardArrowRight, null,
+                                tint = CardifyColors.DarkGreen, modifier = Modifier.size(14.dp))
                         }
                     }
-                } else if (transactions.isEmpty()) {
-                    item {
-                        Text("No transactions found.", color = Color.Gray,
-                            fontFamily = ibmPlexSans,
-                            modifier = Modifier.padding(vertical = 16.dp))
-                    }
-                } else {
-                    items(transactions) { transaction ->
-                        val currentStatus = manualOverrides[transaction.id] ?: transaction.status
-                        val txItem = transaction.copy(status = currentStatus).toTransactionItem()
-                        TransactionRowWithConfirm(
-                            transaction = txItem,
-                            onShareClick = { onShareClick(transaction) },
-                            onStatusConfirmed = { markIrregular ->
-                                val newStatus = if (markIrregular) "IRREGULAR" else "REGULAR"
-                                viewModel.updateTransactionStatus(transaction.id, newStatus)
-                            }
-                        )
-                    }
                 }
 
-                item { Spacer(Modifier.height(16.dp)) }
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.White)
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    item {
+                        Spacer(Modifier.height(10.dp))
+                        Column(Modifier.fillMaxWidth()) {
+                            val greeting = when (java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)) {
+                                in 5..11  -> "Good Morning!"
+                                in 12..16 -> "Good Afternoon!"
+                                in 17..20 -> "Good Evening!"
+                                else      -> "Good Night!"
+                            }
+                            Text(greeting, color = CardifyColors.LightGreenText,
+                                fontSize = 18.sp, fontFamily = ibmPlexSans)
+                            Text(
+                                text       = UserSession.username ?: "Guest",
+                                modifier   = Modifier.offset(y = (-12).dp),
+                                color      = CardifyColors.DarkGreen,
+                                fontSize   = 34.sp,
+                                fontFamily = ibmPlexSans,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    item {
+                        UploadSection(
+                            selectedFile    = selectedFile,
+                            isUploading     = isUploading,
+                            ibmPlexSans     = ibmPlexSans,
+                            onFileSelected  = { selectedFile = it },
+                            onUploadClicked = { selectedFile?.let { viewModel.uploadFile(it, context) } }
+                        )
+                    }
+
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Your Last Transactions",
+                                fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+                                fontFamily = ibmPlexSans)
+                            FilterDropdown(
+                                selectedLimit  = selectedLimit,
+                                expanded       = expanded,
+                                onExpandChange = { expanded = it },
+                                onLimitSelect  = {
+                                    selectedLimit = it
+                                    expanded = false
+                                    viewModel.fetchTransactions(limit = it.toIntOrNull() ?: 5)
+                                },
+                                ibmPlexSans = ibmPlexSans
+                            )
+                        }
+                    }
+
+                    if (isLoading) {
+                        item {
+                            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(color = CardifyColors.DarkGreen)
+                            }
+                        }
+                    } else if (transactions.isEmpty()) {
+                        item {
+                            Text("No transactions found.", color = Color.Gray,
+                                fontFamily = ibmPlexSans,
+                                modifier = Modifier.padding(vertical = 16.dp))
+                        }
+                    } else {
+                        items(transactions) { transaction ->
+                            val currentStatus = manualOverrides[transaction.id] ?: transaction.status
+                            val txItem = transaction.copy(status = currentStatus).toTransactionItem()
+                            TransactionRowWithConfirm(
+                                transaction = txItem,
+                                onShareClick = { onShareClick(transaction) },
+                                onStatusConfirmed = { markIrregular ->
+                                    val newStatus = if (markIrregular) "IRREGULAR" else "REGULAR"
+                                    viewModel.updateTransactionStatus(transaction.id, newStatus)
+                                }
+                            )
+                        }
+                    }
+
+                    item { Spacer(Modifier.height(16.dp)) }
+                }
+            }
+
+            // הצגת שכבת העיבוד (Processing Overlay) מעל הכל
+            if (isProcessing) {
+                ProcessingOverlay(isSuccess = isSuccess)
             }
         }
     }
