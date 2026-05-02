@@ -46,10 +46,10 @@ interface AuthApiService {
 
     @GET("api/transactions")
     suspend fun getTransactions(
-        @Query("limit")   limit:  Int     = 20,
-        @Query("cursor")  cursor: String? = null,
+        @Query("limit") limit: Int = 20,
+        @Query("cursor") cursor: String? = null,
         @Query("file_id") fileId: String? = null,
-        @Query("status")  status: String? = null   // ← REGULAR / IRREGULAR / null
+        @Query("status") status: String? = null   // ← REGULAR / IRREGULAR / null
     ): Response<TransactionPage>
 
     @GET("api/uploads")
@@ -75,7 +75,7 @@ interface AuthApiService {
     @GET("api/stats")
     suspend fun getStats(
         @Query("month") month: String,
-        @Query("year")  year:  String
+        @Query("year") year: String
     ): Response<Map<String, @JvmSuppressWildcards Any>>
 
     // --- PDF Report ---
@@ -90,6 +90,29 @@ interface AuthApiService {
     suspend fun updateProfile(
         @Body body: Map<String, @JvmSuppressWildcards Any>
     ): Response<Map<String, String>>
+
+    // --- Chat ---
+    @GET("api/chats")
+    suspend fun getChats(): Response<List<com.cardify.app.data.model.Chat>>
+
+    @POST("api/chats")
+    suspend fun createChat(
+        @Body request: com.cardify.app.data.model.CreateChatRequest
+    ): Response<Map<String, @JvmSuppressWildcards Any>>
+
+    @GET("api/chats/{chatId}/messages")
+    suspend fun getMessages(
+        @Path("chatId") chatId: String
+    ): Response<List<com.cardify.app.data.model.ChatMessage>>
+
+    @POST("api/chats/{chatId}/messages")
+    suspend fun sendMessage(
+        @Path("chatId") chatId: String,
+        @Body request: com.cardify.app.data.model.SendMessageRequest
+    ): Response<Map<String, @JvmSuppressWildcards Any>>
+
+    @GET("api/chats/unread")
+    suspend fun getUnreadCount(): Response<com.cardify.app.data.model.UnreadResponse>
 
     // --- Admin ---
     @GET("auth/admin/dashboard")

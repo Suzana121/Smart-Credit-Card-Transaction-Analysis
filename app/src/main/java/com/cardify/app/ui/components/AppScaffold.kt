@@ -18,7 +18,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cardify.app.R
+import com.cardify.app.ui.chat.ChatViewModel
+import com.cardify.app.ui.home.CardifyColors
 
 val AppTeal = Color(0xFF006769)
 
@@ -29,7 +32,7 @@ sealed class NavigationItem(
 ) {
     object Home         : NavigationItem("home",         Icons.Default.Home,        "Home")
     object SharedInfo   : NavigationItem("wallet",       Icons.Default.Description, "Shared Info")
-    object Transactions : NavigationItem("transactions", Icons.Default.List,        "Transactions") // תוקן מ-"activity"
+    object Transactions : NavigationItem("transactions", Icons.Default.List,        "Transactions")
     object Stats        : NavigationItem("stats",        Icons.Default.BarChart,    "Stats")
     object Account      : NavigationItem("account",      Icons.Default.Person,      "Account")
 }
@@ -68,6 +71,7 @@ fun AppScaffold(
     currentRoute: String,
     onNavigate: (String) -> Unit,
     topBarContent: (@Composable () -> Unit)? = null,
+    chatViewModel: ChatViewModel = viewModel(),
     content: @Composable (PaddingValues) -> Unit
 ) {
     val items = listOf(
@@ -77,6 +81,10 @@ fun AppScaffold(
         NavigationItem.Stats,
         NavigationItem.Account
     )
+
+    val unreadCount by chatViewModel.unreadCount.collectAsState()
+
+    LaunchedEffect(Unit) { chatViewModel.fetchUnreadCount() }
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Scaffold(
@@ -92,7 +100,25 @@ fun AppScaffold(
                 ) {
                     items.forEach { item ->
                         NavigationBarItem(
-                            icon     = { Icon(item.icon, contentDescription = item.label) },
+                            icon = {
+                                // badge על Shared Info
+                                if (item.route == "wallet" && unreadCount > 0) {
+                                    BadgedBox(
+                                        badge = {
+                                            Badge(containerColor = CardifyColors.IrregularRed) {
+                                                Text(
+                                                    if (unreadCount > 9) "9+" else unreadCount.toString(),
+                                                    fontSize = 9.sp, color = Color.White
+                                                )
+                                            }
+                                        }
+                                    ) {
+                                        Icon(item.icon, contentDescription = item.label)
+                                    }
+                                } else {
+                                    Icon(item.icon, contentDescription = item.label)
+                                }
+                            },
                             label    = { Text(item.label, fontSize = 10.sp, maxLines = 1) },
                             selected = currentRoute == item.route,
                             onClick  = { onNavigate(item.route) },

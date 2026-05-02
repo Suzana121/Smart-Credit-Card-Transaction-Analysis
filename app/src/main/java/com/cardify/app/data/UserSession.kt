@@ -7,6 +7,9 @@ object UserSession {
     var email: String? = null
     var phone: String? = null
 
+    // alias נוח לשימוש ב-ChatScreen
+    val userId: String? get() = id
+
     fun isLoggedIn(): Boolean {
         return !token.isNullOrEmpty()
     }

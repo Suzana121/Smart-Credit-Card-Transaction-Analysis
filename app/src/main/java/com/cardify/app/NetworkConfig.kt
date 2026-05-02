@@ -5,7 +5,7 @@ package com.cardify.app
  */
 object NetworkConfig {
     /** Base URL of the backend server, including protocol and port. */
-    const val BASE_URL = "http://10.0.2.2:5001/"
+    const val BASE_URL = "http://192.168.33.19:5001/"
 
     /** Full URL for the user registration endpoint. */
     const val REGISTER_URL = "${BASE_URL}auth/register"
