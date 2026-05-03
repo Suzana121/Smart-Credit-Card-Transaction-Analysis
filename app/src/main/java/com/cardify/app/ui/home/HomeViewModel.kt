@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cardify.app.data.api.RetrofitClient
 import com.cardify.app.data.model.Transaction
+import com.cardify.app.data.model.UploadedFile
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,6 +39,25 @@ class HomeViewModel : ViewModel() {
     private val _manualOverrides = MutableStateFlow<Map<String, String>>(emptyMap())
     val manualOverrides: StateFlow<Map<String, String>> = _manualOverrides.asStateFlow()
 
+    private val _uploads = MutableStateFlow<List<UploadedFile>>(emptyList())
+
+    init {
+        fetchUploads()
+    }
+
+    private fun fetchUploads() {
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.getUploads()
+                if (response.isSuccessful) {
+                    _uploads.value = response.body() ?: emptyList()
+                }
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Uploads fetch error", e)
+            }
+        }
+    }
+
     fun fetchTransactions(limit: Int = 5) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -64,6 +84,14 @@ class HomeViewModel : ViewModel() {
 
             try {
                 val originalName = getOriginalFileName(context, uri) ?: "upload.xlsx"
+
+                // בדיקת כפילות לפי שם קובץ לפני שליחה לשרת
+                if (_uploads.value.any { it.fileName == originalName }) {
+                    _isUploading.value = false
+                    _uploadMessage.value = "Error: You have already uploaded this file before"
+                    return@launch
+                }
+
                 val file = getFileFromUri(context, uri, originalName)
 
                 if (file != null) {
@@ -105,6 +133,9 @@ class HomeViewModel : ViewModel() {
                         // סגירת ה-Overlay וחזרה למסך הבית הרגיל
                         _isProcessing.value = false
                         _isSuccess.value = false
+                    } else if (response.code() == 409) {
+                        _isUploading.value = false
+                        _uploadMessage.value = "Error: You have already uploaded this file before"
                     } else {
                         _isUploading.value = false
                         _uploadMessage.value = "Failed: ${response.code()}"

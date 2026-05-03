@@ -6,7 +6,9 @@ from services.ml_service import MLService
 from services.data_validator import DataValidator
 from services.user_profile_schema import validate_profile, merge_profile
 from google.cloud import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 from collections import defaultdict
+import hashlib
 import logging
 import uuid
 import sys
@@ -330,6 +332,24 @@ def upload_file():
 
     try:
         original_filename = file.filename or 'unknown'
+
+        # ── בדיקת כפילות לפי hash של תוכן הקובץ ──
+        file_content = file.read()
+        file_hash    = hashlib.md5(file_content).hexdigest()
+        file.seek(0)
+
+        existing = list(
+            user_files_ref(user_id)
+            .where(filter=FieldFilter('file_hash', '==', file_hash))
+            .limit(1)
+            .stream()
+        )
+        if existing:
+            return jsonify({
+                "error":   "duplicate_file",
+                "message": "You have already uploaded this file before"
+            }), 409
+
         df = FileService.validate_and_process_file(file)
 
         df, report = DataValidator.validate(df)
@@ -419,6 +439,7 @@ def upload_file():
             "irregular_count":   irregular_count,
             "uploaded_at":       firestore.SERVER_TIMESTAMP,
             "monthly_summary":   summary_serializable,  # ← pre-aggregated
+            "file_hash":         file_hash,
         })
 
         # עדכון פרופיל + latest_file_id
