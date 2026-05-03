@@ -43,6 +43,8 @@ firebase-debug.log
 serviceAccountKey.json
 google-services.json
 
-data/
-models/
+# אחרי:
+# Python ML data & models (not Android source)
+backend/data/
+backend/models/
 *.pkl
