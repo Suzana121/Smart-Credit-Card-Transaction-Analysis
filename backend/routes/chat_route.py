@@ -18,11 +18,10 @@ def get_user_info(user_id):
 
 
 def fmt_ts(ts):
-    """המרת Firestore timestamp ל-ISO 8601 תקני עם T ו-+00:00."""
+    """המרת Firestore timestamp ל-ISO 8601 תקני עם T."""
     if ts is None:
         return ''
     if hasattr(ts, 'isoformat'):
-        # Firestore מחזיר לפעמים רווח במקום T — נאחד
         return ts.isoformat().replace(' ', 'T')
     return ''
 
@@ -41,9 +40,7 @@ def get_chats():
 
         chats = []
         for doc in docs:
-            d = doc.to_dict()
-            ts = d.get('lastMessageAt')
-            date_str = fmt_ts(ts)
+            d      = doc.to_dict()
             unread = d.get('unreadCount', {}).get(user_id, 0)
             chats.append({
                 'id':               doc.id,
@@ -52,7 +49,7 @@ def get_chats():
                 'isGroup':          d.get('isGroup', False),
                 'groupName':        d.get('groupName', ''),
                 'lastMessage':      d.get('lastMessage', ''),
-                'lastMessageAt':    date_str,
+                'lastMessageAt':    fmt_ts(d.get('lastMessageAt')),
                 'unreadCount':      unread,
             })
 
@@ -73,13 +70,11 @@ def create_chat():
         user_id = get_jwt_identity()
         data    = request.get_json()
 
-        participant_ids = data.get('participantIds', [])
-        group_name      = data.get('groupName', '')
-        is_group        = len(participant_ids) > 1
-
+        participant_ids  = data.get('participantIds', [])
+        group_name       = data.get('groupName', '')
+        is_group         = len(participant_ids) > 1
         all_participants = list(set([user_id] + participant_ids))
 
-        # בדיקה אם שיחה 1:1 כבר קיימת
         if not is_group and len(all_participants) == 2:
             existing = (db.collection('chats')
                         .where(filter=FieldFilter('participants', 'array_contains', user_id))
@@ -90,7 +85,6 @@ def create_chat():
                         set(d.get('participants', [])) == set(all_participants)):
                     return jsonify({'id': doc.id, 'existed': True}), 200
 
-        # שליפת שמות המשתתפים
         participant_names = {}
         for pid in all_participants:
             info = get_user_info(pid)
@@ -123,15 +117,14 @@ def create_chat():
 @jwt_required()
 def get_messages(chat_id):
     try:
-        user_id = get_jwt_identity()
-
+        user_id  = get_jwt_identity()
         chat_doc = db.collection('chats').document(chat_id).get()
+
         if not chat_doc.exists:
             return jsonify({'error': 'Chat not found'}), 404
         if user_id not in chat_doc.to_dict().get('participants', []):
             return jsonify({'error': 'Unauthorized'}), 403
 
-        # איפוס unread counter
         db.collection('chats').document(chat_id).update({
             f'unreadCount.{user_id}': 0
         })
@@ -152,6 +145,8 @@ def get_messages(chat_id):
                 'transaction':    d.get('transaction'),
                 'replyToId':      d.get('replyToId'),
                 'replyToMessage': d.get('replyToMessage'),
+                'audioUrl':       d.get('audioUrl'),       # ← הודעה קולית
+                'audioDuration':  d.get('audioDuration', 0),
                 'timestamp':      fmt_ts(d.get('timestamp')),
             })
 
@@ -168,8 +163,8 @@ def get_messages(chat_id):
 @jwt_required()
 def send_message(chat_id):
     try:
-        user_id = get_jwt_identity()
-        data    = request.get_json()
+        user_id  = get_jwt_identity()
+        data     = request.get_json()
 
         chat_ref = db.collection('chats').document(chat_id)
         chat_doc = chat_ref.get()
@@ -183,29 +178,40 @@ def send_message(chat_id):
         user_info   = get_user_info(user_id)
         sender_name = user_info['username'] if user_info else 'Unknown'
 
-        text        = data.get('text', '')
-        transaction = data.get('transaction')
-        reply_to_id = data.get('replyToId')
-        reply_to_message = data.get('replyToMessage')    # snapshot של ההודעה המקורית
+        text             = data.get('text', '')
+        transaction      = data.get('transaction')
+        reply_to_id      = data.get('replyToId')
+        reply_to_message = data.get('replyToMessage')
+        audio_url        = data.get('audioUrl')        # ← הודעה קולית
+        audio_duration   = data.get('audioDuration', 0)
 
-        msg_ref  = chat_ref.collection('messages').document()
         msg_data = {
-            'senderId':   user_id,
-            'senderName': sender_name,
-            'text':       text,
+            'senderId':    user_id,
+            'senderName':  sender_name,
+            'text':        text,
             'transaction': transaction,
-            'timestamp':  firestore.SERVER_TIMESTAMP,
+            'timestamp':   firestore.SERVER_TIMESTAMP,
         }
 
         if reply_to_id:
             msg_data['replyToId'] = reply_to_id
         if reply_to_message:
             msg_data['replyToMessage'] = reply_to_message
+        if audio_url:
+            msg_data['audioUrl']      = audio_url
+            msg_data['audioDuration'] = audio_duration
 
+        msg_ref = chat_ref.collection('messages').document()
         msg_ref.set(msg_data)
 
-        # עדכון lastMessage + unread לשאר המשתתפים
-        last_msg = text if text else '📊 Transaction shared'
+        # lastMessage — טקסט או תיאור הודעה קולית
+        if audio_url:
+            last_msg = '🎤 Voice message'
+        elif text:
+            last_msg = text
+        else:
+            last_msg = '📊 Transaction shared'
+
         update = {
             'lastMessage':   last_msg,
             'lastMessageAt': firestore.SERVER_TIMESTAMP,
@@ -223,7 +229,7 @@ def send_message(chat_id):
 
 
 # ─────────────────────────────────────────────
-# GET /api/chats/unread — סך הודעות שלא נקראו
+# GET /api/chats/unread
 # ─────────────────────────────────────────────
 @chat_bp.route('/chats/unread', methods=['GET'])
 @jwt_required()

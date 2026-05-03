@@ -9,7 +9,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,6 +39,23 @@ fun ChatsScreen(
     val chats       by viewModel.chats.collectAsState()
     val isLoading   by viewModel.isLoading.collectAsState()
     var showNewChat by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    // פילטור צ'טים לפי שם
+    val filteredChats = remember(chats, searchQuery) {
+        if (searchQuery.isBlank()) chats
+        else chats.filter { chat ->
+            val currentUserId = UserSession.userId ?: ""
+            val displayName = if (chat.isGroup) {
+                chat.groupName
+            } else {
+                val otherId = chat.participants.firstOrNull { it != currentUserId } ?: ""
+                chat.participantNames[otherId] ?: ""
+            }
+            displayName.contains(searchQuery, ignoreCase = true) ||
+                    chat.lastMessage.contains(searchQuery, ignoreCase = true)
+        }
+    }
 
     LaunchedEffect(Unit) { viewModel.loadChats() }
 
@@ -92,27 +111,60 @@ fun ChatsScreen(
 
                 HorizontalDivider(color = Color(0xFFEEEEEE))
 
+                // שורת חיפוש
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    placeholder = { Text("Search chats...", fontSize = 14.sp) },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, null,
+                            tint = Color.Gray, modifier = Modifier.size(20.dp))
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotBlank()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Close, null,
+                                    tint = Color.Gray, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(24.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor   = CardifyColors.DarkGreen,
+                        unfocusedBorderColor = Color(0xFFDDDDDD)
+                    )
+                )
+
                 if (isLoading) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = CardifyColors.DarkGreen)
                     }
-                } else if (chats.isEmpty()) {
+                } else if (filteredChats.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("No chats yet", color = Color.Gray, fontSize = 16.sp)
-                            Spacer(Modifier.height(8.dp))
-                            Text("Tap + to start a conversation",
-                                color = Color.LightGray, fontSize = 13.sp)
+                            Text(
+                                if (searchQuery.isBlank()) "No chats yet" else "No results for \"$searchQuery\"",
+                                color = Color.Gray, fontSize = 16.sp
+                            )
+                            if (searchQuery.isBlank()) {
+                                Spacer(Modifier.height(8.dp))
+                                Text("Tap + to start a conversation",
+                                    color = Color.LightGray, fontSize = 13.sp)
+                            }
                         }
                     }
                 } else {
                     LazyColumn(Modifier.fillMaxSize()) {
-                        items(chats, key = { it.id }) { chat ->
+                        items(filteredChats, key = { it.id }) { chat ->
                             ChatItem(
                                 chat          = chat,
                                 currentUserId = UserSession.userId ?: "",
                                 hasPending    = pendingTransaction != null,
-                                onClick       = { onOpenChat(chat) }   // ← מעביר Chat
+                                onClick       = { onOpenChat(chat) }
                             )
                             HorizontalDivider(
                                 modifier = Modifier.padding(start = 72.dp),

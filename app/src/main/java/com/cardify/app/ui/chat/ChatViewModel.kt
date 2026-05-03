@@ -4,7 +4,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cardify.app.data.api.RetrofitClient
-import com.cardify.app.data.model.*import kotlinx.coroutines.flow.MutableStateFlow
+import com.cardify.app.data.model.*
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -26,22 +27,22 @@ class ChatViewModel : ViewModel() {
     private val _friends     = MutableStateFlow<List<Friend>>(emptyList())
     val friends: StateFlow<List<Friend>> = _friends.asStateFlow()
 
-    // עסקה שממתינה לשליחה בצ'ט
     private val _pendingTransaction = MutableStateFlow<ChatTransaction?>(null)
     val pendingTransaction: StateFlow<ChatTransaction?> = _pendingTransaction.asStateFlow()
 
-    // הודעה שממתינה לתגובה
     private val _replyTo = MutableStateFlow<ChatMessage?>(null)
     val replyTo: StateFlow<ChatMessage?> = _replyTo.asStateFlow()
+
+
+
+    // ─── טעינת נתונים ───────────────────────────────────────────
 
     fun loadChats() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
                 val response = RetrofitClient.apiService.getChats()
-                if (response.isSuccessful) {
-                    _chats.value = response.body() ?: emptyList()
-                }
+                if (response.isSuccessful) _chats.value = response.body() ?: emptyList()
             } catch (e: Exception) {
                 Log.e("ChatVM", "loadChats error", e)
             } finally {
@@ -55,9 +56,7 @@ class ChatViewModel : ViewModel() {
             _isLoading.value = true
             try {
                 val response = RetrofitClient.apiService.getMessages(chatId)
-                if (response.isSuccessful) {
-                    _messages.value = response.body() ?: emptyList()
-                }
+                if (response.isSuccessful) _messages.value = response.body() ?: emptyList()
             } catch (e: Exception) {
                 Log.e("ChatVM", "loadMessages error", e)
             } finally {
@@ -74,7 +73,8 @@ class ChatViewModel : ViewModel() {
                     ReplySnapshot(
                         senderName   = it.senderName,
                         text         = it.text,
-                        businessName = it.transaction?.businessName ?: ""
+                        businessName = it.transaction?.businessName ?: "",
+                        isAudio      = it.audioUrl != null
                     )
                 }
                 val request = SendMessageRequest(
@@ -95,47 +95,33 @@ class ChatViewModel : ViewModel() {
         }
     }
 
+    // ─── חברים ותמיכה ───────────────────────────────────────────
+
     fun loadFriends() {
         viewModelScope.launch {
             try {
                 val response = RetrofitClient.apiService.getFriends()
-                if (response.isSuccessful) {
-                    _friends.value = response.body() ?: emptyList()
-                }
+                if (response.isSuccessful) _friends.value = response.body() ?: emptyList()
             } catch (e: Exception) {
                 Log.e("ChatVM", "loadFriends error", e)
             }
         }
     }
 
-    fun createChat(
-        participantPhones: List<String>,
-        groupName: String,
-        onSuccess: (String) -> Unit
-    ) {
+    fun createChat(participantPhones: List<String>, groupName: String, onSuccess: (String) -> Unit) {
         viewModelScope.launch {
             try {
                 val userIds = mutableListOf<String>()
                 for (phone in participantPhones) {
                     val res = RetrofitClient.apiService.searchUserByPhone(phone)
-                    if (res.isSuccessful) {
-                        res.body()?.id?.let { userIds.add(it) }
-                    }
+                    if (res.isSuccessful) res.body()?.id?.let { userIds.add(it) }
                 }
-
                 if (userIds.isEmpty()) return@launch
-
-                val request  = CreateChatRequest(
-                    participantIds = userIds,
-                    groupName      = groupName
-                )
+                val request  = CreateChatRequest(participantIds = userIds, groupName = groupName)
                 val response = RetrofitClient.apiService.createChat(request)
                 if (response.isSuccessful) {
                     val chatId = response.body()?.get("id") as? String ?: ""
-                    if (chatId.isNotBlank()) {
-                        loadChats()
-                        onSuccess(chatId)
-                    }
+                    if (chatId.isNotBlank()) { loadChats(); onSuccess(chatId) }
                 }
             } catch (e: Exception) {
                 Log.e("ChatVM", "createChat error", e)
@@ -147,28 +133,19 @@ class ChatViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val response = RetrofitClient.apiService.getUnreadCount()
-                if (response.isSuccessful) {
-                    _unreadCount.value = response.body()?.unread ?: 0
-                }
+                if (response.isSuccessful) _unreadCount.value = response.body()?.unread ?: 0
             } catch (e: Exception) {
                 Log.e("ChatVM", "unread error", e)
             }
         }
     }
 
-    fun setPendingTransaction(txn: ChatTransaction) {
-        _pendingTransaction.value = txn
-    }
+    fun setPendingTransaction(txn: ChatTransaction) { _pendingTransaction.value = txn }
+    fun clearPendingTransaction()                    { _pendingTransaction.value = null }
+    fun setReplyTo(message: ChatMessage)             { _replyTo.value = message }
+    fun clearReplyTo()                               { _replyTo.value = null }
 
-    fun clearPendingTransaction() {
-        _pendingTransaction.value = null
-    }
-
-    fun setReplyTo(message: ChatMessage) {
-        _replyTo.value = message
-    }
-
-    fun clearReplyTo() {
-        _replyTo.value = null
+    override fun onCleared() {
+        super.onCleared()
     }
 }

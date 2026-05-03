@@ -2,9 +2,11 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("kotlin-kapt")
+    // שימוש ב-Compose Compiler החדש שמותאם לגרסת ה-Kotlin שלך
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.21"
+    // חובה להוסיף את ה-plugin של Google Services כדי ש-Firebase יעבוד
+    id("com.google.gms.google-services")
 }
-
 
 android {
     namespace = "com.cardify.app"
@@ -41,13 +43,12 @@ android {
 
     buildFeatures {
         viewBinding = true
-        compose = true  // ← הוספתי את זה! 🎉
+        compose = true
     }
 
-    // ← הוספתי את זה! 🎉
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.3"
-    }
+    // הערה: הסרתי את composeOptions כי בגרסת Kotlin 2.0+
+    // הקומפיילר של Compose מנוהל דרך ה-Plugins למעלה.
+
     buildToolsVersion = "36.1.0"
 }
 
@@ -73,7 +74,7 @@ dependencies {
     // SharedPreferences encryption
     implementation("androidx.security:security-crypto:1.1.0")
 
-    // ===== Jetpack Compose - חדש! 🚀 =====
+    // ===== Jetpack Compose =====
     implementation(platform("androidx.compose:compose-bom:2025.12.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
@@ -88,19 +89,29 @@ dependencies {
     // Compose Debug
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-    // ===== סוף Compose =====
+
+    // ===== Firebase & Voice Recording Support (חדש!) 🎤 =====
+    // BoM של Firebase לניהול גרסאות אוטומטי
+    implementation(platform("com.google.firebase:firebase-bom:33.1.1"))
+
+    // ספריות Firebase לשימוש בהקלטות ואחסון
+    implementation("com.google.firebase:firebase-storage-ktx")
+    implementation("com.google.firebase:firebase-analytics-ktx")
+
+    // תמיכה ב-Coroutines עבור משימות Firebase
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 
-    //Graph libraries for design
+    // Graph libraries
     implementation("com.patrykandpatrick.vico:compose:1.13.1")
     implementation("com.patrykandpatrick.vico:compose-m3:1.13.1")
     implementation("com.patrykandpatrick.vico:core:1.13.1")
 
-    // ספקיית Coil להצגת תמונות ב-Compose
+    // Images & Animation
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("com.airbnb.android:lottie-compose:6.4.0")
 }
