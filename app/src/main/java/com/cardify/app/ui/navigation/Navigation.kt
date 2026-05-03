@@ -10,6 +10,8 @@ import com.google.gson.Gson
 import com.cardify.app.data.UserSession
 import com.cardify.app.data.model.Chat
 import com.cardify.app.data.model.ChatTransaction
+import com.cardify.app.data.model.Friend
+import com.cardify.app.ui.chat.ChatViewModel
 import com.cardify.app.ui.home.HomeScreen
 import com.cardify.app.ui.account.AccountScreen
 import com.cardify.app.ui.edit_account.EditAccountScreen
@@ -18,14 +20,69 @@ import com.cardify.app.ui.transactions.TransactionsScreen
 import com.cardify.app.ui.stats.StatsScreen
 import com.cardify.app.ui.chat.ChatsScreen
 import com.cardify.app.ui.chat.ChatScreen
+import com.cardify.app.ui.components.ShareToChatSheet
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun AppNavigation(startDestination: String = "home") {
     val navController = rememberNavController()
-    val gson = remember { Gson() }
+    val gson          = remember { Gson() }
+
+    // ─── מצב שיתוף גלובלי ────────────────────────────────────────────────────
+    // כאשר המשתמש לוחץ Share to Chat ממסך כלשהו, שומרים את הטרנזקציה כאן
+    // ופותחים bottom sheet לבחירת חבר, לפני הניווט לצ'ט.
+    var pendingShareTxn    by remember { mutableStateOf<ChatTransaction?>(null) }
+    var showFriendPicker   by remember { mutableStateOf(false) }
+    val chatViewModelGlobal: ChatViewModel = viewModel()
+
+    // ─── helper: navigate to chat with a specific friend + pending transaction ─
+    fun navigateToChatWithFriend(friend: Friend, txn: ChatTransaction) {
+        chatViewModelGlobal.loadFriends()
+        chatViewModelGlobal.createChat(
+            participantPhones = listOf(friend.phone),
+            groupName         = "",
+            onSuccess         = { chatId ->
+                val txnJson = gson.toJson(txn)
+                navController.navigate("wallet") {
+                    popUpTo("home") { inclusive = false }
+                    launchSingleTop = true
+                }
+                // קצת delay לאחר ניווט כדי שה-backStack יהיה מוכן
+                navController.currentBackStackEntry
+                    ?.savedStateHandle?.set("pendingTransaction", txnJson)
+                // ניווט ישיר לצ'ט
+                navController.navigate("chat/$chatId") {
+                    launchSingleTop = true
+                }
+                navController.getBackStackEntry("chat/$chatId")
+                    .savedStateHandle.apply {
+                        set("pendingTransaction", txnJson)
+                        set("chatName", friend.name)
+                        set("isGroup", false)
+                    }
+            }
+        )
+        pendingShareTxn  = null
+        showFriendPicker = false
+    }
+
+    // ─── Friend picker sheet (גלובלי, מעל כל המסכים) ─────────────────────────
+    if (showFriendPicker && pendingShareTxn != null) {
+        val friends by chatViewModelGlobal.friends.collectAsState()
+        LaunchedEffect(Unit) { chatViewModelGlobal.loadFriends() }
+
+        ShareToChatSheet(
+            friends   = friends,
+            onDismiss = { showFriendPicker = false; pendingShareTxn = null },
+            onSelect  = { friend ->
+                navigateToChatWithFriend(friend, pendingShareTxn!!)
+            }
+        )
+    }
 
     NavHost(navController = navController, startDestination = startDestination) {
 
+        // ─── Home ─────────────────────────────────────────────────────────────
         composable("home") {
             HomeScreen(
                 onNavigate = { route ->
@@ -35,11 +92,21 @@ fun AppNavigation(startDestination: String = "home") {
                     }
                 },
                 onShareClick = { transaction ->
-                    navController.navigate("share_with_friends/${transaction.id}")
+                    // Share to Chat מהבית — פותח את picker הגלובלי
+                    pendingShareTxn = ChatTransaction(
+                        businessName = transaction.businessName,
+                        amount       = transaction.amount,
+                        date         = transaction.date,
+                        category     = transaction.category,
+                        status       = transaction.status,
+                        explanation  = transaction.explanation ?: ""
+                    )
+                    showFriendPicker = true
                 }
             )
         }
 
+        // ─── Share with Friends (legacy) ──────────────────────────────────────
         composable(
             route = "share_with_friends/{transactionId}",
             arguments = listOf(navArgument("transactionId") { type = NavType.StringType })
@@ -57,7 +124,7 @@ fun AppNavigation(startDestination: String = "home") {
             )
         }
 
-        // wallet = ChatsScreen
+        // ─── Chats (wallet) ───────────────────────────────────────────────────
         composable("wallet") {
             val entry       = navController.currentBackStackEntry
             val pendingJson = entry?.savedStateHandle?.get<String>("pendingTransaction")
@@ -73,7 +140,6 @@ fun AppNavigation(startDestination: String = "home") {
                     }
                 },
                 onOpenChat = { chat ->
-                    // חישוב שם הצ'אט — שם המשתמש השני בפרטי, שם הקבוצה בקבוצתי
                     val chatName = if (chat.isGroup) {
                         chat.groupName.ifBlank { "Group" }
                     } else {
@@ -83,7 +149,6 @@ fun AppNavigation(startDestination: String = "home") {
                         chat.participantNames[otherId] ?: "Chat"
                     }
 
-                    // ניקוי pending מה-wallet entry
                     navController.currentBackStackEntry
                         ?.savedStateHandle?.remove<String>("pendingTransaction")
 
@@ -91,7 +156,6 @@ fun AppNavigation(startDestination: String = "home") {
                         launchSingleTop = true
                     }
 
-                    // שמירת מידע ב-chat entry
                     navController.getBackStackEntry("chat/${chat.id}")
                         .savedStateHandle.apply {
                             set("pendingTransaction", pendingJson)
@@ -103,7 +167,7 @@ fun AppNavigation(startDestination: String = "home") {
             )
         }
 
-        // chat/{chatId}
+        // ─── Chat ─────────────────────────────────────────────────────────────
         composable(
             route = "chat/{chatId}",
             arguments = listOf(navArgument("chatId") { type = NavType.StringType })
@@ -125,6 +189,7 @@ fun AppNavigation(startDestination: String = "home") {
             )
         }
 
+        // ─── Transactions ─────────────────────────────────────────────────────
         composable("transactions") {
             TransactionsScreen(
                 onNavigate = { route ->
@@ -134,25 +199,21 @@ fun AppNavigation(startDestination: String = "home") {
                     }
                 },
                 onShareToChat = { transaction ->
-                    val chatTxn = ChatTransaction(
+                    // Share to Chat מהטרנזקציות — אותו picker גלובלי
+                    pendingShareTxn = ChatTransaction(
                         businessName = transaction.businessName,
-                        amount      = transaction.amount,
-                        date        = transaction.date,
-                        category    = transaction.category,
-                        status      = transaction.status,
-                        explanation = transaction.explanation
+                        amount       = transaction.amount,
+                        date         = transaction.date,
+                        category     = transaction.category,
+                        status       = transaction.status,
+                        explanation  = transaction.explanation ?: ""
                     )
-                    val json = gson.toJson(chatTxn)
-                    navController.navigate("wallet") {
-                        popUpTo("home") { inclusive = false }
-                        launchSingleTop = true
-                    }
-                    navController.currentBackStackEntry
-                        ?.savedStateHandle?.set("pendingTransaction", json)
+                    showFriendPicker = true
                 }
             )
         }
 
+        // ─── Stats ────────────────────────────────────────────────────────────
         composable("stats") {
             StatsScreen(
                 onNavigate = { route ->
@@ -164,6 +225,7 @@ fun AppNavigation(startDestination: String = "home") {
             )
         }
 
+        // ─── Account ──────────────────────────────────────────────────────────
         composable("account") {
             val context = androidx.compose.ui.platform.LocalContext.current
             AccountScreen(
@@ -184,6 +246,7 @@ fun AppNavigation(startDestination: String = "home") {
             )
         }
 
+        // ─── Edit Account ─────────────────────────────────────────────────────
         composable("edit_account") {
             EditAccountScreen(
                 onNavigate = { route ->
