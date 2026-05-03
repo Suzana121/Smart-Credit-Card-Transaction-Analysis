@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()  # חייב להיות לפני שאר ה-imports!
+
 from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
 from routes.upload import upload_bp

@@ -18,12 +18,8 @@ class AuthRepository {
         return apiService.register(registerRequest)
     }
 
-    /**
-     * שליפת נתוני המשתמש הנוכחי
-     */
     suspend fun fetchUserData(): Result<User> {
         return try {
-            // שינוי שם הפונקציה ל-getUserDetails (כמו ב-ApiService)
             val response = apiService.getUserDetails()
             val body = response.body()
             if (response.isSuccessful && body != null) {
@@ -36,22 +32,15 @@ class AuthRepository {
         }
     }
 
-    /**
-     * עדכון נתוני המשתמש
-     */
     suspend fun updateUserData(name: String, email: String, phone: String, pass: String): Result<Boolean> {
         return try {
             val request = UpdateUserRequest(
                 username = name,
-                email = email,
-                phone = phone,
+                email    = email,
+                phone    = phone,
                 password = if (pass.isEmpty()) null else pass
             )
-
-            // ודאי שב-AuthApiService קראת לפונקציית העדכון בשם הזה
-            // אם לא הוספת אותה ל-Interface, כדאי להוסיף:
             val response = apiService.updateUserDetails(request)
-
             if (response.isSuccessful) {
                 Result.success(true)
             } else {
@@ -59,6 +48,38 @@ class AuthRepository {
             }
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    // שחזור סיסמה
+    // ─────────────────────────────────────────────
+
+    suspend fun forgotPassword(email: String): Result<String> {
+        return try {
+            val response = apiService.forgotPassword(ForgotPasswordRequest(email))
+            if (response.isSuccessful) {
+                Result.success(response.body()?.message ?: "Code sent")
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Error: ${response.code()}"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Network error: ${e.localizedMessage}"))
+        }
+    }
+
+    suspend fun resetPassword(email: String, otp: String, newPassword: String): Result<String> {
+        return try {
+            val response = apiService.resetPassword(ResetPasswordRequest(email, otp, newPassword))
+            if (response.isSuccessful) {
+                Result.success("Password updated successfully")
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Reset failed: ${response.code()}"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Network error: ${e.localizedMessage}"))
         }
     }
 }

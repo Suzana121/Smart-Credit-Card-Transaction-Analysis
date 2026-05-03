@@ -9,7 +9,7 @@ import retrofit2.http.Query
 
 interface AuthApiService {
 
-    // --- Authentication & Friends (Prefix: /auth) ---
+    // --- Authentication (Prefix: /auth) ---
 
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
@@ -19,6 +19,18 @@ interface AuthApiService {
 
     @GET("auth/user_details")
     suspend fun getUserDetails(): Response<User>
+
+    @POST("auth/update")
+    suspend fun updateUserDetails(@Body request: UpdateUserRequest): Response<UpdateResponse>
+
+    // ─── שחזור סיסמה ───
+    @POST("auth/forgot-password")
+    suspend fun forgotPassword(@Body request: ForgotPasswordRequest): Response<GenericResponse>
+
+    @POST("auth/reset-password")
+    suspend fun resetPassword(@Body request: ResetPasswordRequest): Response<GenericResponse>
+
+    // --- Friends (Prefix: /auth) ---
 
     @GET("auth/friends")
     suspend fun getFriends(): Response<List<Friend>>
@@ -39,17 +51,14 @@ interface AuthApiService {
         @Path("phone") phone: String
     ): Response<UserSearchResponse>
 
-    @POST("auth/update")
-    suspend fun updateUserDetails(@Body request: UpdateUserRequest): Response<UpdateResponse>
-
     // --- Transactions & Shares (Prefix: /api) ---
 
     @GET("api/transactions")
     suspend fun getTransactions(
-        @Query("limit") limit: Int = 20,
-        @Query("cursor") cursor: String? = null,
+        @Query("limit")   limit:  Int     = 20,
+        @Query("cursor")  cursor: String? = null,
         @Query("file_id") fileId: String? = null,
-        @Query("status") status: String? = null   // ← REGULAR / IRREGULAR / null
+        @Query("status")  status: String? = null
     ): Response<TransactionPage>
 
     @GET("api/uploads")
@@ -75,7 +84,7 @@ interface AuthApiService {
     @GET("api/stats")
     suspend fun getStats(
         @Query("month") month: String,
-        @Query("year") year: String
+        @Query("year")  year:  String
     ): Response<Map<String, @JvmSuppressWildcards Any>>
 
     // --- PDF Report ---

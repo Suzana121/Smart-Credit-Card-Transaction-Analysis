@@ -13,7 +13,6 @@ import com.cardify.app.data.model.ChatTransaction
 import com.cardify.app.ui.home.HomeScreen
 import com.cardify.app.ui.account.AccountScreen
 import com.cardify.app.ui.edit_account.EditAccountScreen
-import com.cardify.app.ui.shared_info.SharedInfoScreen
 import com.cardify.app.ui.shared_info.ShareWithFriendsScreen
 import com.cardify.app.ui.transactions.TransactionsScreen
 import com.cardify.app.ui.stats.StatsScreen

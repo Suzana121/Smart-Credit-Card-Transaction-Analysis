@@ -31,6 +31,14 @@
         </activity>
 
         <activity
+            android:name=".ui.login.ForgotPasswordActivity"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
+
+        <activity
+            android:name=".ui.login.VerifyOtpActivity"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
+
+        <activity
             android:name=".ui.login.RegisterActivity"
             android:exported="false" />
 
@@ -48,6 +56,7 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
 
     </application>
 
