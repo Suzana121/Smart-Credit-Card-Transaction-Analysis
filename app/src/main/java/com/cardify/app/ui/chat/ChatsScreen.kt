@@ -1,5 +1,10 @@
 package com.cardify.app.ui.chat
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -26,29 +31,46 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cardify.app.data.UserSession
 import com.cardify.app.data.model.Chat
 import com.cardify.app.data.model.ChatTransaction
+import com.cardify.app.data.model.Friend
 import com.cardify.app.ui.components.AppScaffold
 import com.cardify.app.ui.home.CardifyColors
 
 @Composable
 fun ChatsScreen(
     onNavigate: (String) -> Unit,
-    onOpenChat: (Chat) -> Unit,           // ← מקבל Chat במקום String
+    onOpenChat: (Chat) -> Unit,
     pendingTransaction: ChatTransaction? = null,
     viewModel: ChatViewModel = viewModel()
 ) {
     val chats       by viewModel.chats.collectAsState()
+    val friends     by viewModel.friends.collectAsState()
     val isLoading   by viewModel.isLoading.collectAsState()
     var showNewChat by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
 
-    // פילטור צ'טים לפי שם
+    // חברים מאושרים בלבד
+    val approvedFriends = remember(friends) { friends.filter { it.status == "approved" } }
+
+    // מצב: האם החיפוש מציג תוצאות חברים (ולא צ'טים)
+    val isSearchingFriends = searchQuery.isNotBlank() &&
+            chats.none { chat ->
+                val currentUserId = UserSession.userId ?: ""
+                val displayName = if (chat.isGroup) chat.groupName
+                else {
+                    val otherId = chat.participants.firstOrNull { it != currentUserId } ?: ""
+                    chat.participantNames[otherId] ?: ""
+                }
+                displayName.contains(searchQuery, ignoreCase = true) ||
+                        chat.lastMessage.contains(searchQuery, ignoreCase = true)
+            }
+
+    // פילטור צ'טים קיימים
     val filteredChats = remember(chats, searchQuery) {
         if (searchQuery.isBlank()) chats
         else chats.filter { chat ->
             val currentUserId = UserSession.userId ?: ""
-            val displayName = if (chat.isGroup) {
-                chat.groupName
-            } else {
+            val displayName = if (chat.isGroup) chat.groupName
+            else {
                 val otherId = chat.participants.firstOrNull { it != currentUserId } ?: ""
                 chat.participantNames[otherId] ?: ""
             }
@@ -57,7 +79,26 @@ fun ChatsScreen(
         }
     }
 
-    LaunchedEffect(Unit) { viewModel.loadChats() }
+    // חברים שתואמים לחיפוש ואין עמם צ'ט פתוח עדיין
+    val matchingFriends = remember(approvedFriends, searchQuery, chats) {
+        if (searchQuery.isBlank()) emptyList()
+        else {
+            val currentUserId = UserSession.userId ?: ""
+            approvedFriends.filter { friend ->
+                friend.name.contains(searchQuery, ignoreCase = true) &&
+                        chats.none { chat ->
+                            !chat.isGroup &&
+                                    chat.participants.any { it != currentUserId &&
+                                            chat.participantNames[it] == friend.name }
+                        }
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.loadChats()
+        viewModel.loadFriends()
+    }
 
     LaunchedEffect(pendingTransaction) {
         pendingTransaction?.let { viewModel.setPendingTransaction(it) }
@@ -69,7 +110,7 @@ fun ChatsScreen(
             onDismiss     = { showNewChat = false },
             onChatCreated = { chatId ->
                 showNewChat = false
-                // לאחר יצירת צ'אט חדש, מחפשים אותו ברשימה ומנווטים אליו
+                viewModel.loadChats()
                 val newChat = chats.find { it.id == chatId }
                 newChat?.let { onOpenChat(it) }
             }
@@ -111,14 +152,14 @@ fun ChatsScreen(
 
                 HorizontalDivider(color = Color(0xFFEEEEEE))
 
-                // שורת חיפוש
+                // שורת חיפוש — מחפש גם צ'טים וגם חברים
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 8.dp),
-                    placeholder = { Text("Search chats...", fontSize = 14.sp) },
+                    placeholder = { Text("Search chats or friends...", fontSize = 14.sp) },
                     leadingIcon = {
                         Icon(Icons.Default.Search, null,
                             tint = Color.Gray, modifier = Modifier.size(20.dp))
@@ -143,33 +184,96 @@ fun ChatsScreen(
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = CardifyColors.DarkGreen)
                     }
-                } else if (filteredChats.isEmpty()) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                if (searchQuery.isBlank()) "No chats yet" else "No results for \"$searchQuery\"",
-                                color = Color.Gray, fontSize = 16.sp
-                            )
-                            if (searchQuery.isBlank()) {
-                                Spacer(Modifier.height(8.dp))
-                                Text("Tap + to start a conversation",
-                                    color = Color.LightGray, fontSize = 13.sp)
-                            }
-                        }
-                    }
                 } else {
                     LazyColumn(Modifier.fillMaxSize()) {
-                        items(filteredChats, key = { it.id }) { chat ->
-                            ChatItem(
-                                chat          = chat,
-                                currentUserId = UserSession.userId ?: "",
-                                hasPending    = pendingTransaction != null,
-                                onClick       = { onOpenChat(chat) }
-                            )
-                            HorizontalDivider(
-                                modifier = Modifier.padding(start = 72.dp),
-                                color = Color(0xFFEEEEEE)
-                            )
+
+                        // ─── תוצאות צ'טים קיימים ─────────────────────────────
+                        if (filteredChats.isNotEmpty()) {
+                            items(filteredChats, key = { it.id }) { chat ->
+                                ChatItem(
+                                    chat          = chat,
+                                    currentUserId = UserSession.userId ?: "",
+                                    hasPending    = pendingTransaction != null,
+                                    onClick       = { onOpenChat(chat) }
+                                )
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(start = 72.dp),
+                                    color = Color(0xFFEEEEEE)
+                                )
+                            }
+                        }
+
+                        // ─── חברים שניתן לפתוח איתם צ'ט ──────────────────────
+                        if (matchingFriends.isNotEmpty()) {
+                            item {
+                                Text(
+                                    "Start a chat with",
+                                    fontSize = 12.sp,
+                                    color = Color.Gray,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(
+                                        start = 16.dp, top = 12.dp, bottom = 4.dp)
+                                )
+                            }
+                            items(matchingFriends, key = { "friend_${it.phone}" }) { friend ->
+                                FriendChatItem(
+                                    friend    = friend,
+                                    onClick   = {
+                                        viewModel.createChat(
+                                            participantPhones = listOf(friend.phone),
+                                            groupName         = "",
+                                            onSuccess         = { chatId ->
+                                                viewModel.loadChats()
+                                                // מחפש את הצ'ט החדש ומנווט אליו
+                                                val newChat = chats.find { it.id == chatId }
+                                                if (newChat != null) {
+                                                    onOpenChat(newChat)
+                                                } else {
+                                                    // fallback: מנווט לפי ID
+                                                    onOpenChat(
+                                                        Chat(
+                                                            id               = chatId,
+                                                            participants     = listOf(
+                                                                UserSession.userId ?: "", friend.phone),
+                                                            participantNames = mapOf(),
+                                                            isGroup          = false,
+                                                            groupName        = ""
+                                                        )
+                                                    )
+                                                }
+                                                searchQuery = ""
+                                            }
+                                        )
+                                    }
+                                )
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(start = 72.dp),
+                                    color = Color(0xFFEEEEEE)
+                                )
+                            }
+                        }
+
+                        // ─── אין תוצאות כלל ──────────────────────────────────
+                        if (filteredChats.isEmpty() && matchingFriends.isEmpty()) {
+                            item {
+                                Box(
+                                    Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            if (searchQuery.isBlank()) "No chats yet"
+                                            else "No results for \"$searchQuery\"",
+                                            color = Color.Gray, fontSize = 16.sp
+                                        )
+                                        if (searchQuery.isBlank()) {
+                                            Spacer(Modifier.height(8.dp))
+                                            Text("Tap + to start a conversation",
+                                                color = Color.LightGray, fontSize = 13.sp)
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -177,6 +281,56 @@ fun ChatsScreen(
         }
     }
 }
+
+// ─── פריט חבר לפתיחת צ'ט חדש ───────────────────────────────────────────────
+
+@Composable
+fun FriendChatItem(
+    friend: Friend,
+    onClick: () -> Unit
+) {
+    val initials = friend.name.take(1).uppercase()
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .background(CardifyColors.DarkGreen.copy(alpha = 0.03f))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(50.dp)
+                .clip(CircleShape)
+                .background(CardifyColors.DarkGreen.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(initials, fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                color = CardifyColors.DarkGreen)
+        }
+
+        Spacer(Modifier.width(12.dp))
+
+        Column(Modifier.weight(1f)) {
+            Text(friend.name, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            Text("Tap to start a chat", fontSize = 12.sp, color = Color.Gray)
+        }
+
+        Icon(
+            Icons.Default.Add,
+            contentDescription = null,
+            tint     = CardifyColors.DarkGreen,
+            modifier = Modifier
+                .size(20.dp)
+                .clip(CircleShape)
+                .background(CardifyColors.DarkGreen.copy(alpha = 0.1f))
+                .padding(3.dp)
+        )
+    }
+}
+
+// ─── שאר ה-Composables (ללא שינוי) ──────────────────────────────────────────
 
 @Composable
 fun ChatItem(
@@ -265,42 +419,6 @@ fun ChatItem(
     }
 }
 
-fun formatChatTime(timestamp: String): String {
-    if (timestamp.isBlank()) return ""
-    return try {
-        // Firestore יכול להחזיר כמה פורמטים — מנסים אחד אחד
-        val instant = when {
-            // פורמט עם offset: 2024-01-15T10:30:00+00:00
-            timestamp.contains('T') && (timestamp.contains('+') || timestamp.endsWith('Z')) ->
-                java.time.OffsetDateTime.parse(timestamp).toInstant()
-            // פורמט עם T אבל בלי offset: 2024-01-15T10:30:00
-            timestamp.contains('T') ->
-                java.time.LocalDateTime.parse(timestamp)
-                    .toInstant(java.time.ZoneOffset.UTC)
-            // פורמט עם רווח: 2024-01-15 10:30:00
-            timestamp.contains(' ') ->
-                java.time.LocalDateTime.parse(
-                    timestamp.replace(' ', 'T')
-                ).toInstant(java.time.ZoneOffset.UTC)
-            else -> return ""
-        }
-
-        // המרה ל-timezone של המכשיר
-        val zoneId    = java.time.ZoneId.systemDefault()
-        val localDt   = instant.atZone(zoneId)
-        val today     = java.time.LocalDate.now(zoneId)
-
-        when (localDt.toLocalDate()) {
-            today                  -> "%02d:%02d".format(localDt.hour, localDt.minute)
-            today.minusDays(1)     -> "Yesterday"
-            else                   -> "%02d/%02d".format(localDt.dayOfMonth, localDt.monthValue)
-        }
-    } catch (e: Exception) {
-        android.util.Log.e("formatChatTime", "Failed to parse: $timestamp", e)
-        ""
-    }
-}
-
 @Composable
 fun NewChatDialog(
     viewModel: ChatViewModel,
@@ -384,4 +502,31 @@ fun NewChatDialog(
         },
         shape = RoundedCornerShape(16.dp)
     )
+}
+fun formatChatTime(timestamp: String): String {
+    if (timestamp.isBlank()) return ""
+    return try {
+        val instant = when {
+            timestamp.contains('T') && (timestamp.contains('+') || timestamp.endsWith('Z')) ->
+                java.time.OffsetDateTime.parse(timestamp).toInstant()
+            timestamp.contains('T') ->
+                java.time.LocalDateTime.parse(timestamp)
+                    .toInstant(java.time.ZoneOffset.UTC)
+            timestamp.contains(' ') ->
+                java.time.LocalDateTime.parse(
+                    timestamp.replace(' ', 'T')
+                ).toInstant(java.time.ZoneOffset.UTC)
+            else -> return ""
+        }
+        val zoneId  = java.time.ZoneId.systemDefault()
+        val localDt = instant.atZone(zoneId)
+        val today   = java.time.LocalDate.now(zoneId)
+        when (localDt.toLocalDate()) {
+            today              -> "%02d:%02d".format(localDt.hour, localDt.minute)
+            today.minusDays(1) -> "Yesterday"
+            else               -> "%02d/%02d".format(localDt.dayOfMonth, localDt.monthValue)
+        }
+    } catch (e: Exception) {
+        ""
+    }
 }
