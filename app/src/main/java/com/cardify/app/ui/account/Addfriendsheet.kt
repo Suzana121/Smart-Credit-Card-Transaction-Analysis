@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cardify.app.data.model.Friend
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,16 +80,29 @@ fun AddFriendSheet(
                                 Text(text = user.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                 Text(text = user.phone, fontSize = 14.sp, color = Color.Gray)
                             }
+                            // בתוך AddFriendSheet.kt - תחת הכפתור "Add"
                             Button(
-                                onClick = { viewModel.sendFriendRequest(user.phone) { onDismiss() } },
+                                onClick = {
+                                    // יצירת אובייקט Friend מתוך ה-searchedUser שנמצא
+                                    val friendToAdd = Friend(
+                                        name = user.name,
+                                        phone = user.phone,
+                                        status = "none" // סטטוס התחלתי
+                                    )
+
+                                    // קריאה לפונקציה עם אובייקט Friend אחד בלבד
+                                    viewModel.sendFriendRequest(friendToAdd)
+
+                                    // סגירת ה-Sheet בנפרד
+                                    onDismiss()
+                                },
                                 colors = ButtonDefaults.buttonColors(containerColor = teal)
                             ) {
                                 Text("Add")
-                            }
+                            }                         }
                         }
                     }
                 }
             }
         }
     }
-}

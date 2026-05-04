@@ -18,6 +18,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cardify.app.data.model.Friend
 
+// צבע Teal מותאם אישית למותג Cardify
+private val tealColor = Color(0xFF006769)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FriendSheet(
@@ -29,6 +32,7 @@ fun FriendSheet(
     var deleteSent by remember { mutableStateOf(false) }
     var deleteReceived by remember { mutableStateOf(false) }
 
+    // דיאלוג אישור מחיקה או ביטול בקשה
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -45,21 +49,36 @@ fun FriendSheet(
                     }
                     Text(text = bodyText, color = Color.Gray)
 
+                    // הצגת אפשרויות ניקוי קבצים רק אם הם כבר חברים (לא בסטטוס ממתין)
                     if (!friend.isPending) {
                         Spacer(modifier = Modifier.height(16.dp))
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable { deleteSent = !deleteSent }
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { deleteSent = !deleteSent }
+                                .padding(vertical = 4.dp)
                         ) {
-                            Checkbox(checked = deleteSent, onCheckedChange = { deleteSent = it }, colors = CheckboxDefaults.colors(checkedColor = teal))
+                            Checkbox(
+                                checked = deleteSent,
+                                onCheckedChange = { deleteSent = it },
+                                colors = CheckboxDefaults.colors(checkedColor = tealColor)
+                            )
                             Text("Delete files I shared with them", fontSize = 14.sp)
                         }
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable { deleteReceived = !deleteReceived }
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { deleteReceived = !deleteReceived }
+                                .padding(vertical = 4.dp)
                         ) {
-                            Checkbox(checked = deleteReceived, onCheckedChange = { deleteReceived = it }, colors = CheckboxDefaults.colors(checkedColor = teal))
+                            Checkbox(
+                                checked = deleteReceived,
+                                onCheckedChange = { deleteReceived = it },
+                                colors = CheckboxDefaults.colors(checkedColor = tealColor)
+                            )
                             Text("Delete files they shared with me", fontSize = 14.sp)
                         }
                     }
@@ -68,6 +87,7 @@ fun FriendSheet(
             confirmButton = {
                 Button(
                     onClick = {
+                        // קריאה לפונקציה המעודכנת ב-ViewModel עם פרמטרים של מחיקה חכמה[cite: 3]
                         if (friend.isPending) {
                             viewModel.deleteFriendWithOptions(friend, false, false)
                         } else {
@@ -84,41 +104,54 @@ fun FriendSheet(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
+                    Text("Cancel", color = Color.Gray)
                 }
             }
         )
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color.White) {
+    // התפריט התחתון (Bottom Sheet) שמציג את פרטי החבר
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color.White,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(24.dp)
-                .padding(bottom = 20.dp),
+                .padding(bottom = 40.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // אייקון פרופיל
             Box(
                 modifier = Modifier
                     .size(80.dp)
                     .background(Color(0xFFF0F0F0), RoundedCornerShape(40.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(40.dp), tint = Color.Gray)
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = null,
+                    modifier = Modifier.size(40.dp),
+                    tint = Color.Gray
+                )
             }
             Spacer(modifier = Modifier.height(16.dp))
 
+            // שם ומספר טלפון
             Text(text = friend.name, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Text(text = friend.phone, fontSize = 16.sp, color = Color.Gray)
 
+            // חיווי ויזואלי אם הבקשה עדיין בסטטוס ממתין (Pending)
             if (friend.isPending) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = Color(0xFFFFF3E0)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -127,7 +160,7 @@ fun FriendSheet(
                             tint = Color(0xFFEF6C00),
                             modifier = Modifier.size(14.dp)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Pending Approval",
                             color = Color(0xFFEF6C00),
@@ -140,19 +173,32 @@ fun FriendSheet(
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // כפתור פעולה למחיקה או ביטול
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { showDeleteDialog = true },
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFF7F8F9)
+                color = Color(0xFFFFF5F5)
             ) {
-                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFD32F2F))
-                    Spacer(modifier = Modifier.width(16.dp))
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = Color(0xFFD32F2F)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
 
                     val actionText = if (friend.isPending) "Cancel Friend Request" else "Delete Friend"
-                    Text(actionText, color = Color(0xFFD32F2F), fontWeight = FontWeight.Medium)
+                    Text(
+                        text = actionText,
+                        color = Color(0xFFD32F2F),
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }

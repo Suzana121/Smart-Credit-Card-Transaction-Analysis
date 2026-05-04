@@ -205,6 +205,7 @@ data class Friend(
     @SerializedName("name") val name: String, // שונה מ-username ל-name
     @SerializedName("phone") val phone: String,
     @SerializedName("status") val status: String = "pending",
+    @SerializedName("is_from_contacts") val isFromContacts: Boolean = false,
     @SerializedName("photoUrl") val photoUrl: String? = null
 ) {
     val photoResource: Int get() = com.cardify.app.R.drawable.user
@@ -220,4 +221,9 @@ data class UserSearchResponse(
     val username: String,
     val phone: String,
     val profile_image: String
+)
+
+// אובייקט עבור שליחת רשימת הטלפונים לסנכרון
+data class SyncContactsRequest(
+    val phones: List<String>
 )

@@ -30,6 +30,7 @@ app.register_blueprint(report_bp, url_prefix="/api")
 app.register_blueprint(stats_bp,  url_prefix="/api")
 app.register_blueprint(chat_bp,   url_prefix="/api")
 
+
 @app.route("/")
 def home():
     return jsonify({"message": "Welcome to Cardify API"})
