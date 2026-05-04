@@ -29,35 +29,38 @@ def fmt_ts(ts):
 # ─────────────────────────────────────────────
 # GET /api/chats — רשימת שיחות
 # ─────────────────────────────────────────────
-@chat_bp.route('/chats', methods=['GET'])
+chat_bp.route('/chats', methods=['GET'])
 @jwt_required()
 def get_chats():
     try:
         user_id = get_jwt_identity()
-        docs = (db.collection('chats')
-                .where(filter=FieldFilter('participants', 'array_contains', user_id))
-                .stream())
+        docs = db.collection('chats').where(filter=FieldFilter('participants', 'array_contains', user_id)).stream()
 
         chats = []
         for doc in docs:
-            d      = doc.to_dict()
+            d = doc.to_dict()
+            # סינון צאטים שסומנו כמוסתרים עבורי
+            if user_id in d.get('hidden_for', []):
+                continue
+
             unread = d.get('unreadCount', {}).get(user_id, 0)
             chats.append({
-                'id':               doc.id,
-                'participants':     d.get('participants', []),
-                'participantNames': d.get('participantNames', {}),
-                'isGroup':          d.get('isGroup', False),
-                'groupName':        d.get('groupName', ''),
-                'lastMessage':      d.get('lastMessage', ''),
-                'lastMessageAt':    fmt_ts(d.get('lastMessageAt')),
-                'unreadCount':      unread,
-            })
+                    'id': doc.id,
+                    'participants':     d.get('participants', []),
+                    'participantNames': d.get('participantNames', {}),
+                    'isGroup':          d.get('isGroup', False),
+                    'groupName':        d.get('groupName', ''),
+                    'lastMessage':      d.get('lastMessage', ''),
+                    'lastMessageAt':    fmt_ts(d.get('lastMessageAt')),
+                    'unreadCount':      unread,
+                })
 
-        chats.sort(key=lambda x: x.get('lastMessageAt', ''), reverse=True)
-        return jsonify(chats), 200
+            chats.sort(key=lambda x: x.get('lastMessageAt', ''), reverse=True)
+            return jsonify(chats), 20
     except Exception as e:
         import traceback; print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
+
 
 
 # ─────────────────────────────────────────────

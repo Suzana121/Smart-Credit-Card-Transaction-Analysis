@@ -101,17 +101,18 @@ class AccountViewModel(
         }
     }
 
+    // עדכון הפונקציה לקבלת פרמטר יחיד בשם deleteChat
     fun deleteFriendWithOptions(
         friend: Friend,
-        deleteSentShares: Boolean,
-        deleteReceivedShares: Boolean
+        deleteChat: Boolean
     ) {
         viewModelScope.launch {
             try {
+                // אנחנו ממפים את deleteChat לשני הפרמטרים שהשרת מצפה להם (sent ו-received)
                 val options = mapOf(
                     "phone" to friend.phone,
-                    "delete_sent" to deleteSentShares,
-                    "delete_received" to deleteReceivedShares
+                    "delete_sent" to deleteChat,
+                    "delete_received" to deleteChat
                 )
 
                 val response = RetrofitClient.apiService.deleteFriendWithOptions(options)

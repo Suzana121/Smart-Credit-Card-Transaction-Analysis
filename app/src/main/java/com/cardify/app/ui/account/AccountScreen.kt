@@ -145,7 +145,7 @@ fun AccountScreen(
                 selectedRequest = null
             },
             onDelete = {
-                viewModel.deleteFriendWithOptions(request, false, false)
+                viewModel.deleteFriendWithOptions(request, false)
                 selectedRequest = null
             },
             onDismiss = { selectedRequest = null }

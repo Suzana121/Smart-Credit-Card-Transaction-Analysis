@@ -289,34 +289,46 @@ def confirm_friend():
 def delete_friend_smart():
     data            = request.get_json()
     friend_phone    = data.get('phone')
-    delete_sent     = data.get('delete_sent', False)
-    delete_received = data.get('delete_received', False)
+    delete_chat     = data.get('delete_chat', False)
     current_user_id = get_jwt_identity()
+
+    # שליפת הטלפון שלי כדי למצוא שיתופים
+    user_doc = users_ref.document(current_user_id).get()
+    user_phone = user_doc.to_dict().get('phone')
 
     friend_query = db.collection('users').where('phone', '==', friend_phone).limit(1).get()
     if not friend_query:
         return jsonify({"error": "Not found"}), 404
     friend_id = friend_query[0].id
 
+    # 1. מחיקת החברות (זה תמיד קורה)
     friendship_docs = db.collection('friendships') \
         .where('user_id', 'in', [current_user_id, friend_id]) \
         .where('friend_id', 'in', [current_user_id, friend_id]).get()
     for doc in friendship_docs:
         doc.reference.delete()
 
-    if delete_sent:
-        sent_shares = db.collection('shares') \
-            .where('sender_id', '==', current_user_id) \
-            .where('receiver_id', '==', friend_id).get()
-        for doc in sent_shares:
-            doc.reference.delete()
+    # 2. אם המשתמש בחר למחוק את הצאט (הסתרה עבורי)
+    if delete_chat:
+        # הסתרת הצאט
+        chats = db.collection('chats').where('participants', 'array_contains', current_user_id).get()
+        for chat in chats:
+            participants = chat.to_dict().get('participants', [])
+            if friend_id in participants and not chat.to_dict().get('isGroup', False):
+                chat.reference.update({
+                    "hidden_for": firestore.ArrayUnion([current_user_id])
+                })
 
-    if delete_received:
-        received_shares = db.collection('shares') \
-            .where('sender_id', '==', friend_id) \
-            .where('receiver_id', '==', current_user_id).get()
-        for doc in received_shares:
-            doc.reference.delete()
+        # הסתרת השיתופים ב-SharedInfoScreen (עבורי בלבד)
+        all_shares = db.collection('shares').get() # אפשר לייעל עם query, אבל זה הכי בטוח
+        for s in all_shares:
+            d = s.to_dict()
+            # אם אני הצד ששלח או קיבל והצד השני הוא החבר שנמחק
+            if (d.get('sharedBy') == user_phone and d.get('sharedWith') == friend_phone) or \
+                    (d.get('sharedBy') == friend_phone and d.get('sharedWith') == user_phone):
+                s.reference.update({
+                    "hidden_for": firestore.ArrayUnion([current_user_id])
+                })
 
     return jsonify({"success": True}), 200
 

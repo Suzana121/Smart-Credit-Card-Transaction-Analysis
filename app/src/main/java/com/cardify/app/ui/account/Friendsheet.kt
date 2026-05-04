@@ -10,6 +10,8 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -17,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cardify.app.data.model.Friend
+import com.cardify.app.ui.home.CardifyColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -26,8 +29,7 @@ fun FriendSheet(
     onDismiss: () -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var deleteSent by remember { mutableStateOf(false) }
-    var deleteReceived by remember { mutableStateOf(false) }
+    var deleteChat by remember { mutableStateOf(false) }
 
     if (showDeleteDialog) {
         AlertDialog(
@@ -50,17 +52,14 @@ fun FriendSheet(
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable { deleteSent = !deleteSent }
+                            modifier = Modifier.clickable { deleteChat = !deleteChat }
                         ) {
-                            Checkbox(checked = deleteSent, onCheckedChange = { deleteSent = it }, colors = CheckboxDefaults.colors(checkedColor = teal))
-                            Text("Delete files I shared with them", fontSize = 14.sp)
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable { deleteReceived = !deleteReceived }
-                        ) {
-                            Checkbox(checked = deleteReceived, onCheckedChange = { deleteReceived = it }, colors = CheckboxDefaults.colors(checkedColor = teal))
-                            Text("Delete files they shared with me", fontSize = 14.sp)
+                            Checkbox(
+                                checked = deleteChat,
+                                onCheckedChange = { deleteChat = it },
+                                colors = CheckboxDefaults.colors(checkedColor = CardifyColors.DarkGreen)
+                            )
+                            Text("Delete Chat History", fontSize = 14.sp)
                         }
                     }
                 }
@@ -69,9 +68,11 @@ fun FriendSheet(
                 Button(
                     onClick = {
                         if (friend.isPending) {
-                            viewModel.deleteFriendWithOptions(friend, false, false)
+                            // בבקשה ממתינה שולחים false כברירת מחדל
+                            viewModel.deleteFriendWithOptions(friend, false)
                         } else {
-                            viewModel.deleteFriendWithOptions(friend, deleteSent, deleteReceived)
+                            // שים לב ל-C הגדולה ב-deleteChat
+                            viewModel.deleteFriendWithOptions(friend, deleteChat)
                         }
                         showDeleteDialog = false
                         onDismiss()
@@ -143,7 +144,10 @@ fun FriendSheet(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { showDeleteDialog = true },
+                    .clickable {
+                        deleteChat = false // איפוס הבחירה בכל פעם שפותחים את הדיאלוג
+                        showDeleteDialog = true
+                    },
                 shape = RoundedCornerShape(12.dp),
                 color = Color(0xFFF7F8F9)
             ) {

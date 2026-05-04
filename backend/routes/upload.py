@@ -270,14 +270,19 @@ def get_shares():
     try:
         user_id  = get_jwt_identity()
         user_doc = db.collection('users').document(user_id).get()
-        if not user_doc.exists:
-            return jsonify({"error": "User not found"}), 404
         my_phone = user_doc.to_dict().get('phone', '')
-        shares   = []
-        for doc in db.collection('shares').where('sharedBy', '==', my_phone).stream():
-            shares.append(_serialize_share(doc, 'outgoing'))
-        for doc in db.collection('shares').where('sharedWith', '==', my_phone).stream():
-            shares.append(_serialize_share(doc, 'incoming'))
+
+        shares = []
+        # פונקציה פנימית לעיבוד ומחיקה של מה שמוסתר
+        def process_query(query_stream, direction):
+            for doc in query_stream:
+                data = doc.to_dict()
+                if user_id not in data.get('hidden_for', []):
+                    shares.append(_serialize_share(doc, direction))
+
+        process_query(db.collection('shares').where('sharedBy', '==', my_phone).stream(), 'outgoing')
+        process_query(db.collection('shares').where('sharedWith', '==', my_phone).stream(), 'incoming')
+
         return jsonify(shares), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
