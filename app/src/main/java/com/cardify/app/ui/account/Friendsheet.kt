@@ -18,7 +18,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cardify.app.data.model.Friend
 
-// צבע Teal מותאם אישית למותג Cardify
 private val tealColor = Color(0xFF006769)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,7 +86,6 @@ fun FriendSheet(
             confirmButton = {
                 Button(
                     onClick = {
-                        // קריאה לפונקציה המעודכנת ב-ViewModel עם פרמטרים של מחיקה חכמה[cite: 3]
                         if (friend.isPending) {
                             viewModel.deleteFriendWithOptions(friend, false, false)
                         } else {

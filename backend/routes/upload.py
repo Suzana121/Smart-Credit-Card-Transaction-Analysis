@@ -327,21 +327,18 @@ def sync_contacts():
     raw_phones = data.get('phones', [])
 
     # נרמול מספרי הטלפון שמגיעים מהמכשיר
-    normalized_phones = []
+    normalized_phones = set() # שימוש ב-set לחיפוש מהיר יותר
     for p in raw_phones:
         clean_p = re.sub(r'\D', '', p)
         if clean_p.startswith('972'):
             clean_p = '0' + clean_p[3:]
         if clean_p:
-            normalized_phones.append(clean_p)
+            normalized_phones.add(clean_p)
 
     matches = []
 
     try:
         users_ref = db.collection('users')
-
-        # אפשרות א': אם כמות אנשי הקשר קטנה (עד 30), אפשר להשתמש ב-where("phone", "in", ...)
-        # אבל בגלל הנרמול (הורדת מקפים וכו'), הדרך הכי בטוחה היא לסנן בתוך הלולאה
         all_users = users_ref.stream()
 
         for user_doc in all_users:
@@ -349,21 +346,20 @@ def sync_contacts():
             user_phone = str(user_data.get('phone', ''))
             clean_db_phone = re.sub(r'\D', '', user_phone)
 
-            # התיקון הקריטי: מוסיפים לרשימה רק אם הטלפון נמצא באנשי הקשר
+            # בדיקה אם המשתמש קיים באנשי הקשר של השולח
             if clean_db_phone in normalized_phones:
-                user_obj = {
+                matches.append({
                     "id": user_doc.id,
                     "name": user_data.get('username', 'Unknown'),
                     "phone": user_phone,
                     "photo_url": user_data.get('photo_url'),
                     "is_from_contacts": True
-                }
-                matches.append(user_obj)
+                })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-    # מחזירים רק את ההתאמות שנמצאו
+    # החזרת המשתמשים שנמצאו בלבד
     return jsonify(matches), 200
 # ─────────────────────────────────────────────
 # POST /api/upload

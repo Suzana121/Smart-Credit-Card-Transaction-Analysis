@@ -2,9 +2,9 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("kotlin-kapt")
-    // שימוש ב-Compose Compiler החדש שמותאם לגרסת ה-Kotlin שלך
-    id("org.jetbrains.kotlin.plugin.compose") version "2.2.21"
-    // חובה להוסיף את ה-plugin של Google Services כדי ש-Firebase יעבוד
+    // Use the Compose Compiler plugin that matches your Kotlin version
+    id("org.jetbrains.kotlin.plugin.compose") version "2.0.21"
+    // Google Services plugin is required for Firebase
     id("com.google.gms.google-services")
 }
 
@@ -32,22 +32,19 @@ android {
         }
     }
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+    kotlinOptions {
+        jvmTarget = "1.8"
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
 
     buildFeatures {
         viewBinding = true
         compose = true
     }
-
-    // הערה: הסרתי את composeOptions כי בגרסת Kotlin 2.0+
-    // הקומפיילר של Compose מנוהל דרך ה-Plugins למעלה.
 
     buildToolsVersion = "36.1.0"
 }
@@ -90,15 +87,14 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
-    // ===== Firebase & Voice Recording Support (חדש!) 🎤 =====
-    // BoM של Firebase לניהול גרסאות אוטומטי
-    implementation(platform("com.google.firebase:firebase-bom:33.1.1"))
+    // ===== Firebase Support =====
+    // Firebase BoM for automatic version management
+    implementation(platform("com.google.firebase:firebase-bom:34.12.0"))
+    implementation("com.google.firebase:firebase-perf")
+    implementation("com.google.firebase:firebase-storage")
+    implementation("com.google.firebase:firebase-analytics")
 
-    // ספריות Firebase לשימוש בהקלטות ואחסון
-    implementation("com.google.firebase:firebase-storage-ktx")
-    implementation("com.google.firebase:firebase-analytics-ktx")
-
-    // תמיכה ב-Coroutines עבור משימות Firebase
+    // Coroutines support for Firebase
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
     // Testing
