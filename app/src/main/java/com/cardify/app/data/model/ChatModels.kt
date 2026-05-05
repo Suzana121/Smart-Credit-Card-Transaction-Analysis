@@ -6,6 +6,8 @@ data class Chat(
     @SerializedName("id")               val id: String = "",
     @SerializedName("participants")     val participants: List<String> = emptyList(),
     @SerializedName("participantNames") val participantNames: Map<String, String> = emptyMap(),
+    /** displayNames — שמות תצוגה עם כינויים גלובליים (מגיע מהשרת) */
+    @SerializedName("displayNames")     val displayNames: Map<String, String> = emptyMap(),
     @SerializedName("isGroup")          val isGroup: Boolean = false,
     @SerializedName("groupName")        val groupName: String = "",
     @SerializedName("lastMessage")      val lastMessage: String = "",
@@ -18,11 +20,14 @@ data class ChatMessage(
     @SerializedName("senderId")       val senderId: String = "",
     @SerializedName("senderName")     val senderName: String = "",
     @SerializedName("text")           val text: String = "",
+    @SerializedName("deleted")        val deleted: Boolean = false,
+    @SerializedName("forwarded")      val forwarded: Boolean = false,
     @SerializedName("transaction")    val transaction: ChatTransaction? = null,
     @SerializedName("replyToId")      val replyToId: String? = null,
     @SerializedName("replyToMessage") val replyToMessage: ReplySnapshot? = null,
     @SerializedName("audioUrl")       val audioUrl: String? = null,
     @SerializedName("audioDuration")  val audioDuration: Int = 0,
+    @SerializedName("reactions")      val reactions: Map<String, String> = emptyMap(),
     @SerializedName("timestamp")      val timestamp: String = ""
 )
 
@@ -53,9 +58,19 @@ data class SendMessageRequest(
     @SerializedName("replyToId")      val replyToId: String? = null,
     @SerializedName("replyToMessage") val replyToMessage: ReplySnapshot? = null,
     @SerializedName("audioUrl")       val audioUrl: String? = null,
-    @SerializedName("audioDuration")  val audioDuration: Int = 0
+    @SerializedName("audioDuration")  val audioDuration: Int = 0,
+    @SerializedName("forwarded")      val forwarded: Boolean = false
 )
 
 data class UnreadResponse(
     @SerializedName("unread") val unread: Int = 0
+)
+
+/** בקשה לשינוי כינוי גלובלי */
+data class SetNicknameRequest(
+    @SerializedName("nickname") val nickname: String
+)
+
+data class ReactRequest(
+    @SerializedName("emoji") val emoji: String
 )

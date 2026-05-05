@@ -19,19 +19,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cardify.app.data.model.Chat
 import com.cardify.app.data.model.Friend
 import com.cardify.app.ui.home.CardifyColors
 
-/**
- * Bottom sheet לשיתוף טרנזקציה לצ'ט.
- * מציג רשימת חברים מאושרים — לחיצה על חבר פותחת/יוצרת צ'ט ושולחת את הטרנזקציה.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShareToChatSheet(
-    friends:   List<Friend>,
-    onDismiss: () -> Unit,
-    onSelect:  (Friend) -> Unit   // הקורא מטפל ביצירת הצ'ט והניווט
+    friends:       List<Friend>,
+    chats:         List<Chat> = emptyList(),
+    currentUserId: String     = "",
+    onDismiss:     () -> Unit,
+    onSelect:      (Friend) -> Unit
 ) {
     val approvedFriends = remember(friends) { friends.filter { it.status == "approved" } }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -48,70 +47,52 @@ fun ShareToChatSheet(
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp)
         ) {
-            // כותרת
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(bottom = 4.dp)
             ) {
-                Icon(
-                    Icons.Default.ChatBubbleOutline,
-                    contentDescription = null,
-                    tint     = CardifyColors.DarkGreen,
-                    modifier = Modifier.size(20.dp)
-                )
+                Icon(Icons.Default.ChatBubbleOutline, null,
+                    tint = CardifyColors.DarkGreen, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(
-                    "Share to Chat",
-                    fontWeight = FontWeight.Bold,
-                    fontSize   = 18.sp
-                )
+                Text("Share to Chat", fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
             Text(
                 "Choose a friend to open a chat and share this transaction",
-                fontSize = 13.sp,
-                color    = Color.Gray,
+                fontSize = 13.sp, color = Color.Gray,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
             if (approvedFriends.isEmpty()) {
-                // מצב ריק — אין חברים
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 32.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        Icons.Default.People,
-                        contentDescription = null,
-                        tint     = Color.LightGray,
-                        modifier = Modifier.size(52.dp)
-                    )
+                    Icon(Icons.Default.People, null,
+                        tint = Color.LightGray, modifier = Modifier.size(52.dp))
                     Spacer(Modifier.height(12.dp))
-                    Text(
-                        "No friends yet",
-                        color      = Color.Gray,
-                        fontSize   = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        textAlign  = TextAlign.Center
-                    )
+                    Text("No friends yet", color = Color.Gray,
+                        fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center)
                     Spacer(Modifier.height(4.dp))
                     Text(
                         "Go to Account → Friends to add friends\nand share transactions with them.",
-                        color     = Color.LightGray,
-                        fontSize  = 12.sp,
+                        color = Color.LightGray, fontSize = 12.sp,
                         textAlign = TextAlign.Center
                     )
                 }
             } else {
                 LazyColumn(
-                    modifier            = Modifier.heightIn(max = 400.dp),
+                    modifier = Modifier.heightIn(max = 400.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(approvedFriends, key = { it.phone }) { friend ->
+                        // מחפש customName מהצ'ט הקיים עם החבר
+                        val displayName = resolveDisplayName(friend, chats, currentUserId)
+
                         FriendShareRow(
-                            friend   = friend,
-                            onSelect = { onSelect(friend) }
+                            displayName  = displayName,
+                            originalName = friend.name,
+                            onSelect     = { onSelect(friend) }
                         )
                     }
                 }
@@ -122,8 +103,9 @@ fun ShareToChatSheet(
 
 @Composable
 private fun FriendShareRow(
-    friend:   Friend,
-    onSelect: () -> Unit
+    displayName:  String,
+    originalName: String,
+    onSelect:     () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -133,7 +115,6 @@ private fun FriendShareRow(
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // אות ראשית
         Box(
             modifier = Modifier
                 .size(42.dp)
@@ -142,30 +123,51 @@ private fun FriendShareRow(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                friend.name.take(1).uppercase(),
-                color      = CardifyColors.DarkGreen,
-                fontWeight = FontWeight.Bold,
-                fontSize   = 16.sp
+                displayName.take(1).uppercase(),
+                color = CardifyColors.DarkGreen,
+                fontWeight = FontWeight.Bold, fontSize = 16.sp
             )
         }
 
         Spacer(Modifier.width(12.dp))
 
-        Text(
-            friend.name,
-            modifier   = Modifier.weight(1f),
-            fontWeight = FontWeight.SemiBold,
-            fontSize   = 14.sp
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(displayName, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            // אם יש כינוי — מציג את השם המקורי קטן מתחת
+            if (displayName != originalName) {
+                Text(originalName, fontSize = 11.sp, color = Color.Gray)
+            }
+        }
 
         Button(
-            onClick  = onSelect,
-            colors   = ButtonDefaults.buttonColors(containerColor = CardifyColors.DarkGreen),
-            shape    = RoundedCornerShape(10.dp),
-            modifier = Modifier.height(36.dp),
+            onClick        = onSelect,
+            colors         = ButtonDefaults.buttonColors(containerColor = CardifyColors.DarkGreen),
+            shape          = RoundedCornerShape(10.dp),
+            modifier       = Modifier.height(36.dp),
             contentPadding = PaddingValues(horizontal = 16.dp)
         ) {
             Text("Chat", fontSize = 12.sp)
         }
     }
+}
+
+/**
+ * מוצא את שם התצוגה של חבר — customName אם קיים, אחרת השם המקורי.
+ */
+fun resolveDisplayName(
+    friend:        Friend,
+    chats:         List<Chat>,
+    currentUserId: String
+): String {
+    val chat = chats.firstOrNull { c ->
+        !c.isGroup && c.participants.any { pid ->
+            pid != currentUserId && c.participantNames[pid] == friend.name
+        }
+    }
+    if (chat != null) {
+        val otherId     = chat.participants.firstOrNull { it != currentUserId } ?: ""
+        val displayName = chat.displayNames[otherId]
+        if (!displayName.isNullOrBlank()) return displayName
+    }
+    return friend.name
 }

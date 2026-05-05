@@ -29,8 +29,6 @@ fun AppNavigation(startDestination: String = "home") {
     val gson          = remember { Gson() }
 
     // ─── מצב שיתוף גלובלי ────────────────────────────────────────────────────
-    // כאשר המשתמש לוחץ Share to Chat ממסך כלשהו, שומרים את הטרנזקציה כאן
-    // ופותחים bottom sheet לבחירת חבר, לפני הניווט לצ'ט.
     var pendingShareTxn    by remember { mutableStateOf<ChatTransaction?>(null) }
     var showFriendPicker   by remember { mutableStateOf(false) }
     val chatViewModelGlobal: ChatViewModel = viewModel()
@@ -47,10 +45,8 @@ fun AppNavigation(startDestination: String = "home") {
                     popUpTo("home") { inclusive = false }
                     launchSingleTop = true
                 }
-                // קצת delay לאחר ניווט כדי שה-backStack יהיה מוכן
                 navController.currentBackStackEntry
                     ?.savedStateHandle?.set("pendingTransaction", txnJson)
-                // ניווט ישיר לצ'ט
                 navController.navigate("chat/$chatId") {
                     launchSingleTop = true
                 }
@@ -59,6 +55,7 @@ fun AppNavigation(startDestination: String = "home") {
                         set("pendingTransaction", txnJson)
                         set("chatName", friend.name)
                         set("isGroup", false)
+                        set("displayNamesJson", "{}")   // צ'ט חדש — אין כינויים עדיין
                     }
             }
         )
@@ -66,13 +63,18 @@ fun AppNavigation(startDestination: String = "home") {
         showFriendPicker = false
     }
 
-    // ─── Friend picker sheet (גלובלי, מעל כל המסכים) ─────────────────────────
+    // ─── Friend picker sheet ──────────────────────────────────────────────────
     if (showFriendPicker && pendingShareTxn != null) {
         val friends by chatViewModelGlobal.friends.collectAsState()
-        LaunchedEffect(Unit) { chatViewModelGlobal.loadFriends() }
+        val chats   by chatViewModelGlobal.chats.collectAsState()
+        LaunchedEffect(Unit) { chatViewModelGlobal.loadFriends(); chatViewModelGlobal.loadChats() }
+
+        val currentUserId = UserSession.userId ?: ""
 
         ShareToChatSheet(
             friends   = friends,
+            chats     = chats,
+            currentUserId = currentUserId,
             onDismiss = { showFriendPicker = false; pendingShareTxn = null },
             onSelect  = { friend ->
                 navigateToChatWithFriend(friend, pendingShareTxn!!)
@@ -92,7 +94,6 @@ fun AppNavigation(startDestination: String = "home") {
                     }
                 },
                 onShareClick = { transaction ->
-                    // Share to Chat מהבית — פותח את picker הגלובלי
                     pendingShareTxn = ChatTransaction(
                         businessName = transaction.businessName,
                         amount       = transaction.amount,
@@ -126,6 +127,12 @@ fun AppNavigation(startDestination: String = "home") {
 
         // ─── Chats (wallet) ───────────────────────────────────────────────────
         composable("wallet") {
+            // מנקה את ה-pending הגלובלי כשחוזרים למסך הצ'טים
+            LaunchedEffect(Unit) {
+                pendingShareTxn  = null
+                showFriendPicker = false
+            }
+
             val entry       = navController.currentBackStackEntry
             val pendingJson = entry?.savedStateHandle?.get<String>("pendingTransaction")
             val pendingTxn  = pendingJson?.let {
@@ -140,17 +147,30 @@ fun AppNavigation(startDestination: String = "home") {
                     }
                 },
                 onOpenChat = { chat ->
+                    val currentUserId = UserSession.userId ?: ""
                     val chatName = if (chat.isGroup) {
                         chat.groupName.ifBlank { "Group" }
                     } else {
-                        val otherId = chat.participants.firstOrNull {
-                            it != (UserSession.userId ?: "")
-                        } ?: ""
-                        chat.participantNames[otherId] ?: "Chat"
+                        val otherId = chat.participants.firstOrNull { it != currentUserId } ?: ""
+                        chat.displayNames[otherId]
+                            ?: chat.participantNames[otherId]
+                            ?: "Chat"
                     }
 
+                    // מספר הטלפון של החבר השני (לצ'ט 1:1) לשינוי כינוי
+                    val otherPhone = if (!chat.isGroup) {
+                        val otherId = chat.participants.firstOrNull { it != currentUserId } ?: ""
+                        // מחפש את הטלפון ב-friends דרך participantNames
+                        chat.participantNames.entries
+                            .firstOrNull { it.key == otherId }
+                            ?.let { chatViewModelGlobal.friends.value
+                                .firstOrNull { f -> f.name == it.value }?.phone } ?: ""
+                    } else ""
+
+                    val displayNamesJson = try { gson.toJson(chat.displayNames) } catch (e: Exception) { "{}" }
+
                     navController.currentBackStackEntry
-                        ?.savedStateHandle?.remove<String>("pendingTransaction")
+                        ?.savedStateHandle?.remove<String?>("pendingTransaction")
 
                     navController.navigate("chat/${chat.id}") {
                         launchSingleTop = true
@@ -161,6 +181,8 @@ fun AppNavigation(startDestination: String = "home") {
                             set("pendingTransaction", pendingJson)
                             set("chatName", chatName)
                             set("isGroup", chat.isGroup)
+                            set("displayNamesJson", displayNamesJson)
+                            set("otherPhone", otherPhone)
                         }
                 },
                 pendingTransaction = pendingTxn
@@ -172,18 +194,58 @@ fun AppNavigation(startDestination: String = "home") {
             route = "chat/{chatId}",
             arguments = listOf(navArgument("chatId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val chatId      = backStackEntry.arguments?.getString("chatId") ?: ""
-            val chatName    = backStackEntry.savedStateHandle.get<String>("chatName") ?: "Chat"
-            val isGroup     = backStackEntry.savedStateHandle.get<Boolean>("isGroup") ?: false
-            val pendingJson = backStackEntry.savedStateHandle.get<String>("pendingTransaction")
-            val pendingTxn  = pendingJson?.let {
+            val chatId           = backStackEntry.arguments?.getString("chatId") ?: ""
+            val chatName         = backStackEntry.savedStateHandle.get<String>("chatName") ?: "Chat"
+            val isGroup          = backStackEntry.savedStateHandle.get<Boolean>("isGroup") ?: false
+            val pendingJson      = backStackEntry.savedStateHandle.get<String>("pendingTransaction")
+            val displayNamesJson = backStackEntry.savedStateHandle.get<String>("displayNamesJson") ?: "{}"
+            val otherPhone       = backStackEntry.savedStateHandle.get<String>("otherPhone") ?: ""
+
+            val pendingTxn = pendingJson?.let {
                 try { gson.fromJson(it, ChatTransaction::class.java) } catch (e: Exception) { null }
+            }
+
+            @Suppress("UNCHECKED_CAST")
+            val displayNames: Map<String, String> = try {
+                gson.fromJson(displayNamesJson, Map::class.java) as Map<String, String>
+            } catch (e: Exception) {
+                emptyMap()
             }
 
             ChatScreen(
                 chatId            = chatId,
                 chatName          = chatName,
                 isGroup           = isGroup,
+                displayNames      = displayNames,
+                otherPhone        = otherPhone,
+                onTransactionSent = {
+                    backStackEntry.savedStateHandle.remove<String>("pendingTransaction")
+                },
+                onNavigateToChat  = { targetChat ->
+                    val currentUserId = UserSession.userId ?: ""
+                    val targetName = if (targetChat.isGroup) {
+                        targetChat.groupName.ifBlank { "Group" }
+                    } else {
+                        val otherId = targetChat.participants.firstOrNull { it != currentUserId } ?: ""
+                        targetChat.displayNames[otherId]
+                            ?: targetChat.participantNames[otherId]
+                            ?: "Chat"
+                    }
+                    val targetDisplayNamesJson = try {
+                        gson.toJson(targetChat.displayNames)
+                    } catch (e: Exception) { "{}" }
+
+                    navController.navigate("chat/${targetChat.id}") {
+                        launchSingleTop = true
+                    }
+                    navController.getBackStackEntry("chat/${targetChat.id}")
+                        .savedStateHandle.apply {
+                            set("chatName",        targetName)
+                            set("isGroup",         targetChat.isGroup)
+                            set("displayNamesJson", targetDisplayNamesJson)
+                            set("otherPhone",      "")
+                        }
+                },
                 onBack            = { navController.popBackStack() },
                 initialPendingTxn = pendingTxn
             )
@@ -199,7 +261,6 @@ fun AppNavigation(startDestination: String = "home") {
                     }
                 },
                 onShareToChat = { transaction ->
-                    // Share to Chat מהטרנזקציות — אותו picker גלובלי
                     pendingShareTxn = ChatTransaction(
                         businessName = transaction.businessName,
                         amount       = transaction.amount,

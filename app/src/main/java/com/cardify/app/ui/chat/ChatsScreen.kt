@@ -48,42 +48,24 @@ fun ChatsScreen(
     var showNewChat by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
 
-    // חברים מאושרים בלבד
+    val currentUserId = UserSession.userId ?: ""
+
     val approvedFriends = remember(friends) { friends.filter { it.status == "approved" } }
 
-    // מצב: האם החיפוש מציג תוצאות חברים (ולא צ'טים)
-    val isSearchingFriends = searchQuery.isNotBlank() &&
-            chats.none { chat ->
-                val currentUserId = UserSession.userId ?: ""
-                val displayName = if (chat.isGroup) chat.groupName
-                else {
-                    val otherId = chat.participants.firstOrNull { it != currentUserId } ?: ""
-                    chat.participantNames[otherId] ?: ""
-                }
-                displayName.contains(searchQuery, ignoreCase = true) ||
-                        chat.lastMessage.contains(searchQuery, ignoreCase = true)
-            }
-
-    // פילטור צ'טים קיימים
+    // ─── פילטור צ'טים — משתמש ב-customNames לשם התצוגה ───────────
     val filteredChats = remember(chats, searchQuery) {
         if (searchQuery.isBlank()) chats
         else chats.filter { chat ->
-            val currentUserId = UserSession.userId ?: ""
-            val displayName = if (chat.isGroup) chat.groupName
-            else {
-                val otherId = chat.participants.firstOrNull { it != currentUserId } ?: ""
-                chat.participantNames[otherId] ?: ""
-            }
+            val displayName = chatDisplayName(chat, currentUserId)
             displayName.contains(searchQuery, ignoreCase = true) ||
                     chat.lastMessage.contains(searchQuery, ignoreCase = true)
         }
     }
 
-    // חברים שתואמים לחיפוש ואין עמם צ'ט פתוח עדיין
+    // ─── חברים שניתן לפתוח איתם צ'ט חדש ─────────────────────────
     val matchingFriends = remember(approvedFriends, searchQuery, chats) {
         if (searchQuery.isBlank()) emptyList()
         else {
-            val currentUserId = UserSession.userId ?: ""
             approvedFriends.filter { friend ->
                 friend.name.contains(searchQuery, ignoreCase = true) &&
                         chats.none { chat ->
@@ -99,7 +81,6 @@ fun ChatsScreen(
         viewModel.loadChats()
         viewModel.loadFriends()
     }
-
     LaunchedEffect(pendingTransaction) {
         pendingTransaction?.let { viewModel.setPendingTransaction(it) }
     }
@@ -125,7 +106,7 @@ fun ChatsScreen(
                 .padding(padding)
         ) {
             Column(Modifier.fillMaxSize()) {
-                // Header
+                // ─── Header ──────────────────────────────────────────
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -152,7 +133,7 @@ fun ChatsScreen(
 
                 HorizontalDivider(color = Color(0xFFEEEEEE))
 
-                // שורת חיפוש — מחפש גם צ'טים וגם חברים
+                // ─── Search ───────────────────────────────────────────
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
@@ -187,12 +168,12 @@ fun ChatsScreen(
                 } else {
                     LazyColumn(Modifier.fillMaxSize()) {
 
-                        // ─── תוצאות צ'טים קיימים ─────────────────────────────
+                        // ─── צ'טים קיימים ─────────────────────────────
                         if (filteredChats.isNotEmpty()) {
                             items(filteredChats, key = { it.id }) { chat ->
                                 ChatItem(
                                     chat          = chat,
-                                    currentUserId = UserSession.userId ?: "",
+                                    currentUserId = currentUserId,
                                     hasPending    = pendingTransaction != null,
                                     onClick       = { onOpenChat(chat) }
                                 )
@@ -203,13 +184,12 @@ fun ChatsScreen(
                             }
                         }
 
-                        // ─── חברים שניתן לפתוח איתם צ'ט ──────────────────────
+                        // ─── חברים לפתיחת צ'ט חדש ─────────────────────
                         if (matchingFriends.isNotEmpty()) {
                             item {
                                 Text(
                                     "Start a chat with",
-                                    fontSize = 12.sp,
-                                    color = Color.Gray,
+                                    fontSize = 12.sp, color = Color.Gray,
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.padding(
                                         start = 16.dp, top = 12.dp, bottom = 4.dp)
@@ -217,24 +197,21 @@ fun ChatsScreen(
                             }
                             items(matchingFriends, key = { "friend_${it.phone}" }) { friend ->
                                 FriendChatItem(
-                                    friend    = friend,
-                                    onClick   = {
+                                    friend  = friend,
+                                    onClick = {
                                         viewModel.createChat(
                                             participantPhones = listOf(friend.phone),
                                             groupName         = "",
                                             onSuccess         = { chatId ->
                                                 viewModel.loadChats()
-                                                // מחפש את הצ'ט החדש ומנווט אליו
                                                 val newChat = chats.find { it.id == chatId }
                                                 if (newChat != null) {
                                                     onOpenChat(newChat)
                                                 } else {
-                                                    // fallback: מנווט לפי ID
                                                     onOpenChat(
                                                         Chat(
                                                             id               = chatId,
-                                                            participants     = listOf(
-                                                                UserSession.userId ?: "", friend.phone),
+                                                            participants     = listOf(currentUserId, friend.phone),
                                                             participantNames = mapOf(),
                                                             isGroup          = false,
                                                             groupName        = ""
@@ -253,7 +230,7 @@ fun ChatsScreen(
                             }
                         }
 
-                        // ─── אין תוצאות כלל ──────────────────────────────────
+                        // ─── אין תוצאות ───────────────────────────────
                         if (filteredChats.isEmpty() && matchingFriends.isEmpty()) {
                             item {
                                 Box(
@@ -282,55 +259,21 @@ fun ChatsScreen(
     }
 }
 
-// ─── פריט חבר לפתיחת צ'ט חדש ───────────────────────────────────────────────
+// ─── helper: שם תצוגה עם תמיכה ב-customNames ────────────────────────────────
 
-@Composable
-fun FriendChatItem(
-    friend: Friend,
-    onClick: () -> Unit
-) {
-    val initials = friend.name.take(1).uppercase()
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .background(CardifyColors.DarkGreen.copy(alpha = 0.03f))
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(50.dp)
-                .clip(CircleShape)
-                .background(CardifyColors.DarkGreen.copy(alpha = 0.12f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(initials, fontSize = 18.sp, fontWeight = FontWeight.Bold,
-                color = CardifyColors.DarkGreen)
-        }
-
-        Spacer(Modifier.width(12.dp))
-
-        Column(Modifier.weight(1f)) {
-            Text(friend.name, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-            Text("Tap to start a chat", fontSize = 12.sp, color = Color.Gray)
-        }
-
-        Icon(
-            Icons.Default.Add,
-            contentDescription = null,
-            tint     = CardifyColors.DarkGreen,
-            modifier = Modifier
-                .size(20.dp)
-                .clip(CircleShape)
-                .background(CardifyColors.DarkGreen.copy(alpha = 0.1f))
-                .padding(3.dp)
-        )
+fun chatDisplayName(chat: Chat, currentUserId: String): String {
+    return if (chat.isGroup) {
+        chat.groupName.ifBlank { "Group" }
+    } else {
+        val otherId = chat.participants.firstOrNull { it != currentUserId } ?: ""
+        // customNames מגיע מה-backend כ-Map<otherId, nickname> עבור המשתמש הנוכחי
+        chat.displayNames[otherId]
+            ?: chat.participantNames[otherId]
+            ?: "Unknown"
     }
 }
 
-// ─── שאר ה-Composables (ללא שינוי) ──────────────────────────────────────────
+// ─── ChatItem ────────────────────────────────────────────────────────────────
 
 @Composable
 fun ChatItem(
@@ -339,14 +282,9 @@ fun ChatItem(
     hasPending: Boolean = false,
     onClick: () -> Unit
 ) {
-    val displayName = if (chat.isGroup) {
-        chat.groupName.ifBlank { "Group" }
-    } else {
-        val otherId = chat.participants.firstOrNull { it != currentUserId } ?: ""
-        chat.participantNames[otherId] ?: "Unknown"
-    }
-
-    val initials = displayName.take(1).uppercase()
+    // משתמש ב-helper שמעדיף customNames על participantNames
+    val displayName = chatDisplayName(chat, currentUserId)
+    val initials    = displayName.take(1).uppercase()
 
     Row(
         modifier = Modifier
@@ -407,17 +345,58 @@ fun ChatItem(
                             .background(CardifyColors.DarkGreen),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            chat.unreadCount.toString(),
+                        Text(chat.unreadCount.toString(),
                             fontSize = 11.sp, color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
+                            fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
     }
 }
+
+// ─── FriendChatItem ──────────────────────────────────────────────────────────
+
+@Composable
+fun FriendChatItem(friend: Friend, onClick: () -> Unit) {
+    val initials = friend.name.take(1).uppercase()
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .background(CardifyColors.DarkGreen.copy(alpha = 0.03f))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(50.dp)
+                .clip(CircleShape)
+                .background(CardifyColors.DarkGreen.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(initials, fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                color = CardifyColors.DarkGreen)
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(friend.name, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            Text("Tap to start a chat", fontSize = 12.sp, color = Color.Gray)
+        }
+        Icon(
+            Icons.Default.Add, contentDescription = null,
+            tint     = CardifyColors.DarkGreen,
+            modifier = Modifier
+                .size(20.dp)
+                .clip(CircleShape)
+                .background(CardifyColors.DarkGreen.copy(alpha = 0.1f))
+                .padding(3.dp)
+        )
+    }
+}
+
+// ─── NewChatDialog ───────────────────────────────────────────────────────────
 
 @Composable
 fun NewChatDialog(
@@ -435,15 +414,13 @@ fun NewChatDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("New Chat", fontWeight = FontWeight.Bold) },
-        text = {
+        text  = {
             Column {
                 if (isGroup) {
                     OutlinedTextField(
-                        value = groupName,
-                        onValueChange = { groupName = it },
+                        value = groupName, onValueChange = { groupName = it },
                         label = { Text("Group name") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        modifier = Modifier.fillMaxWidth(), singleLine = true
                     )
                     Spacer(Modifier.height(8.dp))
                 }
@@ -451,14 +428,13 @@ fun NewChatDialog(
                 Spacer(Modifier.height(8.dp))
                 LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
                     items(friends.filter { it.status == "approved" }) { friend ->
-                        val friendId = friend.phone
-                        val isChecked = friendId in selected
+                        val isChecked = friend.phone in selected
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    if (isChecked) selected.remove(friendId)
-                                    else selected.add(friendId)
+                                    if (isChecked) selected.remove(friend.phone)
+                                    else selected.add(friend.phone)
                                 }
                                 .padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -466,15 +442,15 @@ fun NewChatDialog(
                             Checkbox(
                                 checked = isChecked,
                                 onCheckedChange = {
-                                    if (it) selected.add(friendId) else selected.remove(friendId)
+                                    if (it) selected.add(friend.phone)
+                                    else selected.remove(friend.phone)
                                 },
                                 colors = CheckboxDefaults.colors(
                                     checkedColor = CardifyColors.DarkGreen)
                             )
                             Spacer(Modifier.width(8.dp))
                             Icon(Icons.Default.Person, null,
-                                tint = CardifyColors.DarkGreen,
-                                modifier = Modifier.size(20.dp))
+                                tint = CardifyColors.DarkGreen, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(friend.name, fontSize = 14.sp)
                         }
@@ -503,6 +479,9 @@ fun NewChatDialog(
         shape = RoundedCornerShape(16.dp)
     )
 }
+
+// ─── formatChatTime ──────────────────────────────────────────────────────────
+
 fun formatChatTime(timestamp: String): String {
     if (timestamp.isBlank()) return ""
     return try {

@@ -33,9 +33,9 @@ class ChatViewModel : ViewModel() {
     private val _replyTo = MutableStateFlow<ChatMessage?>(null)
     val replyTo: StateFlow<ChatMessage?> = _replyTo.asStateFlow()
 
+    private var currentChatId: String = ""
 
-
-    // ─── טעינת נתונים ───────────────────────────────────────────
+    // ─── טעינה ──────────────────────────────────────────────────
 
     fun loadChats() {
         viewModelScope.launch {
@@ -45,13 +45,12 @@ class ChatViewModel : ViewModel() {
                 if (response.isSuccessful) _chats.value = response.body() ?: emptyList()
             } catch (e: Exception) {
                 Log.e("ChatVM", "loadChats error", e)
-            } finally {
-                _isLoading.value = false
-            }
+            } finally { _isLoading.value = false }
         }
     }
 
     fun loadMessages(chatId: String) {
+        currentChatId = chatId
         viewModelScope.launch {
             _isLoading.value = true
             try {
@@ -59,19 +58,31 @@ class ChatViewModel : ViewModel() {
                 if (response.isSuccessful) _messages.value = response.body() ?: emptyList()
             } catch (e: Exception) {
                 Log.e("ChatVM", "loadMessages error", e)
-            } finally {
-                _isLoading.value = false
-            }
+            } finally { _isLoading.value = false }
         }
     }
 
-    fun sendMessage(chatId: String, text: String, transaction: ChatTransaction? = null) {
+    fun sendMessage(
+        chatId:       String,
+        text:         String,
+        transaction:  ChatTransaction? = null,
+        /** Map של phone → nickname — לשימוש בשם תצוגה ב-ReplySnapshot */
+        nicknames:    Map<String, String> = emptyMap(),
+        /** Map של senderId → phone — כדי לאתר את הכינוי לפי userId */
+        senderPhones: Map<String, String> = emptyMap()
+    ) {
         viewModelScope.launch {
             try {
-                val reply = _replyTo.value
+                val reply    = _replyTo.value
                 val snapshot = reply?.let {
+                    // מחפש כינוי לשולח ההודעה שמגיבים עליה
+                    val phone       = senderPhones[it.senderId] ?: ""
+                    val displayName = if (phone.isNotBlank())
+                        nicknames[phone]?.takeIf { n -> n.isNotBlank() } ?: it.senderName
+                    else it.senderName
+
                     ReplySnapshot(
-                        senderName   = it.senderName,
+                        senderName   = displayName,
                         text         = it.text,
                         businessName = it.transaction?.businessName ?: "",
                         isAudio      = it.audioUrl != null
@@ -89,26 +100,101 @@ class ChatViewModel : ViewModel() {
                     _replyTo.value = null
                     loadMessages(chatId)
                 }
+            } catch (e: Exception) { Log.e("ChatVM", "sendMessage error", e) }
+        }
+    }
+
+    // ─── מחיקה ──────────────────────────────────────────────────
+
+    fun deleteMessage(chatId: String, messageId: String, onError: (String) -> Unit = {}) {
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.deleteMessage(chatId, messageId)
+                if (response.isSuccessful) loadMessages(chatId)
+                else onError(response.errorBody()?.string() ?: "Error")
             } catch (e: Exception) {
-                Log.e("ChatVM", "sendMessage error", e)
+                Log.e("ChatVM", "deleteMessage error", e)
+                onError(e.message ?: "Error")
             }
         }
     }
 
-    // ─── חברים ותמיכה ───────────────────────────────────────────
+    // ─── תגובת אימוג'י ──────────────────────────────────────────
+
+    /**
+     * emoji = "" → מסיר תגובה קיימת של המשתמש.
+     * אם המשתמש לוחץ על אותו אימוג'י שכבר בחר — מסיר אוטומטית.
+     */
+    fun reactToMessage(chatId: String, messageId: String, emoji: String,
+                       currentUserId: String) {
+        viewModelScope.launch {
+            try {
+                // אם המשתמש כבר הגיב באותו אימוג'י — toggle (הסר)
+                val currentMsg  = _messages.value.find { it.id == messageId }
+                val existingEmoji = currentMsg?.reactions?.get(currentUserId)
+                val finalEmoji  = if (existingEmoji == emoji) "" else emoji
+
+                // אופטימיסטי — עדכון מקומי מיידי
+                _messages.value = _messages.value.map { msg ->
+                    if (msg.id != messageId) msg
+                    else {
+                        val updated = msg.reactions.toMutableMap()
+                        if (finalEmoji.isEmpty()) updated.remove(currentUserId)
+                        else updated[currentUserId] = finalEmoji
+                        msg.copy(reactions = updated)
+                    }
+                }
+
+                val response = RetrofitClient.apiService.reactToMessage(
+                    chatId, messageId, ReactRequest(emoji = finalEmoji)
+                )
+                if (!response.isSuccessful) loadMessages(chatId) // rollback
+            } catch (e: Exception) {
+                Log.e("ChatVM", "react error", e)
+                loadMessages(chatId)
+            }
+        }
+    }
+
+    // ─── העברת הודעה ────────────────────────────────────────────
+
+    fun forwardMessage(
+        targetChatId: String,
+        message: ChatMessage,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            try {
+                val body = mutableMapOf<String, Any>(
+                    "forwarded" to true
+                )
+                if (message.text.isNotBlank()) body["text"] = message.text
+                if (message.transaction != null) body["transaction"] = message.transaction
+
+                val response = RetrofitClient.apiService.forwardMessage(targetChatId, body)
+                if (response.isSuccessful) { loadChats(); onSuccess() }
+                else onError(response.errorBody()?.string() ?: "Error")
+            } catch (e: Exception) {
+                Log.e("ChatVM", "forwardMessage error", e)
+                onError(e.message ?: "Error")
+            }
+        }
+    }
+
+    // ─── חברים ──────────────────────────────────────────────────
 
     fun loadFriends() {
         viewModelScope.launch {
             try {
                 val response = RetrofitClient.apiService.getFriends()
                 if (response.isSuccessful) _friends.value = response.body() ?: emptyList()
-            } catch (e: Exception) {
-                Log.e("ChatVM", "loadFriends error", e)
-            }
+            } catch (e: Exception) { Log.e("ChatVM", "loadFriends error", e) }
         }
     }
 
-    fun createChat(participantPhones: List<String>, groupName: String, onSuccess: (String) -> Unit) {
+    fun createChat(participantPhones: List<String>, groupName: String,
+                   onSuccess: (String) -> Unit) {
         viewModelScope.launch {
             try {
                 val userIds = mutableListOf<String>()
@@ -117,15 +203,13 @@ class ChatViewModel : ViewModel() {
                     if (res.isSuccessful) res.body()?.id?.let { userIds.add(it) }
                 }
                 if (userIds.isEmpty()) return@launch
-                val request  = CreateChatRequest(participantIds = userIds, groupName = groupName)
-                val response = RetrofitClient.apiService.createChat(request)
+                val response = RetrofitClient.apiService.createChat(
+                    CreateChatRequest(userIds, groupName))
                 if (response.isSuccessful) {
                     val chatId = response.body()?.get("id") as? String ?: ""
                     if (chatId.isNotBlank()) { loadChats(); onSuccess(chatId) }
                 }
-            } catch (e: Exception) {
-                Log.e("ChatVM", "createChat error", e)
-            }
+            } catch (e: Exception) { Log.e("ChatVM", "createChat error", e) }
         }
     }
 
@@ -134,9 +218,7 @@ class ChatViewModel : ViewModel() {
             try {
                 val response = RetrofitClient.apiService.getUnreadCount()
                 if (response.isSuccessful) _unreadCount.value = response.body()?.unread ?: 0
-            } catch (e: Exception) {
-                Log.e("ChatVM", "unread error", e)
-            }
+            } catch (e: Exception) { Log.e("ChatVM", "unread error", e) }
         }
     }
 
@@ -145,7 +227,5 @@ class ChatViewModel : ViewModel() {
     fun setReplyTo(message: ChatMessage)             { _replyTo.value = message }
     fun clearReplyTo()                               { _replyTo.value = null }
 
-    override fun onCleared() {
-        super.onCleared()
-    }
+    override fun onCleared() { super.onCleared() }
 }
