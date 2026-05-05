@@ -49,7 +49,17 @@ class RegisterViewModel : ViewModel() {
                         )
                     }
                 } else {
-                    _registerState.value = RegisterState.Error("Server error: ${response.code()}")
+                    val errorMessage = if (response.code() == 409) {
+                        try {
+                            val json = org.json.JSONObject(response.errorBody()?.string() ?: "")
+                            json.optString("error", "Registration failed")
+                        } catch (e: Exception) {
+                            "Registration failed"
+                        }
+                    } else {
+                        "Server error: ${response.code()}"
+                    }
+                    _registerState.value = RegisterState.Error(errorMessage)
                 }
             } catch (e: Exception) {
                 _registerState.value = RegisterState.Error("Network error: ${e.localizedMessage}")

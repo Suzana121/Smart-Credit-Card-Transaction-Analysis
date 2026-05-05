@@ -122,6 +122,10 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun showError(message: String) {
-        Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
+        android.widget.Toast.makeText(
+            this,
+            message,
+            android.widget.Toast.LENGTH_LONG
+        ).show()
     }
 }
