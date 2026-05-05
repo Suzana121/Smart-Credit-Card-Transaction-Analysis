@@ -50,7 +50,10 @@ def register():
         return jsonify({"error": "Missing username or password"}), 400
 
     if email and find_user_in_db(email, 'email'):
-        return jsonify({"error": "Email already exists"}), 400
+        return jsonify({"error": "This email is already registered"}), 409
+
+    if phone and find_user_in_db(phone, 'phone'):
+        return jsonify({"error": "This phone number is already registered"}), 409
 
     if find_user_in_db(username, 'username'):
         return jsonify({"error": "Username already taken"}), 400

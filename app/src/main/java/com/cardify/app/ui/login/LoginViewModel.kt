@@ -53,9 +53,12 @@ class LoginViewModel : ViewModel() {
                         )
                     }
                 } else {
-                    _loginState.value = LoginState.Error(
+                    val errorMessage = if (response.code() == 401) {
+                        "No account found with this email. Please check your details or register."
+                    } else {
                         "Login failed: ${response.code()}"
-                    )
+                    }
+                    _loginState.value = LoginState.Error(errorMessage)
                 }
             } catch (e: Exception) {
                 _loginState.value = LoginState.Error(

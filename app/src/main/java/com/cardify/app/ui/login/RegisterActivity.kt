@@ -56,12 +56,20 @@ class RegisterActivity : AppCompatActivity() {
                 }
                 is RegisterState.Error -> {
                     hideLoading()
-                    Toast.makeText(this, state.message, Toast.LENGTH_LONG).show()
+                    showError(state.message)
                 }
                 else -> hideLoading()
             }
         }
     }
+    private fun showError(message: String) {
+        android.widget.Toast.makeText(
+            this,
+            message,
+            android.widget.Toast.LENGTH_LONG
+        ).show()
+    }
+
     private fun showLoading() {
         binding.progressBar.visibility = View.VISIBLE
         binding.btnRegister.isEnabled = false
