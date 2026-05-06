@@ -43,18 +43,16 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <TextView
-        android:id="@+id/tvAppName"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Cardify"
-        android:textColor="#FFFFFF"
-        android:textSize="30sp"
-        android:fontFamily="@font/kelly_slab"
+    <ImageView
+        android:id="@+id/ivLogo"
+        android:layout_width="120dp"
+        android:layout_height="50dp"
+        android:src="@drawable/cardify_logo"
+        android:scaleType="fitStart"
         android:layout_marginLeft="17dp"
         android:layout_marginTop="32dp"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"/>
 
 <TextView
         android:id="@+id/tvUsernameLabel"
@@ -88,6 +86,21 @@
         app:layout_constraintTop_toBottomOf="@id/tvUsernameLabel" />
 
     <TextView
+        android:id="@+id/tvEmailError"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="31dp"
+        android:layout_marginRight="31dp"
+        android:layout_marginTop="4dp"
+        android:textColor="#DA0000"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/etEmail" />
+
+    <TextView
         android:id="@+id/tvPasswordLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -98,7 +111,7 @@
         android:layout_marginLeft="31dp"
         android:layout_marginTop="20dp"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/etEmail" />
+        app:layout_constraintTop_toBottomOf="@id/tvEmailError" />
 
     <EditText
         android:id="@+id/etPassword"
@@ -111,12 +124,42 @@
         android:hint="your password"
         android:inputType="textPassword"
         android:paddingLeft="15dp"
+        android:paddingStart="8dp"
+        android:paddingRight="48dp"
         android:layoutDirection="ltr"
         android:gravity="center_vertical"
         android:textAlignment="viewStart"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvPasswordLabel" />
+
+    <ImageView
+        android:id="@+id/ivPasswordToggle"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginRight="15dp"
+        android:src="@drawable/ic_eye_closed"
+        android:contentDescription="Toggle password visibility"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_constraintRight_toRightOf="@id/etPassword"
+        app:layout_constraintTop_toTopOf="@id/etPassword"
+        app:layout_constraintBottom_toBottomOf="@id/etPassword" />
+
+    <TextView
+        android:id="@+id/tvPasswordError"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="31dp"
+        android:layout_marginRight="31dp"
+        android:layout_marginTop="4dp"
+        android:textColor="#DA0000"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/etPassword" />
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btnLogin"
@@ -132,7 +175,7 @@
         android:fontFamily="@font/ibm_plex_sans_semibold"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/etPassword" />
+        app:layout_constraintTop_toBottomOf="@id/tvPasswordError" />
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btnRegister"
