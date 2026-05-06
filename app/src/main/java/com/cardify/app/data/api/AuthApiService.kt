@@ -17,8 +17,16 @@ interface AuthApiService {
     @GET("auth/user_details")
     suspend fun getUserDetails(): Response<User>
 
-    @POST("auth/update")
+    // תוקן: היה /auth/update, עכשיו /auth/update_account
+    @POST("auth/update_account")
     suspend fun updateUserDetails(@Body request: UpdateUserRequest): Response<UpdateResponse>
+
+    // חדש: העלאת תמונת פרופיל
+    @Multipart
+    @POST("auth/upload_profile_image")
+    suspend fun uploadProfileImage(
+        @Part image: MultipartBody.Part
+    ): Response<Map<String, String>>
 
     @POST("auth/forgot-password")
     suspend fun forgotPassword(@Body request: ForgotPasswordRequest): Response<GenericResponse>
@@ -128,14 +136,12 @@ interface AuthApiService {
 
     // ─── Global nickname ─────────────────────────────────────────────────────
 
-    /** שינוי כינוי גלובלי לחבר לפי מספר טלפון */
     @PATCH("api/contacts/{phone}/nickname")
     suspend fun setGlobalNickname(
         @Path("phone") phone: String,
         @Body request: com.cardify.app.data.model.SetNicknameRequest
     ): Response<Map<String, @JvmSuppressWildcards Any>>
 
-    /** שליפת כל הכינויים: Map<phone, nickname> */
     @GET("api/contacts/nicknames")
     suspend fun getAllNicknames(): Response<Map<String, String>>
 

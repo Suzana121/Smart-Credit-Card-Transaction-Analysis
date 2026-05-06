@@ -11,13 +11,16 @@ def get_user_info(user_id):
     doc = users_ref.document(user_id).get()
     if doc.exists:
         d = doc.to_dict()
-        return {'id': user_id, 'username': d.get('username', 'Unknown'),
-                'phone': d.get('phone', '')}
+        return {
+            'id':            user_id,
+            'username':      d.get('username', 'Unknown'),
+            'phone':         d.get('phone', ''),
+            'profile_image': d.get('profile_image', '')   # ← חדש
+        }
     return None
 
 
 def get_contact_nickname(user_id, other_phone):
-    """מחזיר את הכינוי הגלובלי שהמשתמש הגדיר לחבר לפי מספר טלפון."""
     doc = users_ref.document(user_id) \
         .collection('contacts') \
         .document(other_phone).get()
@@ -73,31 +76,37 @@ def get_chats():
                 .stream())
         chats = []
         for doc in docs:
-            d      = doc.to_dict()
-            unread = d.get('unreadCount', {}).get(user_id, 0)
+            d            = doc.to_dict()
+            unread       = d.get('unreadCount', {}).get(user_id, 0)
             participants = d.get('participants', [])
 
-            # בונה מפת שמות — עם כינוי גלובלי אם קיים
-            participant_names = d.get('participantNames', {})
-            display_names = {}
+            participant_names  = d.get('participantNames', {})
+            display_names      = {}
+            participant_photos = {}   # ← חדש: map של userId → profile_image URL
+
             for pid in participants:
                 if pid == user_id:
                     continue
-                other_info = get_user_info(pid)
+                other_info  = get_user_info(pid)
                 other_phone = other_info['phone'] if other_info else ''
-                nickname = get_contact_nickname(user_id, other_phone) if other_phone else ''
+                nickname    = get_contact_nickname(user_id, other_phone) if other_phone else ''
                 display_names[pid] = nickname if nickname else participant_names.get(pid, 'Unknown')
 
+                # שמירת תמונת הפרופיל
+                if other_info and other_info.get('profile_image'):
+                    participant_photos[pid] = other_info['profile_image']
+
             chats.append({
-                'id':               doc.id,
-                'participants':     participants,
-                'participantNames': participant_names,
-                'displayNames':     display_names,   # ← שמות תצוגה עם כינויים
-                'isGroup':          d.get('isGroup', False),
-                'groupName':        d.get('groupName', ''),
-                'lastMessage':      d.get('lastMessage', ''),
-                'lastMessageAt':    fmt_ts(d.get('lastMessageAt')),
-                'unreadCount':      unread,
+                'id':                doc.id,
+                'participants':      participants,
+                'participantNames':  participant_names,
+                'displayNames':      display_names,
+                'participantPhotos': participant_photos,   # ← חדש
+                'isGroup':           d.get('isGroup', False),
+                'groupName':         d.get('groupName', ''),
+                'lastMessage':       d.get('lastMessage', ''),
+                'lastMessageAt':     fmt_ts(d.get('lastMessageAt')),
+                'unreadCount':       unread,
             })
         chats.sort(key=lambda x: x.get('lastMessageAt', ''), reverse=True)
         return jsonify(chats), 200
@@ -111,8 +120,8 @@ def get_chats():
 @jwt_required()
 def create_chat():
     try:
-        user_id = get_jwt_identity()
-        data    = request.get_json()
+        user_id          = get_jwt_identity()
+        data             = request.get_json()
         participant_ids  = data.get('participantIds', [])
         group_name       = data.get('groupName', '')
         is_group         = len(participant_ids) > 1
@@ -267,9 +276,9 @@ def delete_message(chat_id, message_id):
 @jwt_required()
 def react_to_message(chat_id, message_id):
     try:
-        user_id = get_jwt_identity()
-        data    = request.get_json()
-        emoji   = data.get('emoji', '')
+        user_id  = get_jwt_identity()
+        data     = request.get_json()
+        emoji    = data.get('emoji', '')
         chat_ref = db.collection('chats').document(chat_id)
         chat_doc = chat_ref.get()
         if not chat_doc.exists:
@@ -328,19 +337,13 @@ def forward_message(target_chat_id):
 
 
 # ─── PATCH /api/contacts/<phone>/nickname ────────────────────
-# כינוי גלובלי — שמור תחת users/{userId}/contacts/{phone}
 @chat_bp.route('/contacts/<phone>/nickname', methods=['PATCH'])
 @jwt_required()
 def set_global_nickname(phone):
-    """
-    מגדיר כינוי גלובלי לחבר לפי מספר טלפון.
-    nickname="" מסיר את הכינוי.
-    """
     try:
         user_id  = get_jwt_identity()
         data     = request.get_json()
         nickname = data.get('nickname', '').strip()
-
         contact_ref = users_ref.document(user_id) \
             .collection('contacts') \
             .document(phone)
@@ -348,7 +351,6 @@ def set_global_nickname(phone):
             contact_ref.set({'nickname': nickname}, merge=True)
         else:
             contact_ref.delete()
-
         return jsonify({'success': True, 'nickname': nickname}), 200
     except Exception as e:
         import traceback; print(traceback.format_exc())
@@ -359,7 +361,6 @@ def set_global_nickname(phone):
 @chat_bp.route('/contacts/nicknames', methods=['GET'])
 @jwt_required()
 def get_all_nicknames():
-    """מחזיר את כל הכינויים של המשתמש: { phone: nickname }"""
     try:
         user_id = get_jwt_identity()
         docs    = users_ref.document(user_id).collection('contacts').stream()

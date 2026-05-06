@@ -15,10 +15,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.cardify.app.data.model.Chat
 import com.cardify.app.data.model.Friend
 import com.cardify.app.ui.home.CardifyColors
@@ -86,10 +90,9 @@ fun ShareToChatSheet(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(approvedFriends, key = { it.phone }) { friend ->
-                        // מחפש customName מהצ'ט הקיים עם החבר
                         val displayName = resolveDisplayName(friend, chats, currentUserId)
-
                         FriendShareRow(
+                            friend       = friend,
                             displayName  = displayName,
                             originalName = friend.name,
                             onSelect     = { onSelect(friend) }
@@ -103,10 +106,13 @@ fun ShareToChatSheet(
 
 @Composable
 private fun FriendShareRow(
+    friend:       Friend,
     displayName:  String,
     originalName: String,
     onSelect:     () -> Unit
 ) {
+    val context = LocalContext.current
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -115,6 +121,7 @@ private fun FriendShareRow(
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // תמונת פרופיל — אמיתית אם קיימת
         Box(
             modifier = Modifier
                 .size(42.dp)
@@ -122,18 +129,30 @@ private fun FriendShareRow(
                 .background(CardifyColors.DarkGreen.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                displayName.take(1).uppercase(),
-                color = CardifyColors.DarkGreen,
-                fontWeight = FontWeight.Bold, fontSize = 16.sp
-            )
+            if (!friend.photoUrl.isNullOrEmpty()) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(friend.photoUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = friend.name,
+                    contentScale       = ContentScale.Crop,
+                    modifier           = Modifier.fillMaxSize().clip(CircleShape)
+                )
+            } else {
+                Text(
+                    displayName.take(1).uppercase(),
+                    color      = CardifyColors.DarkGreen,
+                    fontWeight = FontWeight.Bold,
+                    fontSize   = 16.sp
+                )
+            }
         }
 
         Spacer(Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(displayName, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-            // אם יש כינוי — מציג את השם המקורי קטן מתחת
             if (displayName != originalName) {
                 Text(originalName, fontSize = 11.sp, color = Color.Gray)
             }
@@ -151,9 +170,6 @@ private fun FriendShareRow(
     }
 }
 
-/**
- * מוצא את שם התצוגה של חבר — customName אם קיים, אחרת השם המקורי.
- */
 fun resolveDisplayName(
     friend:        Friend,
     chats:         List<Chat>,

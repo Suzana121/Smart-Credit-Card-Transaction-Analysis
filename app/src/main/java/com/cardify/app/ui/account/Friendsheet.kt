@@ -3,6 +3,7 @@ package com.cardify.app.ui.account
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -13,11 +14,18 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.cardify.app.R
 import com.cardify.app.data.model.Friend
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,14 +35,15 @@ fun FriendSheet(
     viewModel: AccountViewModel,
     onDismiss: () -> Unit
 ) {
+    val context      = LocalContext.current
     val nicknames    by viewModel.nicknames.collectAsState()
     val currentNick  = nicknames[friend.phone] ?: ""
     val displayName  = currentNick.ifBlank { friend.name }
 
-    var showDeleteDialog  by remember { mutableStateOf(false) }
+    var showDeleteDialog   by remember { mutableStateOf(false) }
     var showNicknameDialog by remember { mutableStateOf(false) }
-    var deleteSent        by remember { mutableStateOf(false) }
-    var deleteReceived    by remember { mutableStateOf(false) }
+    var deleteSent         by remember { mutableStateOf(false) }
+    var deleteReceived     by remember { mutableStateOf(false) }
 
     // ─── דיאלוג מחיקה ────────────────────────────────────────────
     if (showDeleteDialog) {
@@ -143,20 +152,32 @@ fun FriendSheet(
                 .padding(bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // ── תמונת פרופיל ──
             Box(
                 modifier = Modifier
                     .size(80.dp)
-                    .background(Color(0xFFF0F0F0), RoundedCornerShape(40.dp)),
+                    .clip(CircleShape)
+                    .background(Color(0xFFF0F0F0)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Person, null,
-                    modifier = Modifier.size(40.dp), tint = Color.Gray)
+                if (!friend.photoUrl.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(friend.photoUrl).crossfade(true).build(),
+                        contentDescription = friend.name,
+                        contentScale       = ContentScale.Crop,
+                        modifier           = Modifier.fillMaxSize(),
+                        error              = painterResource(R.drawable.user)
+                    )
+                } else {
+                    Icon(Icons.Default.Person, null,
+                        modifier = Modifier.size(40.dp), tint = Color.Gray)
+                }
             }
+
             Spacer(Modifier.height(16.dp))
 
-            // שם תצוגה (כינוי אם קיים)
             Text(displayName, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            // שם מקורי קטן מתחת אם יש כינוי
             if (currentNick.isNotBlank()) {
                 Text(friend.name, fontSize = 13.sp, color = Color.Gray)
             }

@@ -22,18 +22,28 @@ import com.cardify.app.ui.chat.ChatsScreen
 import com.cardify.app.ui.chat.ChatScreen
 import com.cardify.app.ui.components.ShareToChatSheet
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.cardify.app.ui.account.AccountViewModel
 
 @Composable
 fun AppNavigation(startDestination: String = "home") {
     val navController = rememberNavController()
     val gson          = remember { Gson() }
 
-    // ─── מצב שיתוף גלובלי ────────────────────────────────────────────────────
     var pendingShareTxn    by remember { mutableStateOf<ChatTransaction?>(null) }
     var showFriendPicker   by remember { mutableStateOf(false) }
     val chatViewModelGlobal: ChatViewModel = viewModel()
+    val accountViewModelGlobal: AccountViewModel = viewModel()
 
-    // ─── helper: navigate to chat with a specific friend + pending transaction ─
+    fun clearPendingEverywhere() {
+        pendingShareTxn  = null
+        showFriendPicker = false
+        // נקה גם מה-savedStateHandle של wallet
+        try {
+            navController.getBackStackEntry("wallet")
+                .savedStateHandle.remove<String>("pendingTransaction")
+        } catch (_: Exception) {}
+    }
+
     fun navigateToChatWithFriend(friend: Friend, txn: ChatTransaction) {
         chatViewModelGlobal.loadFriends()
         chatViewModelGlobal.createChat(
@@ -41,12 +51,17 @@ fun AppNavigation(startDestination: String = "home") {
             groupName         = "",
             onSuccess         = { chatId ->
                 val txnJson = gson.toJson(txn)
+
+                // נקה wallet לפני ניווט
+                try {
+                    navController.getBackStackEntry("wallet")
+                        .savedStateHandle.remove<String>("pendingTransaction")
+                } catch (_: Exception) {}
+
                 navController.navigate("wallet") {
                     popUpTo("home") { inclusive = false }
                     launchSingleTop = true
                 }
-                navController.currentBackStackEntry
-                    ?.savedStateHandle?.set("pendingTransaction", txnJson)
                 navController.navigate("chat/$chatId") {
                     launchSingleTop = true
                 }
@@ -55,15 +70,13 @@ fun AppNavigation(startDestination: String = "home") {
                         set("pendingTransaction", txnJson)
                         set("chatName", friend.name)
                         set("isGroup", false)
-                        set("displayNamesJson", "{}")   // צ'ט חדש — אין כינויים עדיין
+                        set("displayNamesJson", "{}")
                     }
             }
         )
-        pendingShareTxn  = null
-        showFriendPicker = false
+        clearPendingEverywhere()
     }
 
-    // ─── Friend picker sheet ──────────────────────────────────────────────────
     if (showFriendPicker && pendingShareTxn != null) {
         val friends by chatViewModelGlobal.friends.collectAsState()
         val chats   by chatViewModelGlobal.chats.collectAsState()
@@ -72,13 +85,11 @@ fun AppNavigation(startDestination: String = "home") {
         val currentUserId = UserSession.userId ?: ""
 
         ShareToChatSheet(
-            friends   = friends,
-            chats     = chats,
+            friends       = friends,
+            chats         = chats,
             currentUserId = currentUserId,
-            onDismiss = { showFriendPicker = false; pendingShareTxn = null },
-            onSelect  = { friend ->
-                navigateToChatWithFriend(friend, pendingShareTxn!!)
-            }
+            onDismiss     = { clearPendingEverywhere() },
+            onSelect      = { friend -> navigateToChatWithFriend(friend, pendingShareTxn!!) }
         )
     }
 
@@ -127,7 +138,7 @@ fun AppNavigation(startDestination: String = "home") {
 
         // ─── Chats (wallet) ───────────────────────────────────────────────────
         composable("wallet") {
-            // מנקה את ה-pending הגלובלי כשחוזרים למסך הצ'טים
+            // נקה pending גלובלי בכניסה למסך
             LaunchedEffect(Unit) {
                 pendingShareTxn  = null
                 showFriendPicker = false
@@ -157,24 +168,20 @@ fun AppNavigation(startDestination: String = "home") {
                             ?: "Chat"
                     }
 
-                    // מספר הטלפון של החבר השני (לצ'ט 1:1) לשינוי כינוי
                     val otherPhone = if (!chat.isGroup) {
                         val otherId = chat.participants.firstOrNull { it != currentUserId } ?: ""
-                        // מחפש את הטלפון ב-friends דרך participantNames
-                        chat.participantNames.entries
-                            .firstOrNull { it.key == otherId }
-                            ?.let { chatViewModelGlobal.friends.value
-                                .firstOrNull { f -> f.name == it.value }?.phone } ?: ""
+                        // מנסה לאתר טלפון מרשימת החברים — תמיד, גם אם הרשימה עדיין נטענת
+                        chatViewModelGlobal.friends.value
+                            .firstOrNull { f -> f.name == chat.participantNames[otherId] }?.phone
+                            ?: otherId  // fallback ל-userId — מספיק כדי שכפתור העט יופיע
                     } else ""
 
                     val displayNamesJson = try { gson.toJson(chat.displayNames) } catch (e: Exception) { "{}" }
 
-                    navController.currentBackStackEntry
-                        ?.savedStateHandle?.remove<String?>("pendingTransaction")
+                    // ── נקה את ה-pending מ-wallet לפני הניווט לצ'ט ──
+                    entry?.savedStateHandle?.remove<String>("pendingTransaction")
 
-                    navController.navigate("chat/${chat.id}") {
-                        launchSingleTop = true
-                    }
+                    navController.navigate("chat/${chat.id}") { launchSingleTop = true }
 
                     navController.getBackStackEntry("chat/${chat.id}")
                         .savedStateHandle.apply {
@@ -208,9 +215,7 @@ fun AppNavigation(startDestination: String = "home") {
             @Suppress("UNCHECKED_CAST")
             val displayNames: Map<String, String> = try {
                 gson.fromJson(displayNamesJson, Map::class.java) as Map<String, String>
-            } catch (e: Exception) {
-                emptyMap()
-            }
+            } catch (e: Exception) { emptyMap() }
 
             ChatScreen(
                 chatId            = chatId,
@@ -218,8 +223,17 @@ fun AppNavigation(startDestination: String = "home") {
                 isGroup           = isGroup,
                 displayNames      = displayNames,
                 otherPhone        = otherPhone,
+                onSetNickname     = { phone, nickname ->
+                    accountViewModelGlobal.setNickname(phone, nickname)
+                },
                 onTransactionSent = {
+                    // נקה מה-savedStateHandle של הצ'ט הנוכחי
                     backStackEntry.savedStateHandle.remove<String>("pendingTransaction")
+                    // נקה גם מ-wallet אם קיים
+                    try {
+                        navController.getBackStackEntry("wallet")
+                            .savedStateHandle.remove<String>("pendingTransaction")
+                    } catch (_: Exception) {}
                 },
                 onNavigateToChat  = { targetChat ->
                     val currentUserId = UserSession.userId ?: ""
@@ -235,15 +249,13 @@ fun AppNavigation(startDestination: String = "home") {
                         gson.toJson(targetChat.displayNames)
                     } catch (e: Exception) { "{}" }
 
-                    navController.navigate("chat/${targetChat.id}") {
-                        launchSingleTop = true
-                    }
+                    navController.navigate("chat/${targetChat.id}") { launchSingleTop = true }
                     navController.getBackStackEntry("chat/${targetChat.id}")
                         .savedStateHandle.apply {
-                            set("chatName",        targetName)
-                            set("isGroup",         targetChat.isGroup)
+                            set("chatName",         targetName)
+                            set("isGroup",          targetChat.isGroup)
                             set("displayNamesJson", targetDisplayNamesJson)
-                            set("otherPhone",      "")
+                            set("otherPhone",       "")
                         }
                 },
                 onBack            = { navController.popBackStack() },

@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- נוסף: הרשאת מצלמה לצילום תמונת פרופיל -->
+    <uses-permission android:name="android.permission.CAMERA" />
 
     <application
         android:allowBackup="true"
@@ -42,11 +44,11 @@
             android:name=".ui.login.RegisterActivity"
             android:exported="false" />
 
-        <activity android:name=".ui.home.HomeActivity"     android:exported="false" />
+        <activity android:name=".ui.home.HomeActivity"         android:exported="false" />
         <activity android:name=".ui.activity.ActivityActivity" android:exported="false" />
-        <activity android:name=".ui.stats.StatsActivity"   android:exported="false" />
+        <activity android:name=".ui.stats.StatsActivity"       android:exported="false" />
 
-        <!-- FileProvider לשיתוף קובץ PDF -->
+        <!-- FileProvider לשיתוף קבצים (PDF + תמונות פרופיל מהמצלמה) -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -56,7 +58,6 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
-
 
     </application>
 

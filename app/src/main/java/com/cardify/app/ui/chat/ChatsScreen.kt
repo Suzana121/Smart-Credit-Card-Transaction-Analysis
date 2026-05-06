@@ -23,11 +23,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.cardify.app.data.UserSession
 import com.cardify.app.data.model.Chat
 import com.cardify.app.data.model.ChatTransaction
@@ -48,11 +52,9 @@ fun ChatsScreen(
     var showNewChat by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
 
-    val currentUserId = UserSession.userId ?: ""
-
+    val currentUserId   = UserSession.userId ?: ""
     val approvedFriends = remember(friends) { friends.filter { it.status == "approved" } }
 
-    // ─── פילטור צ'טים — משתמש ב-customNames לשם התצוגה ───────────
     val filteredChats = remember(chats, searchQuery) {
         if (searchQuery.isBlank()) chats
         else chats.filter { chat ->
@@ -62,7 +64,6 @@ fun ChatsScreen(
         }
     }
 
-    // ─── חברים שניתן לפתוח איתם צ'ט חדש ─────────────────────────
     val matchingFriends = remember(approvedFriends, searchQuery, chats) {
         if (searchQuery.isBlank()) emptyList()
         else {
@@ -106,7 +107,6 @@ fun ChatsScreen(
                 .padding(padding)
         ) {
             Column(Modifier.fillMaxSize()) {
-                // ─── Header ──────────────────────────────────────────
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -133,7 +133,6 @@ fun ChatsScreen(
 
                 HorizontalDivider(color = Color(0xFFEEEEEE))
 
-                // ─── Search ───────────────────────────────────────────
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
@@ -167,8 +166,6 @@ fun ChatsScreen(
                     }
                 } else {
                     LazyColumn(Modifier.fillMaxSize()) {
-
-                        // ─── צ'טים קיימים ─────────────────────────────
                         if (filteredChats.isNotEmpty()) {
                             items(filteredChats, key = { it.id }) { chat ->
                                 ChatItem(
@@ -184,7 +181,6 @@ fun ChatsScreen(
                             }
                         }
 
-                        // ─── חברים לפתיחת צ'ט חדש ─────────────────────
                         if (matchingFriends.isNotEmpty()) {
                             item {
                                 Text(
@@ -208,15 +204,13 @@ fun ChatsScreen(
                                                 if (newChat != null) {
                                                     onOpenChat(newChat)
                                                 } else {
-                                                    onOpenChat(
-                                                        Chat(
-                                                            id               = chatId,
-                                                            participants     = listOf(currentUserId, friend.phone),
-                                                            participantNames = mapOf(),
-                                                            isGroup          = false,
-                                                            groupName        = ""
-                                                        )
-                                                    )
+                                                    onOpenChat(Chat(
+                                                        id               = chatId,
+                                                        participants     = listOf(currentUserId, friend.phone),
+                                                        participantNames = mapOf(),
+                                                        isGroup          = false,
+                                                        groupName        = ""
+                                                    ))
                                                 }
                                                 searchQuery = ""
                                             }
@@ -230,7 +224,6 @@ fun ChatsScreen(
                             }
                         }
 
-                        // ─── אין תוצאות ───────────────────────────────
                         if (filteredChats.isEmpty() && matchingFriends.isEmpty()) {
                             item {
                                 Box(
@@ -259,14 +252,13 @@ fun ChatsScreen(
     }
 }
 
-// ─── helper: שם תצוגה עם תמיכה ב-customNames ────────────────────────────────
+// ─── helper ──────────────────────────────────────────────────────────────────
 
 fun chatDisplayName(chat: Chat, currentUserId: String): String {
     return if (chat.isGroup) {
         chat.groupName.ifBlank { "Group" }
     } else {
         val otherId = chat.participants.firstOrNull { it != currentUserId } ?: ""
-        // customNames מגיע מה-backend כ-Map<otherId, nickname> עבור המשתמש הנוכחי
         chat.displayNames[otherId]
             ?: chat.participantNames[otherId]
             ?: "Unknown"
@@ -282,9 +274,13 @@ fun ChatItem(
     hasPending: Boolean = false,
     onClick: () -> Unit
 ) {
-    // משתמש ב-helper שמעדיף customNames על participantNames
+    val context     = LocalContext.current
     val displayName = chatDisplayName(chat, currentUserId)
     val initials    = displayName.take(1).uppercase()
+
+    // תמונת הצד השני בצ'ט 1:1
+    val otherId  = if (!chat.isGroup) chat.participants.firstOrNull { it != currentUserId } ?: "" else ""
+    val photoUrl = if (!chat.isGroup) chat.participantPhotos[otherId] else null
 
     Row(
         modifier = Modifier
@@ -304,8 +300,18 @@ fun ChatItem(
                 .background(CardifyColors.DarkGreen.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
-            Text(initials, fontSize = 18.sp, fontWeight = FontWeight.Bold,
-                color = CardifyColors.DarkGreen)
+            if (!photoUrl.isNullOrEmpty()) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(photoUrl).crossfade(true).build(),
+                    contentDescription = displayName,
+                    contentScale       = ContentScale.Crop,
+                    modifier           = Modifier.fillMaxSize().clip(CircleShape)
+                )
+            } else {
+                Text(initials, fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                    color = CardifyColors.DarkGreen)
+            }
         }
 
         Spacer(Modifier.width(12.dp))
@@ -359,6 +365,7 @@ fun ChatItem(
 
 @Composable
 fun FriendChatItem(friend: Friend, onClick: () -> Unit) {
+    val context  = LocalContext.current
     val initials = friend.name.take(1).uppercase()
 
     Row(
@@ -376,8 +383,18 @@ fun FriendChatItem(friend: Friend, onClick: () -> Unit) {
                 .background(CardifyColors.DarkGreen.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center
         ) {
-            Text(initials, fontSize = 18.sp, fontWeight = FontWeight.Bold,
-                color = CardifyColors.DarkGreen)
+            if (!friend.photoUrl.isNullOrEmpty()) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(friend.photoUrl).crossfade(true).build(),
+                    contentDescription = friend.name,
+                    contentScale       = ContentScale.Crop,
+                    modifier           = Modifier.fillMaxSize().clip(CircleShape)
+                )
+            } else {
+                Text(initials, fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                    color = CardifyColors.DarkGreen)
+            }
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {

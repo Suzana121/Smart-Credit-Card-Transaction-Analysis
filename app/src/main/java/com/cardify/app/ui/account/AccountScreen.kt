@@ -47,6 +47,7 @@ fun AccountScreen(
     val name         by viewModel.username.collectAsState()
     val email        by viewModel.email.collectAsState()
     val phone        by viewModel.phone.collectAsState()
+    val profileImage by viewModel.profileImage.collectAsState()   // ← חדש
     val isLoading    by viewModel.isLoading.collectAsState()
     val friendsList  by viewModel.friends.collectAsState()
     val requestsList by viewModel.requests.collectAsState()
@@ -57,6 +58,7 @@ fun AccountScreen(
 
     val context = LocalContext.current
 
+    // רענון נתונים בכניסה למסך — מביא תמונה מעודכנת אחרי עריכה
     LaunchedEffect(Unit) {
         viewModel.refreshUserData()
         viewModel.loadFriendsData()
@@ -79,13 +81,17 @@ fun AccountScreen(
                 }
             } else {
                 Spacer(modifier = Modifier.height(32.dp))
-                ProfileSection(name = name, email = email, phone = phone,
-                    onEditProfile = onEditProfile)
+                ProfileSection(
+                    name         = name,
+                    email        = email,
+                    phone        = phone,
+                    profileImage = profileImage,   // ← העברת התמונה
+                    onEditProfile = onEditProfile
+                )
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // ─── מעביר viewModel לFriendsSection כדי לגשת לכינויים ───
             FriendsSection(
                 friends          = friendsList,
                 viewModel        = viewModel,
@@ -163,7 +169,6 @@ fun FriendsSection(
     onFriendClick:    (Friend) -> Unit,
     onAddFriendClick: () -> Unit
 ) {
-    // מאזינים לכינויים — מתעדכן ריאקטיבית אחרי שינוי
     val nicknames by viewModel.nicknames.collectAsState()
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -183,9 +188,7 @@ fun FriendsSection(
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(friends) { friend ->
-                // כינוי אם קיים, אחרת שם מקורי
-                val displayName = nicknames[friend.phone]?.takeIf { it.isNotBlank() }
-                    ?: friend.name
+                val displayName = nicknames[friend.phone]?.takeIf { it.isNotBlank() } ?: friend.name
                 FriendItem(
                     friend      = friend,
                     displayName = displayName,
@@ -231,7 +234,7 @@ fun RequestsSection(
 @Composable
 fun FriendItem(
     friend:      Friend,
-    displayName: String,   // ← כינוי אם קיים, אחרת שם מקורי
+    displayName: String,
     onClick:     () -> Unit
 ) {
     val context = LocalContext.current
@@ -275,7 +278,6 @@ fun FriendItem(
         }
 
         Spacer(modifier = Modifier.height(6.dp))
-        // מציג את הכינוי (או שם מקורי אם אין כינוי)
         Text(
             text      = displayName,
             color     = Color(0xFF5C5C5C),
@@ -349,19 +351,46 @@ fun AddFriendButton(onClick: () -> Unit) {
 // ─── ProfileSection ──────────────────────────────────────────────────────────
 
 @Composable
-fun ProfileSection(name: String, email: String, phone: String, onEditProfile: () -> Unit) {
+fun ProfileSection(
+    name:          String,
+    email:         String,
+    phone:         String,
+    profileImage:  String,        // ← חדש
+    onEditProfile: () -> Unit
+) {
+    val context = LocalContext.current
+
     Column(
         modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Image(
-            painter            = painterResource(id = R.drawable.user),
-            contentDescription = "Profile Picture",
-            modifier           = Modifier.size(108.dp)
-        )
+        // תמונת פרופיל — אמיתית אם קיימת, placeholder אחרת
+        if (profileImage.isNotEmpty()) {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(profileImage)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "Profile Picture",
+                contentScale       = ContentScale.Crop,
+                modifier           = Modifier
+                    .size(108.dp)
+                    .clip(CircleShape),
+                error = painterResource(id = R.drawable.user)
+            )
+        } else {
+            Image(
+                painter            = painterResource(id = R.drawable.user),
+                contentDescription = "Profile Picture",
+                modifier           = Modifier
+                    .size(108.dp)
+                    .clip(CircleShape)
+            )
+        }
+
         Spacer(modifier = Modifier.height(14.dp))
-        Text(name, color = Color(0xFF0A0A0A), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        if (phone.isNotEmpty()) Text(phone, color = Color.Black, fontSize = 14.sp)
+        Text(name,  color = Color(0xFF0A0A0A), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        if (phone.isNotEmpty()) Text(phone, color = Color.Black,   fontSize = 14.sp)
         Text(email, color = Color.Gray, fontSize = 14.sp)
         Spacer(modifier = Modifier.height(24.dp))
         Button(

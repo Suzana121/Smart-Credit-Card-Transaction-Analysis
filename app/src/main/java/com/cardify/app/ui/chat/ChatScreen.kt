@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cardify.app.data.UserSession
+import com.cardify.app.data.api.RetrofitClient
 import com.cardify.app.data.model.Chat
 import com.cardify.app.data.model.ChatMessage
 import com.cardify.app.data.model.ChatTransaction
@@ -46,8 +47,6 @@ import com.cardify.app.ui.home.CardifyColors
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-// ─── ChatScreen ──────────────────────────────────────────────────────────────
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
@@ -55,39 +54,54 @@ fun ChatScreen(
     chatName: String,
     isGroup: Boolean = false,
     displayNames: Map<String, String> = emptyMap(),
-    /** טלפון של החבר השני (לצ'ט 1:1) — לשינוי כינוי גלובלי */
     otherPhone: String = "",
     onTransactionSent: (() -> Unit)? = null,
     onNavigateToChat: ((Chat) -> Unit)? = null,
     onBack: () -> Unit,
     initialPendingTxn: ChatTransaction? = null,
-    viewModel: ChatViewModel = viewModel(),
-    accountViewModel: com.cardify.app.ui.account.AccountViewModel = viewModel()
+    // ← callback במקום accountViewModel — מבטיח שאותו instance ישמש
+    onSetNickname: (phone: String, nickname: String) -> Unit = { _, _ -> },
+    viewModel: ChatViewModel = viewModel()
 ) {
     val messages      by viewModel.messages.collectAsState()
     val isLoading     by viewModel.isLoading.collectAsState()
     val pendingTxn    by viewModel.pendingTransaction.collectAsState()
     val replyTo       by viewModel.replyTo.collectAsState()
     val chats         by viewModel.chats.collectAsState()
-    val nicknames     by accountViewModel.nicknames.collectAsState()
-    val friends       by accountViewModel.friends.collectAsState()
+    val friends       by viewModel.friends.collectAsState()
     var text          by remember { mutableStateOf("") }
     val listState     = rememberLazyListState()
     val currentUserId = UserSession.userId ?: ""
     val scope         = rememberCoroutineScope()
 
-    // Map של senderId → phone לשימוש בחיפוש כינויים ב-ReplySnapshot
-    // בנוי מרשימת החברים: friend.name → friend.phone, ואז הודעות → senderId → senderName → phone
+    // ← nicknames נטענים ישירות מהשרת — לא תלויים ב-AccountViewModel instance
+    var nicknames by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    // שם תצוגה — מתעדכן מיידית אחרי שינוי כינוי
+    var displayChatName by remember { mutableStateOf(chatName) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val response = RetrofitClient.apiService.getAllNicknames()
+            if (response.isSuccessful) {
+                val loaded = response.body() ?: emptyMap()
+                nicknames = loaded
+                // אם יש כינוי קיים — מציג אותו מיד ב-TopBar
+                if (otherPhone.isNotBlank()) {
+                    val existingNick = loaded[otherPhone]
+                    if (!existingNick.isNullOrBlank()) displayChatName = existingNick
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
     val senderPhones: Map<String, String> = remember(messages, friends) {
         val nameToPhone = friends.associate { it.name to it.phone }
         messages.associate { msg -> msg.senderId to (nameToPhone[msg.senderName] ?: "") }
     }
 
-    // ─── שינוי כינוי (גלובלי דרך AccountViewModel) ───────────────
     var showNicknameDialog by remember { mutableStateOf(false) }
     var nicknameInput      by remember { mutableStateOf("") }
 
-    // ─── חיפוש ───────────────────────────────────────────────────
     var searchActive by remember { mutableStateOf(false) }
     var searchQuery  by remember { mutableStateOf("") }
     val matchIndices = remember(messages, searchQuery) {
@@ -100,22 +114,14 @@ fun ChatScreen(
     }
     var currentMatchIndex by remember(matchIndices) { mutableIntStateOf(0) }
 
-    // ─── Bottom sheet (אפשרויות הודעה) ───────────────────────────
     var selectedMessage    by remember { mutableStateOf<ChatMessage?>(null) }
     var showMessageSheet   by remember { mutableStateOf(false) }
-
-    // ─── Emoji picker ─────────────────────────────────────────────
     var showEmojiPicker    by remember { mutableStateOf(false) }
     var emojiTargetMessage by remember { mutableStateOf<ChatMessage?>(null) }
-
-    // ─── Forward sheet ────────────────────────────────────────────
     var showForwardSheet   by remember { mutableStateOf(false) }
     var forwardMessage     by remember { mutableStateOf<ChatMessage?>(null) }
-
-    // ─── מחיקה ───────────────────────────────────────────────────
     var messageToDelete    by remember { mutableStateOf<ChatMessage?>(null) }
 
-    // ─── Floating date ────────────────────────────────────────────
     val floatingDateLabel by remember {
         derivedStateOf {
             messages.getOrNull(listState.firstVisibleItemIndex)
@@ -126,7 +132,7 @@ fun ChatScreen(
         derivedStateOf { floatingDateLabel.isNotBlank() && listState.firstVisibleItemIndex > 0 }
     }
 
-    LaunchedEffect(chatId) { viewModel.loadMessages(chatId); viewModel.loadChats() }
+    LaunchedEffect(chatId) { viewModel.loadMessages(chatId); viewModel.loadChats(); viewModel.loadFriends() }
     LaunchedEffect(initialPendingTxn) { initialPendingTxn?.let { viewModel.setPendingTransaction(it) } }
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty() && !searchActive) listState.animateScrollToItem(messages.size - 1)
@@ -142,35 +148,28 @@ fun ChatScreen(
                 confirmButton = {
                     Button(
                         onClick = {
-                            messageToDelete?.let { msg ->
-                                viewModel.deleteMessage(chatId = chatId, messageId = msg.id)
-                            }
+                            messageToDelete?.let { viewModel.deleteMessage(chatId, it.id) }
                             messageToDelete = null
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE23125))
                     ) { Text("Delete") }
                 },
-                dismissButton = {
-                    TextButton(onClick = { messageToDelete = null }) { Text("Cancel") }
-                },
+                dismissButton = { TextButton(onClick = { messageToDelete = null }) { Text("Cancel") } },
                 shape = RoundedCornerShape(16.dp)
             )
         }
     }
 
-    // ─── דיאלוג שינוי כינוי (גלובלי) ────────────────────────────
+    // ─── דיאלוג שינוי כינוי ──────────────────────────────────────
     if (showNicknameDialog && otherPhone.isNotBlank()) {
-        val currentNick = nicknames[otherPhone] ?: ""
         CompositionLocalProvider(LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
             AlertDialog(
                 onDismissRequest = { showNicknameDialog = false },
                 title = { Text("Rename $chatName", fontWeight = FontWeight.Bold) },
                 text  = {
                     Column {
-                        Text(
-                            "Set a custom name for $chatName.\nLeave blank to use the original name.",
-                            fontSize = 13.sp, color = Color.Gray
-                        )
+                        Text("Set a custom name for $chatName.\nLeave blank to use the original name.",
+                            fontSize = 13.sp, color = Color.Gray)
                         Spacer(Modifier.height(12.dp))
                         OutlinedTextField(
                             value         = nicknameInput,
@@ -186,49 +185,40 @@ fun ChatScreen(
                 confirmButton = {
                     Button(
                         onClick = {
-                            accountViewModel.setNickname(otherPhone, nicknameInput.trim())
+                            // ← משתמש ב-callback שמגיע מה-AppNavigation עם ה-accountViewModelGlobal
+                            val newNick = nicknameInput.trim()
+                            onSetNickname(otherPhone, newNick)
+                            // עדכון מקומי מיידי — nicknames + שם בTopBar
+                            nicknames = if (newNick.isBlank()) {
+                                nicknames - otherPhone
+                            } else {
+                                nicknames + (otherPhone to newNick)
+                            }
+                            displayChatName = if (newNick.isBlank()) chatName else newNick
                             showNicknameDialog = false
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = CardifyColors.DarkGreen)
                     ) { Text("Save") }
                 },
-                dismissButton = {
-                    TextButton(onClick = { showNicknameDialog = false }) { Text("Cancel") }
-                },
+                dismissButton = { TextButton(onClick = { showNicknameDialog = false }) { Text("Cancel") } },
                 shape = RoundedCornerShape(16.dp)
             )
         }
     }
 
-    // ─── Bottom sheet: אפשרויות הודעה ────────────────────────────
     if (showMessageSheet && selectedMessage != null) {
         val msg = selectedMessage!!
         MessageOptionsSheet(
-            message       = msg,
-            isMe          = msg.senderId == currentUserId,
-            onDismiss     = { showMessageSheet = false; selectedMessage = null },
-            onReact       = {
-                emojiTargetMessage = msg
-                showMessageSheet   = false
-                showEmojiPicker    = true
-            },
-            onReply       = {
-                viewModel.setReplyTo(msg)
-                showMessageSheet = false
-            },
-            onForward     = {
-                forwardMessage   = msg
-                showMessageSheet = false
-                showForwardSheet = true
-            },
-            onDelete      = {
-                messageToDelete  = msg
-                showMessageSheet = false
-            }
+            message   = msg,
+            isMe      = msg.senderId == currentUserId,
+            onDismiss = { showMessageSheet = false; selectedMessage = null },
+            onReact   = { emojiTargetMessage = msg; showMessageSheet = false; showEmojiPicker = true },
+            onReply   = { viewModel.setReplyTo(msg); showMessageSheet = false },
+            onForward = { forwardMessage = msg; showMessageSheet = false; showForwardSheet = true },
+            onDelete  = { messageToDelete = msg; showMessageSheet = false }
         )
     }
 
-    // ─── Emoji picker ─────────────────────────────────────────────
     if (showEmojiPicker && emojiTargetMessage != null) {
         EmojiPickerSheet(
             message       = emojiTargetMessage!!,
@@ -236,27 +226,20 @@ fun ChatScreen(
             onDismiss     = { showEmojiPicker = false; emojiTargetMessage = null },
             onEmojiPick   = { emoji ->
                 viewModel.reactToMessage(chatId, emojiTargetMessage!!.id, emoji, currentUserId)
-                showEmojiPicker    = false
-                emojiTargetMessage = null
+                showEmojiPicker = false; emojiTargetMessage = null
             }
         )
     }
 
-    // ─── Forward sheet ────────────────────────────────────────────
     if (showForwardSheet && forwardMessage != null) {
         ForwardSheet(
-            chats          = chats,
-            currentUserId  = currentUserId,
-            currentChatId  = chatId,
-            onDismiss      = { showForwardSheet = false; forwardMessage = null },
-            onSelect       = { targetChat ->
-                viewModel.forwardMessage(
-                    targetChatId = targetChat.id,
-                    message      = forwardMessage!!
-                )
-                showForwardSheet = false
-                forwardMessage   = null
-                // מנווט לצ'ט היעד
+            chats         = chats,
+            currentUserId = currentUserId,
+            currentChatId = chatId,
+            onDismiss     = { showForwardSheet = false; forwardMessage = null },
+            onSelect      = { targetChat ->
+                viewModel.forwardMessage(targetChatId = targetChat.id, message = forwardMessage!!)
+                showForwardSheet = false; forwardMessage = null
                 onNavigateToChat?.invoke(targetChat)
             }
         )
@@ -278,11 +261,11 @@ fun ChatScreen(
                                 focusedTextColor     = Color.White,
                                 unfocusedTextColor   = Color.White,
                                 cursorColor          = Color.White),
-                            shape = RoundedCornerShape(20.dp),
+                            shape    = RoundedCornerShape(20.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
                     } else {
-                        Text(chatName, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                        Text(displayChatName, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                     }
                 },
                 navigationIcon = {
@@ -316,7 +299,7 @@ fun ChatScreen(
                             Icon(Icons.Default.Close, null, tint = Color.White)
                         }
                     } else {
-                        // כפתור שינוי כינוי — רק בצ'ט 1:1 עם טלפון ידוע
+                        // כפתור עריכת כינוי — תמיד בצ'ט 1:1
                         if (!isGroup && otherPhone.isNotBlank()) {
                             IconButton(onClick = {
                                 nicknameInput      = nicknames[otherPhone] ?: ""
@@ -379,7 +362,6 @@ fun ChatScreen(
                                     senderPhones = senderPhones
                                 )
                                 text = ""
-                                // נקה את ה-pending מה-savedStateHandle אחרי שליחה
                                 if (hadPendingTxn) onTransactionSent?.invoke()
                             }
                         },
@@ -448,7 +430,6 @@ fun ChatScreen(
                     }
                 }
 
-                // ─── Floating date ────────────────────────────────
                 AnimatedVisibility(
                     visible  = showFloatingDate,
                     enter    = fadeIn(), exit = fadeOut(),
@@ -463,7 +444,6 @@ fun ChatScreen(
                     )
                 }
 
-                // ─── Scroll to bottom ─────────────────────────────
                 AnimatedVisibility(
                     visible  = showScrollButton,
                     enter    = fadeIn() + scaleIn(), exit = fadeOut() + scaleOut(),
@@ -510,7 +490,6 @@ fun MessageOptionsSheet(
             modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // תצוגת ההודעה (preview קצר)
             if (!message.deleted) {
                 val preview = when {
                     message.audioUrl != null    -> "🎤 Voice message"
@@ -529,28 +508,13 @@ fun MessageOptionsSheet(
                     }
                 }
             }
-
             Spacer(Modifier.height(8.dp))
-
-            // ─── React ───
-            OptionRow(icon = "😊", label = "React",
-                color = CardifyColors.DarkGreen, onClick = onReact)
-
-            // ─── Reply ───
-            OptionRow(icon = "↩", label = "Reply",
-                color = CardifyColors.DarkGreen, onClick = onReply)
-
-            // ─── Forward ───
-            if (!message.deleted) {
-                OptionRow(icon = "↪", label = "Forward",
-                    color = CardifyColors.DarkGreen, onClick = onForward)
-            }
-
-            // ─── Delete (רק המשתמש עצמו) ───
+            OptionRow("😊", "React",   CardifyColors.DarkGreen, onReact)
+            OptionRow("↩",  "Reply",   CardifyColors.DarkGreen, onReply)
+            if (!message.deleted) OptionRow("↪", "Forward", CardifyColors.DarkGreen, onForward)
             if (isMe && !message.deleted) {
                 Divider(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
-                OptionRow(icon = "🗑", label = "Delete",
-                    color = Color(0xFFE23125), onClick = onDelete)
+                OptionRow("🗑", "Delete", Color(0xFFE23125), onDelete)
             }
         }
     }
@@ -559,8 +523,7 @@ fun MessageOptionsSheet(
 @Composable
 private fun OptionRow(icon: String, label: String, color: Color, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth()
-            .clickable { onClick() }
+        modifier = Modifier.fillMaxWidth().clickable { onClick() }
             .padding(horizontal = 24.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -603,11 +566,8 @@ fun EmojiPickerSheet(
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth().height(440.dp)) {
-            // כותרת
             Text("React", fontWeight = FontWeight.Bold, fontSize = 16.sp,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-
-            // Tab categories
             ScrollableTabRow(
                 selectedTabIndex = selectedCategory,
                 containerColor   = Color.White,
@@ -615,18 +575,13 @@ fun EmojiPickerSheet(
                 edgePadding      = 8.dp
             ) {
                 EMOJI_CATEGORIES.forEachIndexed { index, (label, _) ->
-                    Tab(
-                        selected = selectedCategory == index,
+                    Tab(selected = selectedCategory == index,
                         onClick  = { selectedCategory = index },
-                        text     = { Text(label.split(" ").first(), fontSize = 18.sp) }
-                    )
+                        text     = { Text(label.split(" ").first(), fontSize = 18.sp) })
                 }
             }
-
-            // Emoji grid
             val emojis = EMOJI_CATEGORIES[selectedCategory].second
             val myCurrentEmoji = message.reactions[currentUserId] ?: ""
-
             LazyColumn(modifier = Modifier.fillMaxSize().padding(8.dp)) {
                 val rows = emojis.chunked(8)
                 items(rows) { row ->
@@ -635,20 +590,12 @@ fun EmojiPickerSheet(
                         row.forEach { emoji ->
                             val isSelected = emoji == myCurrentEmoji
                             Box(
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        if (isSelected) CardifyColors.DarkGreen.copy(alpha = 0.2f)
-                                        else Color.Transparent
-                                    )
+                                modifier = Modifier.size(42.dp).clip(CircleShape)
+                                    .background(if (isSelected) CardifyColors.DarkGreen.copy(alpha = 0.2f) else Color.Transparent)
                                     .clickable { onEmojiPick(emoji) },
                                 contentAlignment = Alignment.Center
-                            ) {
-                                Text(emoji, fontSize = 22.sp)
-                            }
+                            ) { Text(emoji, fontSize = 22.sp) }
                         }
-                        // ממלא שורה חסרה
                         repeat(8 - row.size) { Spacer(Modifier.size(42.dp)) }
                     }
                 }
@@ -669,11 +616,7 @@ fun ForwardSheet(
     onSelect:      (Chat) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    // מסנן את הצ'ט הנוכחי — אין טעם להעביר הודעה לאותו מקום
-    val otherChats = remember(chats, currentChatId) {
-        chats.filter { it.id != currentChatId }
-    }
+    val otherChats = remember(chats, currentChatId) { chats.filter { it.id != currentChatId } }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -684,30 +627,17 @@ fun ForwardSheet(
         Column(modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp)) {
             Text("Forward to...", fontWeight = FontWeight.Bold, fontSize = 18.sp,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp))
-
             if (otherChats.isEmpty()) {
-                // אין צ'טים אחרים — מציג הודעה ידידותית
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 40.dp, horizontal = 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp, horizontal = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("💬", fontSize = 40.sp)
                     Spacer(Modifier.height(12.dp))
-                    Text(
-                        "No other chats to forward to",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize   = 15.sp,
-                        color      = Color.DarkGray
-                    )
+                    Text("No other chats to forward to", fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp, color = Color.DarkGray)
                     Spacer(Modifier.height(6.dp))
-                    Text(
-                        "Start a new conversation first,\nthen you can forward messages there.",
-                        fontSize  = 13.sp,
-                        color     = Color.Gray,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
+                    Text("Start a new conversation first,\nthen you can forward messages there.",
+                        fontSize = 13.sp, color = Color.Gray,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 }
             } else {
                 LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
@@ -716,24 +646,17 @@ fun ForwardSheet(
                             chat.groupName.ifBlank { "Group" }
                         } else {
                             val otherId = chat.participants.firstOrNull { it != currentUserId } ?: ""
-                            chat.displayNames[otherId]
-                                ?: chat.participantNames[otherId]
-                                ?: "Chat"
+                            chat.displayNames[otherId] ?: chat.participantNames[otherId] ?: "Chat"
                         }
-                        val initials = displayName.take(1).uppercase()
-
                         Row(
-                            modifier = Modifier.fillMaxWidth()
-                                .clickable { onSelect(chat) }
+                            modifier = Modifier.fillMaxWidth().clickable { onSelect(chat) }
                                 .padding(horizontal = 20.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                modifier = Modifier.size(46.dp).clip(CircleShape)
-                                    .background(CardifyColors.DarkGreen.copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(initials, fontSize = 18.sp,
+                            Box(modifier = Modifier.size(46.dp).clip(CircleShape)
+                                .background(CardifyColors.DarkGreen.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center) {
+                                Text(displayName.take(1).uppercase(), fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold, color = CardifyColors.DarkGreen)
                             }
                             Spacer(Modifier.width(12.dp))
@@ -776,7 +699,6 @@ fun MessageBubble(
     val THRESHOLD = 80f
     val scope     = rememberCoroutineScope()
 
-    // שם תצוגה של השולח — כינוי אם קיים
     val senderDisplayName = remember(message.senderId, nicknames, senderPhones) {
         val phone = senderPhones[message.senderId] ?: ""
         if (phone.isNotBlank()) nicknames[phone]?.takeIf { it.isNotBlank() } ?: message.senderName
@@ -788,23 +710,16 @@ fun MessageBubble(
         animationSpec = tween(300), label = "highlight"
     )
 
-    // ─── הודעה שנמחקה ─────────────────────────────────────────────
     if (message.deleted) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-            horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start
-        ) {
-            Box(
-                modifier = Modifier
-                    .widthIn(max = 200.dp)
-                    .background(Color(0xFFEEEEEE), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
+        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+            horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start) {
+            Box(modifier = Modifier.widthIn(max = 200.dp)
+                .background(Color(0xFFEEEEEE), RoundedCornerShape(12.dp))
+                .padding(horizontal = 12.dp, vertical = 8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("🗑", fontSize = 14.sp)
-                    Text("Message deleted", fontSize = 13.sp, color = Color.Gray,
-                        fontStyle = FontStyle.Italic)
+                    Text("Message deleted", fontSize = 13.sp, color = Color.Gray, fontStyle = FontStyle.Italic)
                 }
             }
         }
@@ -812,8 +727,7 @@ fun MessageBubble(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = Modifier.fillMaxWidth()
             .background(CardifyColors.DarkGreen.copy(alpha = highlightAlpha))
             .padding(vertical = if (isHighlighted) 2.dp else 0.dp)
             .pointerInput(Unit) {
@@ -825,9 +739,7 @@ fun MessageBubble(
                         }
                     },
                     onHorizontalDrag = { _, dragAmount ->
-                        scope.launch {
-                            offsetX.snapTo((offsetX.value + dragAmount).coerceIn(0f, 120f))
-                        }
+                        scope.launch { offsetX.snapTo((offsetX.value + dragAmount).coerceIn(0f, 120f)) }
                     }
                 )
             }
@@ -836,54 +748,35 @@ fun MessageBubble(
     ) {
         if (offsetX.value > 20f) {
             Icon(Icons.Default.Reply, null,
-                tint = CardifyColors.DarkGreen.copy(
-                    alpha = (offsetX.value / THRESHOLD).coerceIn(0f, 1f)),
+                tint = CardifyColors.DarkGreen.copy(alpha = (offsetX.value / THRESHOLD).coerceIn(0f, 1f)),
                 modifier = Modifier.size(22.dp).align(Alignment.Start).padding(start = 4.dp))
         }
-
         if (!isMe && showSenderName) {
             Text(senderDisplayName, fontSize = 11.sp, color = CardifyColors.DarkGreen,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(start = 4.dp, bottom = 2.dp))
         }
-
-        // ─── Forwarded label ───────────────────────────────────────
         if (message.forwarded) {
-            Row(
-                modifier = Modifier.padding(bottom = 2.dp,
-                    start = if (isMe) 0.dp else 4.dp,
-                    end   = if (isMe) 4.dp else 0.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(modifier = Modifier.padding(bottom = 2.dp,
+                start = if (isMe) 0.dp else 4.dp, end = if (isMe) 4.dp else 0.dp),
+                verticalAlignment = Alignment.CenterVertically) {
                 Text("↪ ", fontSize = 11.sp, color = Color.Gray)
-                Text("Forwarded", fontSize = 11.sp, color = Color.Gray,
-                    fontStyle = FontStyle.Italic)
+                Text("Forwarded", fontSize = 11.sp, color = Color.Gray, fontStyle = FontStyle.Italic)
             }
         }
-
         Column(
-            modifier = Modifier
-                .widthIn(max = 280.dp)
+            modifier = Modifier.widthIn(max = 280.dp)
                 .background(
                     if (isMe) CardifyColors.DarkGreen else Color.White,
-                    RoundedCornerShape(
-                        topStart    = 16.dp, topEnd = 16.dp,
+                    RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp,
                         bottomStart = if (isMe) 16.dp else 4.dp,
-                        bottomEnd   = if (isMe) 4.dp  else 16.dp
-                    )
-                )
-                .pointerInput(isMe) {
-                    detectTapGestures(onLongPress = { onLongPress() })
-                }
+                        bottomEnd   = if (isMe) 4.dp  else 16.dp))
+                .pointerInput(isMe) { detectTapGestures(onLongPress = { onLongPress() }) }
                 .padding(12.dp)
         ) {
             if (message.replyToMessage != null) {
-                QuotedMessage(
-                    reply        = message.replyToMessage,
-                    isMe         = isMe,
-                    nicknames    = nicknames,
-                    senderPhones = senderPhones
-                )
+                QuotedMessage(reply = message.replyToMessage, isMe = isMe,
+                    nicknames = nicknames, senderPhones = senderPhones)
                 Spacer(Modifier.height(6.dp))
             }
             if (message.transaction != null) {
@@ -894,21 +787,13 @@ fun MessageBubble(
                 Text(message.text, fontSize = 14.sp,
                     color = if (isMe) Color.White else Color.Black)
             }
-            Text(
-                formatChatTime(message.timestamp), fontSize = 10.sp,
+            Text(formatChatTime(message.timestamp), fontSize = 10.sp,
                 color = if (isMe) Color.White.copy(alpha = 0.7f) else Color.Gray,
-                modifier = Modifier.align(Alignment.End).padding(top = 4.dp)
-            )
+                modifier = Modifier.align(Alignment.End).padding(top = 4.dp))
         }
-
-        // ─── Reactions bar ─────────────────────────────────────────
         if (message.reactions.isNotEmpty()) {
-            ReactionsBar(
-                reactions     = message.reactions,
-                currentUserId = currentUserId,
-                isMe          = isMe,
-                onReactionClick = onReactionClick
-            )
+            ReactionsBar(reactions = message.reactions, currentUserId = currentUserId,
+                isMe = isMe, onReactionClick = onReactionClick)
         }
     }
 }
@@ -922,79 +807,53 @@ fun ReactionsBar(
     isMe: Boolean,
     onReactionClick: (String) -> Unit
 ) {
-    // קיבוץ לפי אימוג'י: emoji → count
     val grouped = reactions.values.groupBy { it }.mapValues { it.value.size }
     val myEmoji = reactions[currentUserId] ?: ""
-
     LazyRow(
         modifier = Modifier.padding(top = 3.dp,
-            start = if (isMe) 0.dp else 4.dp,
-            end   = if (isMe) 4.dp else 0.dp),
+            start = if (isMe) 0.dp else 4.dp, end = if (isMe) 4.dp else 0.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         items(grouped.entries.toList()) { (emoji, count) ->
             val isMine = emoji == myEmoji
             Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        if (isMine) CardifyColors.DarkGreen.copy(alpha = 0.15f)
-                        else Color(0xFFF0F0F0)
-                    )
+                modifier = Modifier.clip(RoundedCornerShape(12.dp))
+                    .background(if (isMine) CardifyColors.DarkGreen.copy(alpha = 0.15f) else Color(0xFFF0F0F0))
                     .clickable { onReactionClick(emoji) }
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
-                Text(
-                    buildAnnotatedString {
-                        append(emoji)
-                        if (count > 1) {
-                            append(" ")
-                            withStyle(SpanStyle(fontSize = 11.sp, color = Color.Gray)) {
-                                append(count.toString())
-                            }
-                        }
-                    },
-                    fontSize = 14.sp
-                )
+                Text(buildAnnotatedString {
+                    append(emoji)
+                    if (count > 1) { append(" "); withStyle(SpanStyle(fontSize = 11.sp, color = Color.Gray)) { append(count.toString()) } }
+                }, fontSize = 14.sp)
             }
         }
     }
 }
 
-// ─── שאר ה-Composables ────────────────────────────────────────────────────────
-
 @Composable
 fun QuotedMessage(
-    reply: ReplySnapshot,
-    isMe: Boolean,
-    nicknames:    Map<String, String> = emptyMap(),
+    reply: ReplySnapshot, isMe: Boolean,
+    nicknames: Map<String, String> = emptyMap(),
     senderPhones: Map<String, String> = emptyMap()
 ) {
     val bgColor   = if (isMe) Color.White.copy(alpha = 0.15f) else Color(0xFFF0F0F0)
     val textColor = if (isMe) Color.White else Color.Black
     val nameColor = if (isMe) Color.White.copy(alpha = 0.9f) else CardifyColors.DarkGreen
     val barColor  = if (isMe) Color.White.copy(alpha = 0.6f) else CardifyColors.DarkGreen
-
-    // השם שיוצג — ה-senderName כבר נשמר עם הכינוי להודעות חדשות.
-    // להודעות ישנות עם שם מקורי — אין דרך לדעת את ה-phone, אז מציגים כמו שיש
-    val displayName = reply.senderName
-
-    Row(
-        modifier = Modifier.fillMaxWidth()
-            .background(bgColor, RoundedCornerShape(8.dp)).padding(end = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+    Row(modifier = Modifier.fillMaxWidth()
+        .background(bgColor, RoundedCornerShape(8.dp)).padding(end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically) {
         Box(modifier = Modifier.width(3.dp).height(36.dp)
             .background(barColor, RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)))
         Spacer(Modifier.width(8.dp))
         Column(modifier = Modifier.padding(vertical = 6.dp)) {
-            Text(displayName, fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold, color = nameColor)
+            Text(reply.senderName, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = nameColor)
             val preview = when {
-                reply.isAudio                   -> "🎤 Voice message"
+                reply.isAudio -> "🎤 Voice message"
                 reply.businessName.isNotBlank() -> "📊 ${reply.businessName}"
-                reply.text.isNotBlank()         -> reply.text.take(60)
-                else                            -> ""
+                reply.text.isNotBlank() -> reply.text.take(60)
+                else -> ""
             }
             if (preview.isNotBlank()) {
                 Text(preview, fontSize = 12.sp, color = textColor.copy(alpha = 0.75f),
@@ -1006,29 +865,25 @@ fun QuotedMessage(
 
 @Composable
 fun ReplyPreview(
-    message:      ChatMessage,
-    nicknames:    Map<String, String> = emptyMap(),
+    message: ChatMessage,
+    nicknames: Map<String, String> = emptyMap(),
     senderPhones: Map<String, String> = emptyMap(),
-    onRemove:     () -> Unit
+    onRemove: () -> Unit
 ) {
-    // שם תצוגה — כינוי אם קיים
     val phone       = senderPhones[message.senderId] ?: ""
     val displayName = if (phone.isNotBlank())
         nicknames[phone]?.takeIf { it.isNotBlank() } ?: message.senderName
     else message.senderName
-
-    Row(
-        modifier = Modifier.fillMaxWidth()
-            .background(CardifyColors.DarkGreen.copy(alpha = 0.08f))
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+    Row(modifier = Modifier.fillMaxWidth()
+        .background(CardifyColors.DarkGreen.copy(alpha = 0.08f))
+        .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically) {
         Box(modifier = Modifier.width(3.dp).height(36.dp)
             .background(CardifyColors.DarkGreen, RoundedCornerShape(2.dp)))
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
-            Text(displayName, fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold, color = CardifyColors.DarkGreen)
+            Text(displayName, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                color = CardifyColors.DarkGreen)
             val preview = when {
                 message.audioUrl != null    -> "🎤 Voice message"
                 message.transaction != null -> "📊 ${message.transaction.businessName}"
@@ -1046,13 +901,9 @@ fun ReplyPreview(
 @Composable
 fun TransactionCard(txn: ChatTransaction, isMe: Boolean) {
     val textColor = if (isMe) Color.White else Color.Black
-    Column(
-        modifier = Modifier.fillMaxWidth()
-            .background(
-                if (isMe) Color.White.copy(alpha = 0.15f) else Color(0xFFF0F0F0),
-                RoundedCornerShape(10.dp))
-            .padding(10.dp)
-    ) {
+    Column(modifier = Modifier.fillMaxWidth()
+        .background(if (isMe) Color.White.copy(alpha = 0.15f) else Color(0xFFF0F0F0),
+            RoundedCornerShape(10.dp)).padding(10.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(txn.businessName, fontWeight = FontWeight.Bold, fontSize = 13.sp,
                 color = textColor, modifier = Modifier.weight(1f))
@@ -1066,8 +917,8 @@ fun TransactionCard(txn: ChatTransaction, isMe: Boolean) {
             Text(txn.date, fontSize = 11.sp,
                 color = if (isMe) Color.White.copy(alpha = 0.8f) else Color.Gray)
         }
-        val statusLabel = if (txn.status == "IRREGULAR") "⚠️ Irregular" else "✓ Regular"
-        Text(statusLabel, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+        Text(if (txn.status == "IRREGULAR") "⚠️ Irregular" else "✓ Regular",
+            fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
             color = if (txn.status == "IRREGULAR") Color(0xFFE23125)
             else if (isMe) Color.White.copy(alpha = 0.9f) else Color(0xFF38D325))
         if (txn.explanation.isNotBlank() && txn.status == "IRREGULAR") {
@@ -1080,17 +931,14 @@ fun TransactionCard(txn: ChatTransaction, isMe: Boolean) {
 
 @Composable
 fun PendingTransactionPreview(txn: ChatTransaction, onRemove: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth()
-            .background(CardifyColors.DarkGreen.copy(alpha = 0.1f))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+    Row(modifier = Modifier.fillMaxWidth()
+        .background(CardifyColors.DarkGreen.copy(alpha = 0.1f))
+        .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text("📊 ${txn.businessName}", fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold, color = CardifyColors.DarkGreen)
-            Text("₪${"%.2f".format(txn.amount)} • ${txn.status}",
-                fontSize = 11.sp, color = Color.Gray)
+            Text("₪${"%.2f".format(txn.amount)} • ${txn.status}", fontSize = 11.sp, color = Color.Gray)
         }
         TextButton(onClick = onRemove) { Text("Remove", color = Color.Red, fontSize = 12.sp) }
     }
@@ -1115,7 +963,7 @@ fun extractDateLabel(timestamp: String): String {
         when (date) {
             today              -> "Today"
             today.minusDays(1) -> "Yesterday"
-            else               -> "%02d/%02d/%d".format(date.dayOfMonth, date.monthValue, date.year)
+            else -> "%02d/%02d/%d".format(date.dayOfMonth, date.monthValue, date.year)
         }
     } catch (e: Exception) { "" }
 }
@@ -1124,10 +972,8 @@ fun extractDateLabel(timestamp: String): String {
 fun DateHeader(label: String) {
     Box(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         contentAlignment = Alignment.Center) {
-        Text(text = label, fontSize = 11.sp, color = Color.White,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier
-                .background(Color(0xFFAAAAAA), RoundedCornerShape(10.dp))
+        Text(text = label, fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.background(Color(0xFFAAAAAA), RoundedCornerShape(10.dp))
                 .padding(horizontal = 12.dp, vertical = 3.dp))
     }
 }

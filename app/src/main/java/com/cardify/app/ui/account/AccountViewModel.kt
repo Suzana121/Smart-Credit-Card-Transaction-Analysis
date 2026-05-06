@@ -32,6 +32,10 @@ class AccountViewModel(
     private val _phone = MutableStateFlow(UserSession.phone ?: "")
     val phone: StateFlow<String> = _phone
 
+    // ← חדש: תמונת פרופיל
+    private val _profileImage = MutableStateFlow(UserSession.profileImage ?: "")
+    val profileImage: StateFlow<String> = _profileImage
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
@@ -41,7 +45,6 @@ class AccountViewModel(
     private val _requests = MutableStateFlow<List<Friend>>(emptyList())
     val requests: StateFlow<List<Friend>> = _requests
 
-    /** Map של phone → nickname (כינויים גלובליים) */
     private val _nicknames = MutableStateFlow<Map<String, String>>(emptyMap())
     val nicknames: StateFlow<Map<String, String>> = _nicknames
 
@@ -66,10 +69,6 @@ class AccountViewModel(
         }
     }
 
-    /**
-     * מגדיר כינוי גלובלי לחבר.
-     * nickname="" → מסיר כינוי (חוזר לשם המקורי).
-     */
     fun setNickname(
         phone:     String,
         nickname:  String,
@@ -82,7 +81,6 @@ class AccountViewModel(
                     phone, SetNicknameRequest(nickname)
                 )
                 if (response.isSuccessful) {
-                    // עדכון מקומי מיידי
                     _nicknames.value = if (nickname.isBlank()) {
                         _nicknames.value - phone
                     } else {
@@ -99,7 +97,6 @@ class AccountViewModel(
         }
     }
 
-    /** מחזיר את שם התצוגה של חבר — כינוי אם קיים, אחרת שם מקורי */
     fun displayNameFor(friend: Friend): String =
         _nicknames.value[friend.phone]?.takeIf { it.isNotBlank() } ?: friend.name
 
@@ -135,9 +132,9 @@ class AccountViewModel(
         viewModelScope.launch {
             try {
                 val options = mapOf(
-                    "phone"            to friend.phone,
-                    "delete_sent"      to deleteSentShares,
-                    "delete_received"  to deleteReceivedShares
+                    "phone"           to friend.phone,
+                    "delete_sent"     to deleteSentShares,
+                    "delete_received" to deleteReceivedShares
                 )
                 val response = RetrofitClient.apiService.deleteFriendWithOptions(options)
                 if (response.isSuccessful) loadFriendsData()
@@ -153,12 +150,16 @@ class AccountViewModel(
         viewModelScope.launch {
             _isLoading.value = true
             repository.fetchUserData().onSuccess { user ->
-                _username.value = user.name
-                _email.value    = user.email
-                _phone.value    = user.phone ?: ""
-                UserSession.username = user.name
-                UserSession.email    = user.email
-                UserSession.phone    = user.phone
+                _username.value     = user.name
+                _email.value        = user.email
+                _phone.value        = user.phone ?: ""
+                _profileImage.value = user.profileImage ?: ""  // ← עדכון תמונה
+
+                // שמירה ב-UserSession כדי שיהיה זמין בכל המסכים
+                UserSession.username     = user.name
+                UserSession.email        = user.email
+                UserSession.phone        = user.phone
+                UserSession.profileImage = user.profileImage
             }.onFailure { e ->
                 Log.e("AccountVM", "Failed to fetch user data", e)
             }
@@ -176,9 +177,9 @@ class AccountViewModel(
                 } else {
                     val err = response.errorBody()?.string() ?: ""
                     onResult(when {
-                        err.contains("yourself")      -> "You cannot add yourself"
-                        err.contains("already exists")-> "Request already exists"
-                        else                          -> "User not found"
+                        err.contains("yourself")       -> "You cannot add yourself"
+                        err.contains("already exists") -> "Request already exists"
+                        else                           -> "User not found"
                     })
                 }
             } catch (e: Exception) {
@@ -196,10 +197,10 @@ class AccountViewModel(
     fun searchUser(phone: String) {
         searchErrorMessage = null; searchedUser = null
         val clean = phone.trim()
-        if (clean.isEmpty())                           { searchErrorMessage = "Please enter a phone number"; return }
-        if (!clean.all { it.isDigit() })               { searchErrorMessage = "Digits only"; return }
-        if (clean.length < 9 || clean.length > 10)    { searchErrorMessage = "9-10 digits required"; return }
-        if (clean == UserSession.phone)                { searchErrorMessage = "You cannot add yourself"; return }
+        if (clean.isEmpty())                        { searchErrorMessage = "Please enter a phone number"; return }
+        if (!clean.all { it.isDigit() })            { searchErrorMessage = "Digits only"; return }
+        if (clean.length < 9 || clean.length > 10) { searchErrorMessage = "9-10 digits required"; return }
+        if (clean == UserSession.phone)             { searchErrorMessage = "You cannot add yourself"; return }
 
         viewModelScope.launch {
             isSearching = true

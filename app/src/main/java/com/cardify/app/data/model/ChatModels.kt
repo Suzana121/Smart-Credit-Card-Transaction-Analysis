@@ -3,16 +3,17 @@ package com.cardify.app.data.model
 import com.google.gson.annotations.SerializedName
 
 data class Chat(
-    @SerializedName("id")               val id: String = "",
-    @SerializedName("participants")     val participants: List<String> = emptyList(),
-    @SerializedName("participantNames") val participantNames: Map<String, String> = emptyMap(),
-    /** displayNames — שמות תצוגה עם כינויים גלובליים (מגיע מהשרת) */
-    @SerializedName("displayNames")     val displayNames: Map<String, String> = emptyMap(),
-    @SerializedName("isGroup")          val isGroup: Boolean = false,
-    @SerializedName("groupName")        val groupName: String = "",
-    @SerializedName("lastMessage")      val lastMessage: String = "",
-    @SerializedName("lastMessageAt")    val lastMessageAt: String = "",
-    @SerializedName("unreadCount")      val unreadCount: Int = 0
+    @SerializedName("id")                  val id: String = "",
+    @SerializedName("participants")        val participants: List<String> = emptyList(),
+    @SerializedName("participantNames")    val participantNames: Map<String, String> = emptyMap(),
+    @SerializedName("displayNames")        val displayNames: Map<String, String> = emptyMap(),
+    /** תמונות פרופיל: Map של userId → URL תמונה */
+    @SerializedName("participantPhotos")   val participantPhotos: Map<String, String> = emptyMap(),
+    @SerializedName("isGroup")             val isGroup: Boolean = false,
+    @SerializedName("groupName")           val groupName: String = "",
+    @SerializedName("lastMessage")         val lastMessage: String = "",
+    @SerializedName("lastMessageAt")       val lastMessageAt: String = "",
+    @SerializedName("unreadCount")         val unreadCount: Int = 0
 )
 
 data class ChatMessage(
@@ -66,7 +67,6 @@ data class UnreadResponse(
     @SerializedName("unread") val unread: Int = 0
 )
 
-/** בקשה לשינוי כינוי גלובלי */
 data class SetNicknameRequest(
     @SerializedName("nickname") val nickname: String
 )
