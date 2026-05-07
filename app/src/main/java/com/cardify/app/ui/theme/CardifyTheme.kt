@@ -8,7 +8,7 @@ import androidx.compose.ui.graphics.Color
 private val CardifyColorScheme = lightColorScheme(
     primary = Color(0xFF0D7377),
     onPrimary = Color.White,
-    primaryContainer = Color(0xFF14FFEC),
+    primaryContainer = Color(0x29034C64),
     secondary = Color(0xFFA0FF9D),
     background = Color.White,
     onBackground = Color(0xFF1A1A1A),

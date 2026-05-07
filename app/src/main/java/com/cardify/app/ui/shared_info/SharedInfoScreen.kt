@@ -48,7 +48,7 @@
 //
 //            if (isLoading) {
 //                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-//                    CircularProgressIndicator(color = CardifyColors.DarkGreen)
+//                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
 //                }
 //            } else if (shares.isEmpty()) {
 //                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -87,7 +87,7 @@
 //            Text(
 //                text = if (isOutgoing) "To: $displayContact" else "From: $displayContact",
 //                fontWeight = FontWeight.Bold,
-//                color = CardifyColors.DarkGreen
+//                color = MaterialTheme.colorScheme.primary
 //            )
 //
 //            if (txn != null) {
@@ -117,7 +117,7 @@
 //                modifier = Modifier
 //                    .weight(1f)
 //                    .clip(RoundedCornerShape(12.dp))
-//                    .background(if (isSelected) CardifyColors.DarkGreen else Color.Transparent)
+//                    .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
 //                    .clickable { onDirectionSelected(key) }
 //                    .padding(vertical = 12.dp),
 //                contentAlignment = Alignment.Center

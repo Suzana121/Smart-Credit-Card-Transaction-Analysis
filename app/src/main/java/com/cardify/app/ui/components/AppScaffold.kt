@@ -31,7 +31,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.cardify.app.R
 import com.cardify.app.ui.chat.ChatViewModel
-import com.cardify.app.ui.home.CardifyColors
 
 val AppTeal = Color(0xFF006769)
 
@@ -161,7 +160,7 @@ fun AppScaffold(
                                             BadgedBox(
                                                 badge = {
                                                     if (item.route == "chat" && unreadCount > 0) {
-                                                        Badge(containerColor = CardifyColors.IrregularRed) {
+                                                        Badge(containerColor = Color(0xFFDB0000)) {
                                                             Text(
                                                                 if (unreadCount > 9) "9+" else unreadCount.toString(),
                                                                 fontSize = 9.sp, color = Color.White
