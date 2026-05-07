@@ -2,7 +2,6 @@ package com.cardify.app.ui.home
 
 import android.net.Uri
 import android.widget.Toast
-import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
@@ -33,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
 import com.cardify.app.R
 import com.cardify.app.data.UserSession
 import com.cardify.app.data.model.Transaction
@@ -41,24 +41,18 @@ import com.cardify.app.ui.components.TransactionRow
 import com.cardify.app.ui.components.TransactionRowVariant
 import com.cardify.app.ui.components.toTransactionItem
 import com.cardify.app.ui.components.ProcessingOverlay
-
-object CardifyColors {
-    val DarkGreen      = Color(0xFF006769)
-    val LightGreenText = Color(0xFF9FE88D)
-    val TurquoiseBox   = Color(0xFFE6F7F7)
-    val DashedBorder   = Color(0xFF006769)
-    val IrregularRed   = Color(0xFFE23125)
-    val RegularGreen   = Color(0xFF38D325)
-    val TextPrimary    = Color(0xFF1A1A1A)
-}
+import java.util.Calendar
 
 @Composable
 fun HomeScreen(
+    navController: NavHostController,
     onNavigate: (String) -> Unit = {},
     onShareClick: (Transaction) -> Unit = {},
     viewModel: HomeViewModel = viewModel()
 ) {
-    val context         = LocalContext.current
+    val context = LocalContext.current
+    val colorScheme = MaterialTheme.colorScheme
+
     var expanded        by remember { mutableStateOf(false) }
     var selectedLimit   by remember { mutableStateOf("5") }
     var selectedFile    by remember { mutableStateOf<Uri?>(null) }
@@ -67,9 +61,8 @@ fun HomeScreen(
     val transactions    by viewModel.transactions.collectAsState()
     val isLoading       by viewModel.isLoading.collectAsState()
     val isUploading     by viewModel.isUploading.collectAsState()
-    val isProcessing    by viewModel.isProcessing.collectAsState() // האזנה למצב העיבוד החדש
+    val isProcessing    by viewModel.isProcessing.collectAsState()
     val isSuccess       by viewModel.isSuccess.collectAsState()
-    val uploadMessage   by viewModel.uploadMessage.collectAsState()
     val manualOverrides by viewModel.manualOverrides.collectAsState()
 
     val ibmPlexSans = FontFamily(
@@ -77,30 +70,39 @@ fun HomeScreen(
         Font(R.font.ibm_plex_sans_semibold, FontWeight.SemiBold)
     )
 
-    LaunchedEffect(Unit) { viewModel.fetchTransactions(limit = selectedLimit.toIntOrNull() ?: 5) }
-    LaunchedEffect(manualOverrides) { if (manualOverrides.isNotEmpty()) bannerDismissed = false }
-    LaunchedEffect(uploadMessage) {
-        uploadMessage?.let {
-            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
-            if (it.contains("Success", ignoreCase = true)) selectedFile = null
+    // לוגיקת ברכה לפי שעה
+    val greeting = remember {
+        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        when (hour) {
+            in 5..11 -> "Good morning,"
+            in 12..17 -> "Good afternoon,"
+            in 18..21 -> "Good evening,"
+            else -> "Good night,"
         }
     }
 
-    AppScaffold(currentRoute = "home", onNavigate = onNavigate) { padding ->
+    LaunchedEffect(Unit) { viewModel.fetchTransactions(limit = selectedLimit.toIntOrNull() ?: 5) }
+    LaunchedEffect(manualOverrides) { if (manualOverrides.isNotEmpty()) bannerDismissed = false }
+
+    AppScaffold(
+        navController = navController,
+        onNavigate = onNavigate
+    ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.White)
+                    .background(colorScheme.background)
                     .padding(padding)
             ) {
+                // באנר עדכון מודל AI
                 if (manualOverrides.isNotEmpty()) {
                     if (!bannerDismissed) {
                         UpdateProfileBannerHome(
                             count     = manualOverrides.size,
                             onUpdate  = {
                                 viewModel.updateProfile {
-                                    Toast.makeText(context, "Profile updated successfully!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Profile updated!", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             onDismiss = { bannerDismissed = true },
@@ -111,46 +113,38 @@ fun HomeScreen(
                             modifier = Modifier
                                 .padding(horizontal = 16.dp, vertical = 4.dp)
                                 .clip(RoundedCornerShape(20.dp))
-                                .background(CardifyColors.DarkGreen.copy(alpha = 0.1f))
+                                .background(colorScheme.primary.copy(alpha = 0.1f))
                                 .clickable { bannerDismissed = false }
                                 .padding(horizontal = 12.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(Icons.Default.AutoFixHigh, null,
-                                tint = CardifyColors.DarkGreen, modifier = Modifier.size(14.dp))
+                                tint = colorScheme.primary, modifier = Modifier.size(14.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("${manualOverrides.size} pending update",
-                                fontSize = 12.sp, color = CardifyColors.DarkGreen,
+                                fontSize = 12.sp, color = colorScheme.primary,
                                 fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.width(4.dp))
-                            Icon(Icons.Default.KeyboardArrowRight, null,
-                                tint = CardifyColors.DarkGreen, modifier = Modifier.size(14.dp))
                         }
                     }
                 }
 
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.White)
-                        .padding(horizontal = 16.dp),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     item {
                         Spacer(Modifier.height(10.dp))
                         Column(Modifier.fillMaxWidth()) {
-                            val greeting = when (java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)) {
-                                in 5..11  -> "Good Morning!"
-                                in 12..16 -> "Good Afternoon!"
-                                in 17..20 -> "Good Evening!"
-                                else      -> "Good Night!"
-                            }
-                            Text(greeting, color = CardifyColors.LightGreenText,
-                                fontSize = 18.sp, fontFamily = ibmPlexSans)
+                            Text(
+                                text = greeting,
+                                color = colorScheme.onBackground.copy(alpha = 0.6f),
+                                fontSize = 18.sp,
+                                fontFamily = ibmPlexSans
+                            )
                             Text(
                                 text       = UserSession.username ?: "Guest",
-                                modifier   = Modifier.offset(y = (-12).dp),
-                                color      = CardifyColors.DarkGreen,
+                                modifier   = Modifier.offset(y = (-8).dp),
+                                color      = colorScheme.primary,
                                 fontSize   = 34.sp,
                                 fontFamily = ibmPlexSans,
                                 fontWeight = FontWeight.SemiBold
@@ -174,9 +168,9 @@ fun HomeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Your Last Transactions",
+                            Text("Transactions",
                                 fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
-                                fontFamily = ibmPlexSans)
+                                fontFamily = ibmPlexSans, color = colorScheme.onBackground)
                             FilterDropdown(
                                 selectedLimit  = selectedLimit,
                                 expanded       = expanded,
@@ -184,7 +178,7 @@ fun HomeScreen(
                                 onLimitSelect  = {
                                     selectedLimit = it
                                     expanded = false
-                                    viewModel.fetchTransactions(limit = it.toIntOrNull() ?: 5)
+                                    viewModel.fetchTransactions(limit = it.toInt())
                                 },
                                 ibmPlexSans = ibmPlexSans
                             )
@@ -194,14 +188,8 @@ fun HomeScreen(
                     if (isLoading) {
                         item {
                             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(color = CardifyColors.DarkGreen)
+                                CircularProgressIndicator(color = colorScheme.primary)
                             }
-                        }
-                    } else if (transactions.isEmpty()) {
-                        item {
-                            Text("No transactions found.", color = Color.Gray,
-                                fontFamily = ibmPlexSans,
-                                modifier = Modifier.padding(vertical = 16.dp))
                         }
                     } else {
                         items(transactions) { transaction ->
@@ -217,14 +205,123 @@ fun HomeScreen(
                             )
                         }
                     }
-
                     item { Spacer(Modifier.height(16.dp)) }
                 }
             }
 
-            // הצגת שכבת העיבוד (Processing Overlay) מעל הכל
             if (isProcessing) {
                 ProcessingOverlay(isSuccess = isSuccess)
+            }
+        }
+    }
+}
+
+@Composable
+fun UploadSection(
+    selectedFile: Uri?,
+    isUploading: Boolean,
+    ibmPlexSans: FontFamily,
+    onFileSelected: (Uri?) -> Unit,
+    onUploadClicked: () -> Unit
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { onFileSelected(it) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Upload Transactions", fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = ibmPlexSans)
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth().height(140.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(colorScheme.primaryContainer.copy(alpha = 0.1f))
+                .drawBehind {
+                    drawRoundRect(
+                        color = colorScheme.primary.copy(alpha = 0.3f),
+                        style = Stroke(width = 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)),
+                        cornerRadius = CornerRadius(12.dp.toPx())
+                    )
+                }
+                .clickable { launcher.launch("*/*") },
+            contentAlignment = Alignment.Center
+        ) {
+            if (isUploading) {
+                CircularProgressIndicator(color = colorScheme.primary)
+            } else {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(painterResource(R.drawable.ic_upload_custom), null,
+                        tint = colorScheme.primary, modifier = Modifier.size(30.dp))
+                    Text(if (selectedFile != null) "Ready to Process" else "Tap to Select File",
+                        fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = colorScheme.primary)
+                    Text(selectedFile?.lastPathSegment ?: "CSV or Excel file",
+                        fontSize = 11.sp, color = Color.Gray)
+                }
+            }
+        }
+
+        Button(
+            onClick = onUploadClicked,
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = colorScheme.primary,
+                contentColor = Color.White
+            )
+        ) {
+            Text("Process File", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+fun FilterDropdown(
+    selectedLimit: String,
+    expanded: Boolean,
+    onExpandChange: (Boolean) -> Unit,
+    onLimitSelect: (String) -> Unit,
+    ibmPlexSans: FontFamily
+) {
+    val colorScheme = MaterialTheme.colorScheme
+
+    Box(
+        modifier = Modifier
+            .width(110.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(colorScheme.primaryContainer.copy(alpha = 0.2f))
+            .clickable { onExpandChange(!expanded) }
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+    ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Limit: $selectedLimit",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = ibmPlexSans,
+                    color = colorScheme.primary
+                )
+                Spacer(Modifier.weight(1f))
+                Icon(
+                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = colorScheme.primary
+                )
+            }
+            AnimatedVisibility(visible = expanded) {
+                Column {
+                    listOf("5", "10", "15").forEach { limit ->
+                        Text(
+                            text = limit,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onLimitSelect(limit) }
+                                .padding(vertical = 4.dp),
+                            fontSize = 12.sp,
+                            color = colorScheme.onSurface
+                        )
+                    }
+                }
             }
         }
     }
@@ -236,6 +333,7 @@ fun TransactionRowWithConfirm(
     onShareClick: () -> Unit,
     onStatusConfirmed: (Boolean) -> Unit
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     var showConfirm      by remember { mutableStateOf(false) }
     var pendingIrregular by remember { mutableStateOf(false) }
 
@@ -247,21 +345,24 @@ fun TransactionRowWithConfirm(
                 Text(
                     if (transaction.isIrregular) "Mark this transaction as Regular?"
                     else "Mark this transaction as Suspicious (Irregular)?",
-                    color = Color.Gray, fontSize = 14.sp
+                    color = colorScheme.onSurface.copy(alpha = 0.7f),
+                    fontSize = 14.sp
                 )
             },
             confirmButton = {
                 Button(
                     onClick = { showConfirm = false; onStatusConfirmed(pendingIrregular) },
                     colors  = ButtonDefaults.buttonColors(
-                        containerColor = if (transaction.isIrregular) Color(0xFF2E7D32)
-                        else CardifyColors.IrregularRed),
+                        containerColor = if (transaction.isIrregular) colorScheme.primary else colorScheme.error
+                    ),
                     shape = RoundedCornerShape(10.dp)
                 ) { Text("Yes", color = Color.White, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
-                OutlinedButton(onClick = { showConfirm = false },
-                    shape = RoundedCornerShape(10.dp)) { Text("Cancel") }
+                OutlinedButton(
+                    onClick = { showConfirm = false },
+                    shape = RoundedCornerShape(10.dp)
+                ) { Text("Cancel") }
             },
             shape = RoundedCornerShape(16.dp)
         )
@@ -279,135 +380,37 @@ fun TransactionRowWithConfirm(
 }
 
 @Composable
-fun UploadSection(
-    selectedFile: Uri?,
-    isUploading: Boolean,
-    ibmPlexSans: FontFamily,
-    onFileSelected: (Uri?) -> Unit,
-    onUploadClicked: () -> Unit
-) {
-    val launcher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent()
-    ) { onFileSelected(it) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Upload Your Latest Transactions",
-            fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = ibmPlexSans)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth().height(150.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(0xFFE0F2F1).copy(alpha = 0.5f))
-                .drawBehind {
-                    drawRoundRect(
-                        color = CardifyColors.DashedBorder.copy(alpha = 0.4f),
-                        style = Stroke(width = 2f,
-                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)),
-                        cornerRadius = CornerRadius(10.dp.toPx())
-                    )
-                }
-                .clickable { launcher.launch("*/*") },
-            contentAlignment = Alignment.Center
-        ) {
-            if (isUploading) {
-                CircularProgressIndicator(color = CardifyColors.DarkGreen)
-            } else {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(painterResource(R.drawable.ic_upload_custom), null,
-                        tint = CardifyColors.DarkGreen, modifier = Modifier.size(26.dp))
-                    Spacer(Modifier.height(6.dp))
-                    Text(if (selectedFile != null) "File Ready" else "Tap to choose file",
-                        fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                    Text(selectedFile?.lastPathSegment ?: "CSV, XLS up to 10MB",
-                        fontSize = 11.sp, color = Color.Gray)
-                }
-            }
-        }
-        Button(
-            onClick = onUploadClicked,
-            modifier = Modifier.fillMaxWidth().height(48.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = CardifyColors.LightGreenText, contentColor = Color.Black)
-        ) { Text("Upload", fontSize = 15.sp, fontWeight = FontWeight.Bold) }
-    }
-}
-
-@Composable
 fun UpdateProfileBannerHome(
     count: Int,
     onUpdate: () -> Unit,
     onDismiss: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(CardifyColors.DarkGreen.copy(alpha = 0.1f))
-            .border(1.dp, CardifyColors.DarkGreen, RoundedCornerShape(12.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .background(colorScheme.primary.copy(alpha = 0.08f))
+            .border(1.dp, colorScheme.primary.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+            .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Default.AutoFixHigh, null,
-            tint = CardifyColors.DarkGreen, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.width(8.dp))
+        Icon(Icons.Default.AutoFixHigh, null, tint = colorScheme.primary)
+        Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text("Profile Update Available",
-                fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
-                color = CardifyColors.DarkGreen)
-            Text("You corrected $count transaction(s). Update your profile to improve future detection.",
-                fontSize = 11.sp, color = Color.Gray)
+            Text("Update AI Model", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = colorScheme.primary)
+            Text("Based on $count corrections", fontSize = 11.sp, color = colorScheme.onBackground.copy(alpha = 0.7f))
         }
-        Spacer(Modifier.width(8.dp))
         Button(
             onClick = onUpdate,
-            colors  = ButtonDefaults.buttonColors(containerColor = CardifyColors.DarkGreen),
-            shape   = RoundedCornerShape(10.dp),
-            modifier = Modifier.height(34.dp),
-            contentPadding = PaddingValues(horizontal = 12.dp)
+            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
+            shape = RoundedCornerShape(8.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+            modifier = Modifier.height(32.dp)
         ) { Text("Update", fontSize = 12.sp) }
-        Spacer(Modifier.width(4.dp))
-        IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-            Icon(Icons.Default.Close, null,
-                tint = CardifyColors.DarkGreen, modifier = Modifier.size(16.dp))
-        }
-    }
-}
-
-@Composable
-fun FilterDropdown(
-    selectedLimit: String,
-    expanded: Boolean,
-    onExpandChange: (Boolean) -> Unit,
-    onLimitSelect: (String) -> Unit,
-    ibmPlexSans: FontFamily
-) {
-    Box(
-        modifier = Modifier
-            .width(110.dp)
-            .background(CardifyColors.TurquoiseBox, RoundedCornerShape(10.dp))
-            .clickable { onExpandChange(!expanded) }
-            .padding(horizontal = 10.dp, vertical = 6.dp)
-    ) {
-        Column {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Limit: $selectedLimit",
-                    fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = ibmPlexSans)
-                Spacer(Modifier.weight(1f))
-                Icon(
-                    if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    null, modifier = Modifier.size(14.dp))
-            }
-            AnimatedVisibility(visible = expanded) {
-                Column {
-                    listOf("5", "10", "15").forEach {
-                        Text(it, modifier = Modifier.fillMaxWidth()
-                            .clickable { onLimitSelect(it) }
-                            .padding(vertical = 4.dp), fontSize = 12.sp)
-                    }
-                }
-            }
+        IconButton(onClick = onDismiss) {
+            Icon(Icons.Default.Close, null, tint = colorScheme.primary, modifier = Modifier.size(16.dp))
         }
     }
 }

@@ -43,7 +43,6 @@ import com.cardify.app.data.model.Chat
 import com.cardify.app.data.model.ChatMessage
 import com.cardify.app.data.model.ChatTransaction
 import com.cardify.app.data.model.ReplySnapshot
-import com.cardify.app.ui.home.CardifyColors
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -178,7 +177,7 @@ fun ChatScreen(
                             singleLine    = true,
                             modifier      = Modifier.fillMaxWidth(),
                             colors        = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = CardifyColors.DarkGreen)
+                                focusedBorderColor = MaterialTheme.colorScheme.primary)
                         )
                     }
                 },
@@ -197,7 +196,7 @@ fun ChatScreen(
                             displayChatName = if (newNick.isBlank()) chatName else newNick
                             showNicknameDialog = false
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = CardifyColors.DarkGreen)
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) { Text("Save") }
                 },
                 dismissButton = { TextButton(onClick = { showNicknameDialog = false }) { Text("Cancel") } },
@@ -314,7 +313,7 @@ fun ChatScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor             = CardifyColors.DarkGreen,
+                    containerColor             = MaterialTheme.colorScheme.primary,
                     titleContentColor          = Color.White,
                     navigationIconContentColor = Color.White
                 )
@@ -345,7 +344,7 @@ fun ChatScreen(
                         placeholder = { Text("Message...", fontSize = 14.sp) },
                         shape = RoundedCornerShape(24.dp), maxLines = 3,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor   = CardifyColors.DarkGreen,
+                            focusedBorderColor   =MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = Color(0xFFDDDDDD))
                     )
                     Spacer(Modifier.width(8.dp))
@@ -366,7 +365,7 @@ fun ChatScreen(
                             }
                         },
                         modifier = Modifier.size(44.dp).background(
-                            if (canSend) CardifyColors.DarkGreen else Color(0xFFCCCCCC),
+                            if (canSend) MaterialTheme.colorScheme.primary else Color(0xFFCCCCCC),
                             RoundedCornerShape(22.dp))
                     ) {
                         Icon(Icons.Default.Send, null, tint = Color.White,
@@ -378,7 +377,7 @@ fun ChatScreen(
     ) { padding ->
         if (isLoading) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = CardifyColors.DarkGreen)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else {
             val showScrollButton by remember {
@@ -454,7 +453,7 @@ fun ChatScreen(
                         onClick = { scope.launch {
                             if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
                         }},
-                        containerColor = CardifyColors.DarkGreen, contentColor = Color.White,
+                        containerColor = MaterialTheme.colorScheme.primary, contentColor = Color.White,
                         shape = CircleShape, modifier = Modifier.size(38.dp)
                     ) {
                         Icon(Icons.Default.KeyboardArrowDown, null, modifier = Modifier.size(22.dp))
@@ -509,9 +508,9 @@ fun MessageOptionsSheet(
                 }
             }
             Spacer(Modifier.height(8.dp))
-            OptionRow("😊", "React",   CardifyColors.DarkGreen, onReact)
-            OptionRow("↩",  "Reply",   CardifyColors.DarkGreen, onReply)
-            if (!message.deleted) OptionRow("↪", "Forward", CardifyColors.DarkGreen, onForward)
+            OptionRow("😊", "React",   MaterialTheme.colorScheme.primary, onReact)
+            OptionRow("↩",  "Reply",   MaterialTheme.colorScheme.primary, onReply)
+            if (!message.deleted) OptionRow("↪", "Forward", MaterialTheme.colorScheme.primary, onForward)
             if (isMe && !message.deleted) {
                 Divider(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
                 OptionRow("🗑", "Delete", Color(0xFFE23125), onDelete)
@@ -571,7 +570,7 @@ fun EmojiPickerSheet(
             ScrollableTabRow(
                 selectedTabIndex = selectedCategory,
                 containerColor   = Color.White,
-                contentColor     = CardifyColors.DarkGreen,
+                contentColor     = MaterialTheme.colorScheme.primary,
                 edgePadding      = 8.dp
             ) {
                 EMOJI_CATEGORIES.forEachIndexed { index, (label, _) ->
@@ -591,7 +590,7 @@ fun EmojiPickerSheet(
                             val isSelected = emoji == myCurrentEmoji
                             Box(
                                 modifier = Modifier.size(42.dp).clip(CircleShape)
-                                    .background(if (isSelected) CardifyColors.DarkGreen.copy(alpha = 0.2f) else Color.Transparent)
+                                    .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent)
                                     .clickable { onEmojiPick(emoji) },
                                 contentAlignment = Alignment.Center
                             ) { Text(emoji, fontSize = 22.sp) }
@@ -654,10 +653,10 @@ fun ForwardSheet(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(modifier = Modifier.size(46.dp).clip(CircleShape)
-                                .background(CardifyColors.DarkGreen.copy(alpha = 0.15f)),
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
                                 contentAlignment = Alignment.Center) {
                                 Text(displayName.take(1).uppercase(), fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold, color = CardifyColors.DarkGreen)
+                                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                             }
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
@@ -668,7 +667,7 @@ fun ForwardSheet(
                                 }
                             }
                             Icon(Icons.Default.Send, null,
-                                tint = CardifyColors.DarkGreen, modifier = Modifier.size(18.dp))
+                                tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                         }
                         HorizontalDivider(modifier = Modifier.padding(start = 78.dp),
                             color = Color(0xFFEEEEEE))
@@ -728,7 +727,7 @@ fun MessageBubble(
 
     Column(
         modifier = Modifier.fillMaxWidth()
-            .background(CardifyColors.DarkGreen.copy(alpha = highlightAlpha))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = highlightAlpha))
             .padding(vertical = if (isHighlighted) 2.dp else 0.dp)
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
@@ -748,11 +747,11 @@ fun MessageBubble(
     ) {
         if (offsetX.value > 20f) {
             Icon(Icons.Default.Reply, null,
-                tint = CardifyColors.DarkGreen.copy(alpha = (offsetX.value / THRESHOLD).coerceIn(0f, 1f)),
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = (offsetX.value / THRESHOLD).coerceIn(0f, 1f)),
                 modifier = Modifier.size(22.dp).align(Alignment.Start).padding(start = 4.dp))
         }
         if (!isMe && showSenderName) {
-            Text(senderDisplayName, fontSize = 11.sp, color = CardifyColors.DarkGreen,
+            Text(senderDisplayName, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(start = 4.dp, bottom = 2.dp))
         }
@@ -767,7 +766,7 @@ fun MessageBubble(
         Column(
             modifier = Modifier.widthIn(max = 280.dp)
                 .background(
-                    if (isMe) CardifyColors.DarkGreen else Color.White,
+                    if (isMe) MaterialTheme.colorScheme.primary else Color.White,
                     RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp,
                         bottomStart = if (isMe) 16.dp else 4.dp,
                         bottomEnd   = if (isMe) 4.dp  else 16.dp))
@@ -818,7 +817,7 @@ fun ReactionsBar(
             val isMine = emoji == myEmoji
             Box(
                 modifier = Modifier.clip(RoundedCornerShape(12.dp))
-                    .background(if (isMine) CardifyColors.DarkGreen.copy(alpha = 0.15f) else Color(0xFFF0F0F0))
+                    .background(if (isMine) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color(0xFFF0F0F0))
                     .clickable { onReactionClick(emoji) }
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
@@ -839,8 +838,8 @@ fun QuotedMessage(
 ) {
     val bgColor   = if (isMe) Color.White.copy(alpha = 0.15f) else Color(0xFFF0F0F0)
     val textColor = if (isMe) Color.White else Color.Black
-    val nameColor = if (isMe) Color.White.copy(alpha = 0.9f) else CardifyColors.DarkGreen
-    val barColor  = if (isMe) Color.White.copy(alpha = 0.6f) else CardifyColors.DarkGreen
+    val nameColor = if (isMe) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.primary
+    val barColor  = if (isMe) Color.White.copy(alpha = 0.6f) else MaterialTheme.colorScheme.primary
     Row(modifier = Modifier.fillMaxWidth()
         .background(bgColor, RoundedCornerShape(8.dp)).padding(end = 8.dp),
         verticalAlignment = Alignment.CenterVertically) {
@@ -875,15 +874,15 @@ fun ReplyPreview(
         nicknames[phone]?.takeIf { it.isNotBlank() } ?: message.senderName
     else message.senderName
     Row(modifier = Modifier.fillMaxWidth()
-        .background(CardifyColors.DarkGreen.copy(alpha = 0.08f))
+        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
         .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically) {
         Box(modifier = Modifier.width(3.dp).height(36.dp)
-            .background(CardifyColors.DarkGreen, RoundedCornerShape(2.dp)))
+            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp)))
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
             Text(displayName, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
-                color = CardifyColors.DarkGreen)
+                color = MaterialTheme.colorScheme.primary)
             val preview = when {
                 message.audioUrl != null    -> "🎤 Voice message"
                 message.transaction != null -> "📊 ${message.transaction.businessName}"
@@ -932,12 +931,12 @@ fun TransactionCard(txn: ChatTransaction, isMe: Boolean) {
 @Composable
 fun PendingTransactionPreview(txn: ChatTransaction, onRemove: () -> Unit) {
     Row(modifier = Modifier.fillMaxWidth()
-        .background(CardifyColors.DarkGreen.copy(alpha = 0.1f))
+        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
         .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text("📊 ${txn.businessName}", fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold, color = CardifyColors.DarkGreen)
+                fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
             Text("₪${"%.2f".format(txn.amount)} • ${txn.status}", fontSize = 11.sp, color = Color.Gray)
         }
         TextButton(onClick = onRemove) { Text("Remove", color = Color.Red, fontSize = 12.sp) }

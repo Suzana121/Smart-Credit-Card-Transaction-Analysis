@@ -1,3 +1,4 @@
+/*
 package com.cardify.app.ui.home
 
 import android.os.Bundle
@@ -29,4 +30,4 @@ class HomeActivity : ComponentActivity() {
             }
         }
     }
-}
+}*/

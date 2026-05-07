@@ -19,9 +19,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         // ── Status Bar — צבע כהה עם אייקונים בהירים ──
-        WindowCompat.setDecorFitsSystemWindows(window, true)
-        window.statusBarColor = android.graphics.Color.parseColor("#1A1A1A")
         WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = false
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        WindowCompat.setDecorFitsSystemWindows(window, false)
 
         // בדיקה ב-auth_prefs
         val prefs = getSharedPreferences("auth_prefs", MODE_PRIVATE)

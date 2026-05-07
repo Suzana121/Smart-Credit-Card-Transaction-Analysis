@@ -1,3 +1,4 @@
+/*
 package com.cardify.app.ui.activity
 
 import androidx.compose.foundation.background
@@ -18,6 +19,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController // ייבוא חסר
 import com.cardify.app.ui.components.AppScaffold
 import java.text.NumberFormat
 import java.util.*
@@ -27,18 +29,21 @@ import java.util.*
 // ==========================================
 @Composable
 fun ActivityScreen(
+    navController: NavHostController, // הוספת הפרמטר כדי שנוכל להעביר אותו ל-AppScaffold
     onNavigate: (String) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
     AppScaffold(
-        currentRoute = "activity",
+        navController = navController, // עכשיו navController מוכר וקיים
         onNavigate = onNavigate,
         topBarContent = {
             ActivityTopBar(
                 searchQuery = searchQuery,
                 onSearchChange = { searchQuery = it },
-                onFilterClick = { /* פילטר */ }
+                onFilterClick = { */
+/* פילטר *//*
+ }
             )
         }
     ) { padding ->
@@ -46,15 +51,17 @@ fun ActivityScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp)
                 .background(Color(0xFFF5F5F5))
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            TransactionsList(
-                transactions = getSampleTransactions(),
-                searchQuery = searchQuery
-            )
+            // הוספת padding פנימי לרשימה כדי שלא תיצמד לקצוות
+            Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                TransactionsList(
+                    transactions = getSampleTransactions(),
+                    searchQuery = searchQuery
+                )
+            }
         }
     }
 }
@@ -85,12 +92,14 @@ fun ActivityTopBar(
         ) {
             Text(
                 text = "Transactions",
-                fontSize = 20.sp,
+                fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
                 modifier = Modifier.weight(1f)
             )
-            IconButton(onClick = { /* תפריט */ }) {
+            IconButton(onClick = { */
+/* תפריט *//*
+ }) {
                 Icon(
                     imageVector = Icons.Default.Menu,
                     contentDescription = "Menu",
@@ -131,7 +140,7 @@ fun TransactionsList(transactions: List<Transaction>, searchQuery: String) {
     }
     LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         items(filtered) { transaction -> TransactionCard(transaction) }
-        item { Spacer(modifier = Modifier.height(8.dp)) }
+        item { Spacer(modifier = Modifier.height(16.dp)) }
     }
 }
 
@@ -149,7 +158,7 @@ fun TransactionCard(transaction: Transaction) {
                 fontSize = 12.sp,
                 color = Color.Black,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.width(70.dp)
+                modifier = Modifier.width(75.dp)
             )
 
             Text(
@@ -167,7 +176,7 @@ fun TransactionCard(transaction: Transaction) {
                 color = Color.Black
             )
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             Text(
                 text = if (transaction.amount > 1000) "Irregular" else "Regular",
@@ -179,9 +188,14 @@ fun TransactionCard(transaction: Transaction) {
     }
 }
 
-// נתונים
+// נתונים וצבעים
 data class Transaction(val id: String, val title: String, val date: String, val amount: Double)
-object CardifyColors { val Primary = Color(0xFF0D7377); val ScanButton = Color(0xFFA0FF9D) }
+
+object CardifyColors {
+    val Primary = Color(0xFF0D7377)
+    val ScanButton = Color(0xFFA0FF9D)
+}
+
 fun getSampleTransactions(): List<Transaction> {
     return listOf(
         Transaction("1", "Greg's Coffee", "10/11/2025", 20.0),
@@ -190,4 +204,4 @@ fun getSampleTransactions(): List<Transaction> {
         Transaction("4", "Book Depository", "10/11/2025", 200.0),
         Transaction("5", "Cstyle", "10/11/2025", 599.0)
     )
-}
+}*/

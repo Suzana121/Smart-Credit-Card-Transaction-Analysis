@@ -82,6 +82,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
     implementation("androidx.navigation:navigation-compose:2.7.5")
+    implementation(libs.androidx.compose.animation)
 
     // Compose Debug
     debugImplementation("androidx.compose.ui:ui-tooling")

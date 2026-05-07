@@ -25,7 +25,6 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.cardify.app.data.model.Chat
 import com.cardify.app.data.model.Friend
-import com.cardify.app.ui.home.CardifyColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,7 +55,7 @@ fun ShareToChatSheet(
                 modifier = Modifier.padding(bottom = 4.dp)
             ) {
                 Icon(Icons.Default.ChatBubbleOutline, null,
-                    tint = CardifyColors.DarkGreen, modifier = Modifier.size(20.dp))
+                    tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("Share to Chat", fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
@@ -126,7 +125,7 @@ private fun FriendShareRow(
             modifier = Modifier
                 .size(42.dp)
                 .clip(CircleShape)
-                .background(CardifyColors.DarkGreen.copy(alpha = 0.15f)),
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
             if (!friend.photoUrl.isNullOrEmpty()) {
@@ -142,7 +141,7 @@ private fun FriendShareRow(
             } else {
                 Text(
                     displayName.take(1).uppercase(),
-                    color      = CardifyColors.DarkGreen,
+                    color      = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
                     fontSize   = 16.sp
                 )
@@ -160,7 +159,7 @@ private fun FriendShareRow(
 
         Button(
             onClick        = onSelect,
-            colors         = ButtonDefaults.buttonColors(containerColor = CardifyColors.DarkGreen),
+            colors         = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             shape          = RoundedCornerShape(10.dp),
             modifier       = Modifier.height(36.dp),
             contentPadding = PaddingValues(horizontal = 16.dp)

@@ -1,3 +1,4 @@
+/*
 package com.cardify.app.ui.activity
 
 import android.content.Intent
@@ -37,4 +38,4 @@ class ActivityActivity : ComponentActivity() {
             )
         }
     }
-}
+}*/

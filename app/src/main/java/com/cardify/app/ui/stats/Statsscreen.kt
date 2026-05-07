@@ -33,6 +33,8 @@ import com.cardify.app.ui.components.AppScaffold
 import com.cardify.app.ui.components.TransactionItem
 import com.cardify.app.ui.components.TransactionRow
 import com.cardify.app.ui.components.TransactionRowVariant
+import androidx.navigation.NavHostController
+
 
 // ─── צבעים לקטגוריות ───
 private val categoryColors = listOf(
@@ -53,9 +55,9 @@ fun fullMonthName(month: String): String = when (month) {
 fun StatSection(content: @Composable ColumnScope.() -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        shape    = RoundedCornerShape(12.dp),
-        color    = Color.White,
-        border   = BorderStroke(1.dp, Color(0xFFDADBDD))
+        shape = RoundedCornerShape(12.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, Color(0xFFDADBDD))
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(20.dp), content = content)
     }
@@ -64,8 +66,10 @@ fun StatSection(content: @Composable ColumnScope.() -> Unit) {
 // =============================================
 // Main Screen
 // =============================================
+
 @Composable
 fun StatsScreen(
+    navController: NavHostController, // הוספת הפרמטר כאן
     onNavigate: (String) -> Unit,
     viewModel: StatsViewModel = viewModel()
 ) {
@@ -73,7 +77,10 @@ fun StatsScreen(
     val monthIndex = viewModel.selectedMonthIndex
     val monthName  = viewModel.allMonths[monthIndex]
 
-    AppScaffold(currentRoute = "stats", onNavigate = onNavigate) { padding ->
+    // עכשיו navController מוכר וניתן להעביר אותו ל-AppScaffold
+    AppScaffold(
+        navController = navController,onNavigate = onNavigate
+    ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()

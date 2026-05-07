@@ -1,5 +1,6 @@
 package com.cardify.app.ui.chat
 
+import android.R
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -37,10 +38,10 @@ import com.cardify.app.data.model.Chat
 import com.cardify.app.data.model.ChatTransaction
 import com.cardify.app.data.model.Friend
 import com.cardify.app.ui.components.AppScaffold
-import com.cardify.app.ui.home.CardifyColors
 
 @Composable
 fun ChatsScreen(
+    navController: androidx.navigation.NavHostController, // הגדרה נכונה של הטיפוס
     onNavigate: (String) -> Unit,
     onOpenChat: (Chat) -> Unit,
     pendingTransaction: ChatTransaction? = null,
@@ -99,7 +100,11 @@ fun ChatsScreen(
         )
     }
 
-    AppScaffold(currentRoute = "wallet", onNavigate = onNavigate) { padding ->
+    // כאן הקריאה ל-AppScaffold עם ה-navController כדי שהאנימציה תעבוד
+    AppScaffold(
+        navController = navController,
+        onNavigate = onNavigate
+    ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -116,18 +121,18 @@ fun ChatsScreen(
                 ) {
                     Column {
                         Text("Chats", fontSize = 22.sp, fontWeight = FontWeight.Bold,
-                            color = CardifyColors.DarkGreen)
+                            color = MaterialTheme.colorScheme.primary)
                         if (pendingTransaction != null) {
                             Text(
                                 "Select a chat to share: ${pendingTransaction.businessName}",
                                 fontSize = 11.sp,
-                                color = CardifyColors.IrregularRed,
+                                color = Color(0xFFDB0000),
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
                     IconButton(onClick = { showNewChat = true }) {
-                        Icon(Icons.Default.Add, null, tint = CardifyColors.DarkGreen)
+                        Icon(Icons.Default.Add, null, tint = MaterialTheme.colorScheme.primary)
                     }
                 }
 
@@ -155,14 +160,14 @@ fun ChatsScreen(
                     shape = RoundedCornerShape(24.dp),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor   = CardifyColors.DarkGreen,
+                        focusedBorderColor   = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = Color(0xFFDDDDDD)
                     )
                 )
 
                 if (isLoading) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = CardifyColors.DarkGreen)
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 } else {
                     LazyColumn(Modifier.fillMaxSize()) {
@@ -287,7 +292,7 @@ fun ChatItem(
             .fillMaxWidth()
             .clickable { onClick() }
             .background(
-                if (hasPending) CardifyColors.DarkGreen.copy(alpha = 0.05f)
+                if (hasPending) MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
                 else Color.White
             )
             .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -297,7 +302,7 @@ fun ChatItem(
             modifier = Modifier
                 .size(50.dp)
                 .clip(CircleShape)
-                .background(CardifyColors.DarkGreen.copy(alpha = 0.15f)),
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
             if (!photoUrl.isNullOrEmpty()) {
@@ -310,7 +315,7 @@ fun ChatItem(
                 )
             } else {
                 Text(initials, fontSize = 18.sp, fontWeight = FontWeight.Bold,
-                    color = CardifyColors.DarkGreen)
+                    color = MaterialTheme.colorScheme.primary)
             }
         }
 
@@ -325,7 +330,7 @@ fun ChatItem(
                 Text(displayName, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                 if (hasPending) {
                     Text("Tap to share →", fontSize = 11.sp,
-                        color = CardifyColors.DarkGreen, fontWeight = FontWeight.SemiBold)
+                        color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                 } else {
                     Text(formatChatTime(chat.lastMessageAt), fontSize = 11.sp, color = Color.Gray)
                 }
@@ -348,7 +353,7 @@ fun ChatItem(
                         modifier = Modifier
                             .size(20.dp)
                             .clip(CircleShape)
-                            .background(CardifyColors.DarkGreen),
+                            .background(MaterialTheme.colorScheme.primary),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(chat.unreadCount.toString(),
@@ -372,7 +377,7 @@ fun FriendChatItem(friend: Friend, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .background(CardifyColors.DarkGreen.copy(alpha = 0.03f))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.03f))
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -380,7 +385,7 @@ fun FriendChatItem(friend: Friend, onClick: () -> Unit) {
             modifier = Modifier
                 .size(50.dp)
                 .clip(CircleShape)
-                .background(CardifyColors.DarkGreen.copy(alpha = 0.12f)),
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center
         ) {
             if (!friend.photoUrl.isNullOrEmpty()) {
@@ -393,7 +398,7 @@ fun FriendChatItem(friend: Friend, onClick: () -> Unit) {
                 )
             } else {
                 Text(initials, fontSize = 18.sp, fontWeight = FontWeight.Bold,
-                    color = CardifyColors.DarkGreen)
+                    color = MaterialTheme.colorScheme.primary)
             }
         }
         Spacer(Modifier.width(12.dp))
@@ -403,11 +408,11 @@ fun FriendChatItem(friend: Friend, onClick: () -> Unit) {
         }
         Icon(
             Icons.Default.Add, contentDescription = null,
-            tint     = CardifyColors.DarkGreen,
+            tint     = MaterialTheme.colorScheme.primary,
             modifier = Modifier
                 .size(20.dp)
                 .clip(CircleShape)
-                .background(CardifyColors.DarkGreen.copy(alpha = 0.1f))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
                 .padding(3.dp)
         )
     }
@@ -463,11 +468,11 @@ fun NewChatDialog(
                                     else selected.remove(friend.phone)
                                 },
                                 colors = CheckboxDefaults.colors(
-                                    checkedColor = CardifyColors.DarkGreen)
+                                    checkedColor = MaterialTheme.colorScheme.primary)
                             )
                             Spacer(Modifier.width(8.dp))
                             Icon(Icons.Default.Person, null,
-                                tint = CardifyColors.DarkGreen, modifier = Modifier.size(20.dp))
+                                tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(friend.name, fontSize = 14.sp)
                         }
@@ -487,7 +492,7 @@ fun NewChatDialog(
                     }
                 },
                 enabled = selected.isNotEmpty(),
-                colors  = ButtonDefaults.buttonColors(containerColor = CardifyColors.DarkGreen)
+                colors  = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) { Text("Start Chat") }
         },
         dismissButton = {
