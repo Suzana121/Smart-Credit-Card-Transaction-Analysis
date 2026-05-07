@@ -1,7 +1,6 @@
 package com.cardify.app.ui.account
 
 import android.content.Context
-import android.provider.ContactsContract
 import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -12,7 +11,6 @@ import com.cardify.app.data.model.*
 import com.cardify.app.data.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -48,91 +46,22 @@ class AccountViewModel(
     private val _requests = MutableStateFlow<List<Friend>>(emptyList())
     val requests: StateFlow<List<Friend>> = _requests
 
-    // הוספת State לתוצאות הסנכרון (אנשים שהם פוטנציאל לחברות)
-    private val _syncResults = MutableStateFlow<List<Friend>>(emptyList())
-    val syncResults: StateFlow<List<Friend>> = _syncResults.asStateFlow()
-
     init {
         refreshUserData()
         loadFriendsData()
     }
 
-    // תיקון: הפונקציה עכשיו מקבלת אובייקט Friend כדי להתאים לקריאה מה-UI
-    fun sendFriendRequest(friend: Friend) {
-        viewModelScope.launch {
-            try {
-                // שימוש בטלפון של החבר שנבחר
-                val response = RetrofitClient.apiService.addFriend(FriendRequestData(friend.phone))
-                if (response.isSuccessful) {
-                    // לאחר שליחה מוצלחת, נסיר אותו מרשימת ההצעות ונטען מחדש חברים
-                    _syncResults.value = _syncResults.value.filter { it.phone != friend.phone }
-                    loadFriendsData()
-                }
-            } catch (e: Exception) {
-                Log.e("AccountVM", "Failed to send friend request", e)
-            }
-        }
-    }
-
-    fun syncContacts(context: Context) {
-        viewModelScope.launch {
-            // 1. איפוס תוצאות קודמות כדי שלא יופיעו "שאריות"
-            _syncResults.value = emptyList()
-
-            val contactNumbers = mutableListOf<String>()
-            val contentResolver = context.contentResolver
-
-            val cursor = contentResolver.query(
-                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                null, null, null, null
-            )
-
-            cursor?.use {
-                val numberIndex = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-                while (it.moveToNext()) {
-                    // ניקוי מספר הטלפון מרווחים ומקפים כדי להתאים לפורמט ב-DB
-                    val rawNumber = it.getString(numberIndex).replace(Regex("[^0-9+]"), "")
-                    if (rawNumber.isNotEmpty()) {
-                        contactNumbers.add(rawNumber)
-                    }
-                }
-            }
-
-            if (contactNumbers.isNotEmpty()) {
-                try {
-                    _isLoading.value = true
-                    // שליחת הרשימה לשרת[cite: 5]
-                    val syncRequest = SyncContactsRequest(phones = contactNumbers)
-                    val response = RetrofitClient.apiService.syncContacts(syncRequest)
-
-                    if (response.isSuccessful) {
-                        val matchedUsers = response.body() ?: emptyList()
-
-                        // 2. סינון קפדני: רק מי שחזר מהשרת (Matches) ואינו חבר עדיין[cite: 5]
-                        _syncResults.value = matchedUsers.filter { matched ->
-                            val isAlreadyFriend = _friends.value.any { it.phone == matched.phone }
-                            val isAlreadyRequested = _requests.value.any { it.phone == matched.phone }
-
-                            !isAlreadyFriend && !isAlreadyRequested
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e("AccountVM", "Failed to sync with server", e)
-                } finally {
-                    _isLoading.value = false
-                }
-            }
-        }
-    }
     fun loadFriendsData() {
         viewModelScope.launch {
             try {
                 val response = RetrofitClient.apiService.getFriends()
                 if (response.isSuccessful) {
                     val allLinks = response.body() ?: emptyList()
-                    // סינון חברים מאושרים ובקשות שנשלחו (sent_pending)
+
+                    // חברים מאושרים + בקשות שאני שלחתי וממתינות (sent_pending)
                     _friends.value = allLinks.filter { it.status == "approved" || it.status == "sent_pending" }
-                    // סינון בקשות שהתקבלו ומחכות לאישור
+
+                    // בקשות שמחכות לאישור שלי (received_pending)
                     _requests.value = allLinks.filter { it.status == "received_pending" }
                 }
             } catch (e: Exception) {
@@ -148,6 +77,7 @@ class AccountViewModel(
                 _username.value = user.name
                 _email.value = user.email
                 _phone.value = user.phone ?: ""
+
                 UserSession.username = user.name
                 UserSession.email = user.email
                 UserSession.phone = user.phone
@@ -171,7 +101,11 @@ class AccountViewModel(
         }
     }
 
-    fun deleteFriendWithOptions(friend: Friend, deleteSentShares: Boolean, deleteReceivedShares: Boolean) {
+    fun deleteFriendWithOptions(
+        friend: Friend,
+        deleteSentShares: Boolean,
+        deleteReceivedShares: Boolean
+    ) {
         viewModelScope.launch {
             try {
                 val options = mapOf(
@@ -179,12 +113,38 @@ class AccountViewModel(
                     "delete_sent" to deleteSentShares,
                     "delete_received" to deleteReceivedShares
                 )
+
                 val response = RetrofitClient.apiService.deleteFriendWithOptions(options)
+
                 if (response.isSuccessful) {
                     loadFriendsData()
                 }
             } catch (e: Exception) {
                 Log.e("AccountVM", "Smart delete failed", e)
+            }
+        }
+    }
+
+    fun sendFriendRequest(phone: String, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.addFriend(FriendRequestData(phone))
+                if (response.isSuccessful) {
+                    loadFriendsData()
+                    onResult("בקשת חברות נשלחה בהצלחה!")
+                } else {
+                    val errorBody = response.errorBody()?.string()
+                    if (errorBody?.contains("You cannot add yourself") == true) {
+                        onResult("לא ניתן להוסיף את עצמך כחבר")
+                    } else if (errorBody?.contains("already exists") == true) {
+                        onResult("כבר קיימת בקשת חברות למספר זה")
+                    } else {
+                        onResult("שגיאה: המשתמש לא נמצא או שהפעולה נכשלה")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("AccountVM", "Failed to send friend request", e)
+                onResult("שגיאת תקשורת עם השרת")
             }
         }
     }
@@ -199,11 +159,24 @@ class AccountViewModel(
     fun searchUser(phone: String) {
         searchErrorMessage = null
         searchedUser = null
+
         val cleanPhone = phone.trim()
-        if (cleanPhone.isEmpty() || !cleanPhone.all { it.isDigit() } || cleanPhone.length < 9 || cleanPhone.length > 10) {
-            searchErrorMessage = "Invalid phone number"
+
+        if (cleanPhone.isEmpty()) {
+            searchErrorMessage = "Please enter a phone number"
             return
         }
+
+        if (!cleanPhone.all { it.isDigit() }) {
+            searchErrorMessage = "Phone number must contain only digits"
+            return
+        }
+
+        if (cleanPhone.length < 9 || cleanPhone.length > 10) {
+            searchErrorMessage = "Phone number must be 9-10 digits"
+            return
+        }
+
         if (cleanPhone == UserSession.phone) {
             searchErrorMessage = "You cannot add yourself"
             return
@@ -216,10 +189,22 @@ class AccountViewModel(
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body != null) {
-                        searchedUser = UserProfile(id = body.id, name = body.username, phone = body.phone)
-                    } else { searchErrorMessage = "User not found" }
-                } else { searchErrorMessage = "User not found" }
-            } catch (e: Exception) { searchErrorMessage = "Network error" } finally { isSearching = false }
+                        searchedUser = UserProfile(
+                            id = body.id,
+                            name = body.username,
+                            phone = body.phone
+                        )
+                    } else {
+                        searchErrorMessage = "User not found"
+                    }
+                } else {
+                    searchErrorMessage = "User not found"
+                }
+            } catch (e: Exception) {
+                searchErrorMessage = "Network error, please try again later"
+            } finally {
+                isSearching = false
+            }
         }
     }
 

@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
+    <!-- קבצים רגילים (PDF וכו') -->
+    <files-path name="files" path="." />
+    <!-- תמונות זמניות מהמצלמה -->
     <cache-path name="cache" path="." />
+    <!-- קבצים חיצוניים אם צריך -->
+    <external-files-path name="external_files" path="." />
 </paths>

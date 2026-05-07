@@ -1,9 +1,7 @@
 package com.cardify.app.ui.account
 
-import android.Manifest
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,22 +13,27 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Contacts
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.cardify.app.R
 import com.cardify.app.ui.components.AppScaffold
 import com.cardify.app.data.model.*
-import com.cardify.app.R
 
 val teal = Color(0xFF006769)
 
@@ -48,22 +51,16 @@ fun AccountScreen(
 
     val friendsList by viewModel.friends.collectAsState()
     val requestsList by viewModel.requests.collectAsState()
-    val suggestions by viewModel.syncResults.collectAsState()
 
     var selectedFriend by remember { mutableStateOf<Friend?>(null) }
     var selectedRequest by remember { mutableStateOf<Friend?>(null) }
-    var selectedSuggestion by remember { mutableStateOf<Friend?>(null) }
     var showAddFriend by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
 
-    val contactsLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            viewModel.syncContacts(context)
-            Toast.makeText(context, "Syncing contacts...", Toast.LENGTH_SHORT).show()
-        }
+    LaunchedEffect(Unit) {
+        viewModel.refreshUserData()
+        viewModel.loadFriendsData()
     }
 
     AppScaffold(currentRoute = "account", onNavigate = onNavigate) { padding ->
@@ -86,77 +83,99 @@ fun AccountScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // חיבור ה-ViewModel לפעולות ב-Section
             FriendsSection(
                 friends = friendsList,
-                suggestions = suggestions,
                 onFriendClick = { selectedFriend = it },
-                onAddFriendClick = { showAddFriend = true },
-                onSyncContactsClick = { contactsLauncher.launch(Manifest.permission.READ_CONTACTS) },
-                onSuggestionClick = { selectedSuggestion = it },
-                onAddSuggestionClick = { viewModel.sendFriendRequest(it) }
+                onAddFriendClick = { showAddFriend = true }
             )
 
+            Spacer(modifier = Modifier.height(32.dp))
+
             if (requestsList.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(32.dp))
                 RequestsSection(
                     requests = requestsList,
                     onRequestClick = { selectedRequest = it },
-                    onConfirmRequest = { viewModel.confirmFriendRequest(it) }
+                    onConfirm = { viewModel.confirmFriendRequest(it) }
                 )
+                Spacer(modifier = Modifier.height(32.dp))
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
-            LogoutFooter(onLogout = { viewModel.logout(context, onLogoutSuccess = onLogout) })
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Do you want to close this account?", fontSize = 13.sp, color = Color.Black)
+                Text(
+                    text = " log out",
+                    fontSize = 13.sp,
+                    color = Color.Red,
+                    modifier = Modifier
+                        .padding(start = 4.dp)
+                        .clickable { viewModel.logout(context, onLogoutSuccess = onLogout) }
+                )
+            }
             Spacer(modifier = Modifier.height(50.dp))
         }
     }
 
-    // Sheets (מידע מורחב)
     if (showAddFriend) {
-        AddFriendSheet(viewModel = viewModel, onDismiss = { showAddFriend = false; viewModel.clearSearch() })
+        AddFriendSheet(
+            viewModel = viewModel,
+            onDismiss = {
+                showAddFriend = false
+                viewModel.clearSearch()
+            }
+        )
     }
 
     selectedFriend?.let { friend ->
-        FriendSheet(friend = friend, viewModel = viewModel, onDismiss = { selectedFriend = null })
+        FriendSheet(
+            friend = friend,
+            viewModel = viewModel,
+            onDismiss = { selectedFriend = null }
+        )
     }
 
     selectedRequest?.let { request ->
         FriendRequestSheet(
             friend = request,
-            onConfirm = { viewModel.confirmFriendRequest(request); selectedRequest = null },
-            onDelete = { viewModel.deleteFriendWithOptions(request, false, false); selectedRequest = null },
+            onConfirm = {
+                viewModel.confirmFriendRequest(request)
+                selectedRequest = null
+            },
+            onDelete = {
+                viewModel.deleteFriendWithOptions(request, false, false)
+                selectedRequest = null
+            },
             onDismiss = { selectedRequest = null }
-        )
-    }
-
-    selectedSuggestion?.let { suggestion ->
-        SuggestionItem(
-            suggestion = suggestion,
-            onAddClick = { viewModel.sendFriendRequest(suggestion); selectedSuggestion = null },
-            onDelete = { selectedSuggestion = null },
-            onDismiss = { selectedSuggestion = null }
         )
     }
 }
 
-// --- Sections ---
-
 @Composable
 fun FriendsSection(
     friends: List<Friend>,
-    suggestions: List<Friend>,
     onFriendClick: (Friend) -> Unit,
-    onAddFriendClick: () -> Unit,
-    onSyncContactsClick: () -> Unit,
-    onSuggestionClick: (Friend) -> Unit,
-    onAddSuggestionClick: (Friend) -> Unit
+    onAddFriendClick: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        SectionHeader(title = "Your Friends", subtitle = "", showSync = true, onSyncClick = onSyncContactsClick)
-        Spacer(modifier = Modifier.height(14.dp))
+        Text(
+            text = "Your Friends",
+            color = teal,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(start = 24.dp, bottom = 4.dp)
+        )
+        Text(
+            text = "Click on profiles for more information",
+            color = Color.Gray,
+            fontSize = 12.sp,
+            modifier = Modifier.padding(start = 24.dp, bottom = 14.dp)
+        )
+
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 24.dp),
+            contentPadding = PaddingValues(start = 24.dp, end = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(friends) { friend ->
@@ -164,41 +183,14 @@ fun FriendsSection(
             }
             item { AddFriendButton(onClick = onAddFriendClick) }
         }
-
-        if (suggestions.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // הוספת onSyncClick = {} פותרת את השגיאה
-            SectionHeader(
-                title = "People you may know",
-                subtitle = "From your contacts",
-                showSync = false,
-                onSyncClick = {}
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-        }
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(suggestions) { suggestion ->
-                    SuggestionCard(
-                        suggestion = suggestion,
-                        onAddClick = { onAddSuggestionClick(suggestion) },
-                        onClick = { onSuggestionClick(suggestion) }
-                    )
-                }
-            }
-        }
     }
-
+}
 
 @Composable
 fun RequestsSection(
     requests: List<Friend>,
     onRequestClick: (Friend) -> Unit,
-    onConfirmRequest: (Friend) -> Unit
+    onConfirm: (Friend) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -206,16 +198,16 @@ fun RequestsSection(
             color = teal,
             fontSize = 18.sp,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(start = 24.dp, bottom = 12.dp)
+            modifier = Modifier.padding(start = 24.dp, bottom = 4.dp)
         )
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 24.dp),
+            contentPadding = PaddingValues(start = 24.dp, end = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(requests) { friend ->
                 RequestItem(
                     friend = friend,
-                    onConfirm = { onConfirmRequest(friend) },
+                    onConfirm = { onConfirm(friend) },
                     onClick = { onRequestClick(friend) }
                 )
             }
@@ -223,171 +215,169 @@ fun RequestsSection(
     }
 }
 
-// --- Items (הקומפוננטות הקטנות ברשימה) ---
-
 @Composable
 fun FriendItem(friend: Friend, onClick: () -> Unit) {
+    val context = LocalContext.current
+
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(70.dp).clickable { onClick() }
+        modifier = Modifier.width(72.dp).clickable { onClick() },
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(contentAlignment = Alignment.BottomEnd) {
-            Surface(
-                modifier = Modifier.size(60.dp),
-                shape = CircleShape,
-                color = Color(0xFFF7F8F9),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE7E8E9))
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFF0F0F0)),
+                contentAlignment = Alignment.Center
             ) {
-                Image(
-                    painter = painterResource(id = friend.photoResource),
-                    contentDescription = friend.name,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
+                if (!friend.photoUrl.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(friend.photoUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = friend.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.Person,
+                        contentDescription = null,
+                        modifier = Modifier.size(28.dp),
+                        tint = Color.Gray
+                    )
+                }
             }
 
             if (friend.isPending) {
                 Surface(
+                    modifier = Modifier
+                        .size(18.dp)
+                        .offset(x = 2.dp, y = 2.dp),
                     shape = CircleShape,
-                    color = Color(0xFFFFF3E0),
-                    modifier = Modifier.size(20.dp)
+                    color = Color(0xFFEF6C00),
+                    border = BorderStroke(2.dp, Color.White)
                 ) {
                     Icon(
-                        painter = painterResource(id = R.drawable.clock__2_),
-                        contentDescription = "Pending",
-                        tint = Color(0xFFEF6C00),
-                        modifier = Modifier.padding(4.dp)
+                        imageVector = Icons.Default.Timer,
+                        contentDescription = "Pending Approval",
+                        tint = Color.White,
+                        modifier = Modifier
+                            .padding(2.dp)
+                            .size(12.dp)
                     )
                 }
             }
         }
-        Text(text = friend.name, fontSize = 12.sp, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
+
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = friend.name ?: "Unknown",
+            color = Color(0xFF5C5C5C),
+            fontSize = 11.sp,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
 @Composable
 fun RequestItem(friend: Friend, onConfirm: () -> Unit, onClick: () -> Unit) {
+    val context = LocalContext.current
+
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(80.dp)
+        modifier = Modifier.width(72.dp).clickable { onClick() },
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Surface(
-            modifier = Modifier.size(60.dp).clickable { onClick() },
-            shape = CircleShape,
-            color = Color(0xFFFFF3E0),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFB74D))
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFF0F0F0)),
+            contentAlignment = Alignment.Center
         ) {
-            Image(
-                painter = painterResource(id = friend.photoResource),
-                contentDescription = friend.name,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-        }
-        Text(text = friend.name, fontSize = 12.sp, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
-        Button(
-            onClick = onConfirm,
-            modifier = Modifier.padding(top = 4.dp).height(26.dp).fillMaxWidth(),
-            contentPadding = PaddingValues(0.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = teal),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("Confirm", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
-@Composable
-fun SuggestionCard(suggestion: Friend, onAddClick: () -> Unit, onClick: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(80.dp)
-    ) {
-        Surface(
-            modifier = Modifier.size(60.dp).clickable { onClick() },
-            shape = CircleShape,
-            color = Color(0xFFF7F8F9),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE7E8E9))
-        ) {
-            Image(
-                painter = painterResource(id = suggestion.photoResource),
-                contentDescription = suggestion.name,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-        }
-        Text(text = suggestion.name, fontSize = 12.sp, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
-        Button(
-            onClick = onAddClick,
-            modifier = Modifier.padding(top = 4.dp).height(26.dp).fillMaxWidth(),
-            contentPadding = PaddingValues(0.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = teal),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("Add", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
-// --- UI Helpers ---
-
-@Composable
-fun SectionHeader(title: String, subtitle: String, showSync: Boolean, onSyncClick: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column {
-            Text(text = title, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            if (subtitle.isNotEmpty()) Text(text = subtitle, fontSize = 12.sp, color = Color.Gray)
-        }
-        if (showSync) {
-            IconButton(onClick = onSyncClick) {
-                Icon(Icons.Default.Contacts, contentDescription = "Sync", tint = teal)
+            if (!friend.photoUrl.isNullOrEmpty()) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(friend.photoUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = friend.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Icon(
+                    Icons.Default.Person,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                    tint = Color.Gray
+                )
             }
         }
-    }
-}
 
-@Composable
-fun ProfileSection(name: String, email: String, phone: String, onEditProfile: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Surface(modifier = Modifier.size(100.dp), shape = CircleShape, color = teal.copy(alpha = 0.1f)) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(text = name.take(1).uppercase(), fontSize = 40.sp, fontWeight = FontWeight.Bold, color = teal)
-            }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(text = name, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-        Text(text = email, color = Color.Gray)
-        Text(text = phone, color = Color.Gray)
-        Button(
-            onClick = onEditProfile,
-            modifier = Modifier.padding(horizontal = 8.dp).height(26.dp).width(75.dp),
-            contentPadding = PaddingValues(0.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = teal),
-            shape = RoundedCornerShape(12.dp)
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = friend.name,
+            color = Color(0xFF5C5C5C),
+            fontSize = 11.sp,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Box(
+            modifier = Modifier
+                .background(teal, shape = RoundedCornerShape(15.dp))
+                .clickable { onConfirm() }
+                .padding(horizontal = 8.dp, vertical = 2.dp)
         ) {
-            Text("Edit Profile", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("Confirm", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
 
 @Composable
 fun AddFriendButton(onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onClick() }) {
-        Surface(modifier = Modifier.size(60.dp), shape = CircleShape, color = Color.White, border = androidx.compose.foundation.BorderStroke(1.dp, teal)) {
-            Icon(imageVector = Icons.Default.Add, contentDescription = "Add", tint = teal, modifier = Modifier.padding(16.dp))
+    Column(modifier = Modifier.width(72.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .background(Color(0xFFE6F7F7), shape = RoundedCornerShape(12.dp))
+                .clickable { onClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            Text("+", color = teal, fontSize = 28.sp, fontWeight = FontWeight.Bold)
         }
-        Text(text = "Add", fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp), color = teal)
     }
 }
 
 @Composable
-fun LogoutFooter(onLogout: () -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-        Text("Do you want to close this account?", fontSize = 13.sp, color = Color.Black)
-        Text(text = " log out", fontSize = 13.sp, color = Color.Red, modifier = Modifier.padding(start = 4.dp).clickable { onLogout() })
+fun ProfileSection(name: String, email: String, phone: String, onEditProfile: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.user),
+            contentDescription = "Profile Picture",
+            modifier = Modifier.size(108.dp)
+        )
+        Spacer(modifier = Modifier.height(14.dp))
+        Text(name, color = Color(0xFF0A0A0A), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        if (phone.isNotEmpty()) Text(phone, color = Color.Black, fontSize = 14.sp)
+        Text(email, color = Color.Gray, fontSize = 14.sp)
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(
+            onClick = onEditProfile,
+            modifier = Modifier.width(220.dp).height(40.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = teal)
+        ) {
+            Text("Edit Profile", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        }
     }
 }

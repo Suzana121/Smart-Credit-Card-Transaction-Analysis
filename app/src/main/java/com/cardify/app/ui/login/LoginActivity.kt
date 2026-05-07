@@ -2,7 +2,14 @@ package com.cardify.app.ui.login
 
 import android.content.Intent
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.text.method.HideReturnsTransformationMethod
+import android.text.method.PasswordTransformationMethod
 import android.view.View
+import android.widget.EditText
+import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
@@ -16,6 +23,10 @@ class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
     private lateinit var viewModel: LoginViewModel
+
+    private lateinit var etEmail: EditText
+    private lateinit var etPassword: EditText
+    private var isPasswordVisible = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,6 +45,9 @@ class LoginActivity : AppCompatActivity() {
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        etEmail    = binding.root.findViewById(R.id.etEmail)
+        etPassword = binding.root.findViewById(R.id.etPassword)
+
         viewModel = ViewModelProvider(this)[LoginViewModel::class.java]
 
         setupUI()
@@ -51,17 +65,47 @@ class LoginActivity : AppCompatActivity() {
 
     private fun setupUI() {
         binding.btnLogin?.setOnClickListener {
-            val emailField    = binding.etEmail as? android.widget.EditText
-            val passwordField = binding.etPassword as? android.widget.EditText
+            val email    = etEmail.text.toString().trim()
+            val password = etPassword.text.toString()
 
-            val email    = emailField?.text?.toString()?.trim() ?: ""
-            val password = passwordField?.text?.toString() ?: ""
-
-            if (email.isNotEmpty() && password.isNotEmpty()) {
-                viewModel.login(email, password)
+            clearFieldErrors()
+            if (email.isEmpty() && password.isEmpty()) {
+                setFieldError(etEmail, binding.tvEmailError, "Please enter user name")
+                setFieldError(etPassword, binding.tvPasswordError, "Please enter password")
+            } else if (email.isEmpty()) {
+                setFieldError(etEmail, binding.tvEmailError, "Please enter user name")
+            } else if (password.isEmpty()) {
+                setFieldError(etPassword, binding.tvPasswordError, "Please enter password")
             } else {
-                showError("Please enter email and password")
+                viewModel.login(email, password)
             }
+        }
+
+        // Clear errors when user starts typing
+        etEmail.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) { clearFieldError(etEmail, binding.tvEmailError) }
+        })
+
+        etPassword.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) { clearFieldError(etPassword, binding.tvPasswordError) }
+        })
+
+        // Password visibility toggle
+        val ivPasswordToggle = binding.root.findViewById<ImageView>(R.id.ivPasswordToggle)
+        ivPasswordToggle.setOnClickListener {
+            isPasswordVisible = !isPasswordVisible
+            if (isPasswordVisible) {
+                etPassword.transformationMethod = HideReturnsTransformationMethod.getInstance()
+                ivPasswordToggle.setImageResource(R.drawable.ic_eye_open)
+            } else {
+                etPassword.transformationMethod = PasswordTransformationMethod.getInstance()
+                ivPasswordToggle.setImageResource(R.drawable.ic_eye_closed)
+            }
+            etPassword.setSelection(etPassword.text.length)
         }
 
         binding.btnRegister?.setOnClickListener {
@@ -122,6 +166,35 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun showError(message: String) {
-        Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
+        val emailEmpty    = etEmail.text.isNullOrEmpty()
+        val passwordEmpty = etPassword.text.isNullOrEmpty()
+
+        clearFieldErrors()
+
+        when {
+            emailEmpty && passwordEmpty -> {
+                setFieldError(etEmail, binding.tvEmailError, message)
+                setFieldError(etPassword, binding.tvPasswordError, message)
+            }
+            emailEmpty    -> setFieldError(etEmail, binding.tvEmailError, message)
+            passwordEmpty -> setFieldError(etPassword, binding.tvPasswordError, message)
+            else          -> setFieldError(etEmail, binding.tvEmailError, message) // API error
+        }
+    }
+
+    private fun setFieldError(field: EditText, errorView: TextView?, message: String) {
+        field.setBackgroundResource(R.drawable.input_field_error)
+        errorView?.text = message
+        errorView?.visibility = View.VISIBLE
+    }
+
+    private fun clearFieldError(field: EditText, errorView: TextView?) {
+        field.setBackgroundResource(R.drawable.input_field_rounded)
+        errorView?.visibility = View.GONE
+    }
+
+    private fun clearFieldErrors() {
+        clearFieldError(etEmail, binding.tvEmailError)
+        clearFieldError(etPassword, binding.tvPasswordError)
     }
 }

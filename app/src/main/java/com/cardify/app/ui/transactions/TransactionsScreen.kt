@@ -24,12 +24,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.cardify.app.data.model.Friend
 import com.cardify.app.data.model.Transaction
 import com.cardify.app.data.model.UploadedFile
@@ -103,7 +106,6 @@ fun TransactionsScreen(
     AppScaffold(currentRoute = "transactions", onNavigate = onNavigate) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
 
-            // --- Search Bar ---
             OutlinedTextField(
                 value         = searchQuery,
                 onValueChange = { viewModel.setSearchQuery(it) },
@@ -127,7 +129,6 @@ fun TransactionsScreen(
                 singleLine = true
             )
 
-            // --- Filter Chips + כפתור הסתרה ---
             Row(
                 modifier              = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 verticalAlignment     = Alignment.CenterVertically,
@@ -165,7 +166,6 @@ fun TransactionsScreen(
                         )
                     }
                 }
-                // כפתור הסתרה/הצגה
                 IconButton(onClick = { filtersVisible = !filtersVisible }) {
                     Icon(
                         if (filtersVisible) Icons.Default.KeyboardArrowUp
@@ -176,7 +176,6 @@ fun TransactionsScreen(
                 }
             }
 
-            // --- פאנל מתכווץ: PDF + History + Banner ---
             AnimatedVisibility(
                 visible = filtersVisible,
                 enter   = expandVertically() + fadeIn(),
@@ -265,7 +264,6 @@ fun TransactionsScreen(
                 modifier = Modifier.padding(horizontal = 16.dp))
             Spacer(Modifier.height(4.dp))
 
-            // --- List ---
             when {
                 isLoading -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -606,7 +604,7 @@ fun TransactionCard(
 }
 
 // ─────────────────────────────────────────────
-// Share Bottom Sheet
+// Share Bottom Sheet — עם תמונות פרופיל
 // ─────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -616,7 +614,9 @@ fun ShareBottomSheet(
     onSend:    (Friend) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context    = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState       = sheetState,
@@ -625,8 +625,10 @@ fun ShareBottomSheet(
     ) {
         Column(modifier = Modifier.fillMaxWidth()
             .padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
+
             Text("Share with a Friend", fontWeight = FontWeight.Bold, fontSize = 18.sp,
                 modifier = Modifier.padding(bottom = 16.dp))
+
             if (friends.isEmpty()) {
                 Column(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally) {
@@ -646,19 +648,35 @@ fun ShareBottomSheet(
                             .padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(modifier = Modifier.size(40.dp).clip(CircleShape)
-                            .background(DarkGreen.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center) {
-                            Text(friend.name.take(1).uppercase(),
-                                color = DarkGreen, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        // תמונת פרופיל — אמיתית אם קיימת
+                        Box(
+                            modifier = Modifier.size(40.dp).clip(CircleShape)
+                                .background(DarkGreen.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (!friend.photoUrl.isNullOrEmpty()) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(context)
+                                        .data(friend.photoUrl).crossfade(true).build(),
+                                    contentDescription = friend.name,
+                                    contentScale       = ContentScale.Crop,
+                                    modifier           = Modifier.fillMaxSize().clip(CircleShape)
+                                )
+                            } else {
+                                Text(friend.name.take(1).uppercase(),
+                                    color = DarkGreen, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            }
                         }
                         Spacer(Modifier.width(12.dp))
                         Text(friend.name, modifier = Modifier.weight(1f),
                             fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                        Button(onClick = { onSend(friend) }, enabled = !isSending,
-                            colors = ButtonDefaults.buttonColors(containerColor = DarkGreen),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.height(36.dp)) { Text("Send", fontSize = 12.sp) }
+                        Button(
+                            onClick  = { onSend(friend) },
+                            enabled  = !isSending,
+                            colors   = ButtonDefaults.buttonColors(containerColor = DarkGreen),
+                            shape    = RoundedCornerShape(10.dp),
+                            modifier = Modifier.height(36.dp)
+                        ) { Text("Send", fontSize = 12.sp) }
                     }
                     Spacer(Modifier.height(8.dp))
                 }

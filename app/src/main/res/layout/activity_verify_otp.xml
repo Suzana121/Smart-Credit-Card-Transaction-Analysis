@@ -5,63 +5,71 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#006769"
+    android:background="#FFFFFF"
     tools:ignore="RtlHardcoded">
 
-    <!-- כותרת האפליקציה - זהה ל-login -->
-    <TextView
-        android:id="@+id/tvAppName"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Cardify"
-        android:textColor="#FFFFFF"
-        android:textSize="30sp"
-        android:fontFamily="@font/kelly_slab"
+    <!-- Circle header background -->
+    <ImageView
+        android:id="@+id/imgHeader"
+        android:layout_width="match_parent"
+        android:layout_height="320dp"
+        android:src="@drawable/login_header"
+        android:scaleType="fitXY"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent" />
+
+    <!-- Logo top-left -->
+    <ImageView
+        android:id="@+id/ivLogo"
+        android:layout_width="120dp"
+        android:layout_height="50dp"
+        android:src="@drawable/cardify_logo"
+        android:scaleType="fitStart"
         android:layout_marginLeft="17dp"
         android:layout_marginTop="32dp"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- כותרת המסך -->
+    <!-- Title over header -->
     <TextView
         android:id="@+id/tvTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="reset password"
         android:textColor="#FFFFFF"
-        android:textSize="36sp"
+        android:textSize="45sp"
         android:fontFamily="@font/kelly_slab"
-        android:layout_marginTop="100dp"
+        android:layout_marginTop="120dp"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintRight_toRightOf="parent" />
 
-    <!-- הצגת האימייל שנשלח אליו הקוד -->
     <TextView
         android:id="@+id/tvEmailHint"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textColor="#CCFFFFFF"
+        android:textColor="#FFFFFF"
         android:textSize="14sp"
         android:fontFamily="@font/ibm_plex_sans_semibold"
         android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@id/tvTitle"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvTitle" />
+        app:layout_constraintRight_toRightOf="parent" />
 
-    <!-- ─── לייבל + שדה קוד OTP ─── -->
+    <!-- OTP code label -->
     <TextView
         android:id="@+id/tvOtpLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Reset Code"
-        android:textColor="#FFFFFF"
+        android:textColor="#006769"
         android:textSize="18sp"
         android:fontFamily="@font/ibm_plex_sans_semibold"
         android:layout_marginLeft="31dp"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="24dp"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvEmailHint" />
+        app:layout_constraintTop_toBottomOf="@id/imgHeader" />
 
     <EditText
         android:id="@+id/etOtp"
@@ -84,19 +92,34 @@
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvOtpLabel" />
 
-    <!-- ─── לייבל + שדה סיסמה חדשה ─── -->
+    <TextView
+        android:id="@+id/tvOtpError"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="31dp"
+        android:layout_marginRight="31dp"
+        android:layout_marginTop="4dp"
+        android:textColor="#DA0000"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/etOtp" />
+
+    <!-- New password label -->
     <TextView
         android:id="@+id/tvNewPasswordLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="New Password"
-        android:textColor="#FFFFFF"
+        android:textColor="#006769"
         android:textSize="18sp"
         android:fontFamily="@font/ibm_plex_sans_semibold"
         android:layout_marginLeft="31dp"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="16dp"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/etOtp" />
+        app:layout_constraintTop_toBottomOf="@id/tvOtpError" />
 
     <EditText
         android:id="@+id/etNewPassword"
@@ -109,6 +132,7 @@
         android:hint="new password"
         android:inputType="textPassword"
         android:paddingLeft="15dp"
+        android:paddingRight="48dp"
         android:layoutDirection="ltr"
         android:gravity="center_vertical"
         android:textAlignment="viewStart"
@@ -116,19 +140,47 @@
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvNewPasswordLabel" />
 
-    <!-- ─── לייבל + שדה אימות סיסמה ─── -->
+    <ImageView
+        android:id="@+id/ivNewPasswordToggle"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginRight="15dp"
+        android:src="@drawable/ic_eye_closed"
+        android:contentDescription="Toggle new password visibility"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_constraintRight_toRightOf="@id/etNewPassword"
+        app:layout_constraintTop_toTopOf="@id/etNewPassword"
+        app:layout_constraintBottom_toBottomOf="@id/etNewPassword" />
+
+    <TextView
+        android:id="@+id/tvNewPasswordError"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="31dp"
+        android:layout_marginRight="31dp"
+        android:layout_marginTop="4dp"
+        android:textColor="#DA0000"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/etNewPassword" />
+
+    <!-- Confirm password label -->
     <TextView
         android:id="@+id/tvConfirmPasswordLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Confirm Password"
-        android:textColor="#FFFFFF"
+        android:textColor="#006769"
         android:textSize="18sp"
         android:fontFamily="@font/ibm_plex_sans_semibold"
         android:layout_marginLeft="31dp"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="16dp"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/etNewPassword" />
+        app:layout_constraintTop_toBottomOf="@id/tvNewPasswordError" />
 
     <EditText
         android:id="@+id/etConfirmPassword"
@@ -141,6 +193,7 @@
         android:hint="confirm password"
         android:inputType="textPassword"
         android:paddingLeft="15dp"
+        android:paddingRight="48dp"
         android:layoutDirection="ltr"
         android:gravity="center_vertical"
         android:textAlignment="viewStart"
@@ -148,7 +201,35 @@
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvConfirmPasswordLabel" />
 
-    <!-- כפתור איפוס - זהה ל-btnLogin -->
+    <ImageView
+        android:id="@+id/ivConfirmPasswordToggle"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginRight="15dp"
+        android:src="@drawable/ic_eye_closed"
+        android:contentDescription="Toggle confirm password visibility"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_constraintRight_toRightOf="@id/etConfirmPassword"
+        app:layout_constraintTop_toTopOf="@id/etConfirmPassword"
+        app:layout_constraintBottom_toBottomOf="@id/etConfirmPassword" />
+
+    <TextView
+        android:id="@+id/tvConfirmPasswordError"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="31dp"
+        android:layout_marginRight="31dp"
+        android:layout_marginTop="4dp"
+        android:textColor="#DA0000"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/etConfirmPassword" />
+
+    <!-- Reset Password button -->
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btnResetPassword"
         android:layout_width="0dp"
@@ -156,16 +237,27 @@
         android:layout_marginLeft="31dp"
         android:layout_marginRight="31dp"
         android:layout_marginTop="30dp"
-        android:background="@drawable/button_selector"
+        android:background="@drawable/btn_rounded"
         android:text="Reset Password"
-        android:textColor="#000000"
+        android:textColor="#FFFFFF"
         android:textAllCaps="false"
         android:fontFamily="@font/ibm_plex_sans_semibold"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/etConfirmPassword" />
+        app:layout_constraintTop_toBottomOf="@id/tvConfirmPasswordError" />
 
-    <!-- ProgressBar -->
+    <!-- Resend link -->
+    <TextView
+        android:id="@+id/tvResendCode"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Didn't receive a code? Go back to resend"
+        android:textColor="#006769"
+        android:layout_marginTop="15dp"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btnResetPassword" />
+
     <ProgressBar
         android:id="@+id/progressBar"
         android:layout_width="wrap_content"
@@ -175,17 +267,5 @@
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
-
-    <!-- שליחה מחדש - זהה לסגנון tvForgotPassword -->
-    <TextView
-        android:id="@+id/tvResendCode"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Didn't receive a code? Go back to resend"
-        android:textColor="#9FE88D"
-        android:layout_marginTop="15dp"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/btnResetPassword" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

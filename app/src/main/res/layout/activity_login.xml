@@ -5,47 +5,67 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#006769"
+    android:background="#FFFFFF"
     tools:ignore="RtlHardcoded">
 
+    <ImageView
+        android:id="@+id/imgHeader"
+        android:layout_width="match_parent"
+        android:layout_height="320dp"
+        android:src="@drawable/login_header"
+        android:scaleType="fitXY"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
     <TextView
-        android:id="@+id/tvAppName"
+        android:id="@+id/tvWelcome"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Cardify"
+        android:text="welcome back!"
         android:textColor="#FFFFFF"
-        android:textSize="30sp"
+        android:textSize="45sp"
         android:fontFamily="@font/kelly_slab"
+        android:layout_marginTop="120dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/tvSubtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="sign in to continue"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@id/tvWelcome"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <ImageView
+        android:id="@+id/ivLogo"
+        android:layout_width="120dp"
+        android:layout_height="50dp"
+        android:src="@drawable/cardify_logo"
+        android:scaleType="fitStart"
         android:layout_marginLeft="17dp"
         android:layout_marginTop="32dp"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"/>
 
-    <TextView
-        android:id="@+id/tvLoginTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="login"
-        android:textColor="#FFFFFF"
-        android:textSize="64sp"
-        android:fontFamily="@font/kelly_slab"
-        android:layout_marginTop="112dp"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <TextView
+<TextView
         android:id="@+id/tvUsernameLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Username"
-        android:textColor="#FFFFFF"
+        android:text="user name"
+        android:textColor="#006769"
         android:textSize="18sp"
         android:fontFamily="@font/ibm_plex_sans_semibold"
         android:layout_marginLeft="31dp"
-        android:layout_marginTop="40dp"
+        android:layout_marginTop="400dp"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvLoginTitle" />
+        app:layout_constraintTop_toTopOf="parent" />
 
     <EditText
         android:id="@+id/etEmail"
@@ -66,17 +86,32 @@
         app:layout_constraintTop_toBottomOf="@id/tvUsernameLabel" />
 
     <TextView
+        android:id="@+id/tvEmailError"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="31dp"
+        android:layout_marginRight="31dp"
+        android:layout_marginTop="4dp"
+        android:textColor="#DA0000"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/etEmail" />
+
+    <TextView
         android:id="@+id/tvPasswordLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Password"
-        android:textColor="#FFFFFF"
+        android:text="password"
+        android:textColor="#006769"
         android:textSize="18sp"
         android:fontFamily="@font/ibm_plex_sans_semibold"
         android:layout_marginLeft="31dp"
         android:layout_marginTop="20dp"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/etEmail" />
+        app:layout_constraintTop_toBottomOf="@id/tvEmailError" />
 
     <EditText
         android:id="@+id/etPassword"
@@ -86,15 +121,45 @@
         android:layout_marginRight="31dp"
         android:layout_marginTop="8dp"
         android:background="@drawable/input_field_rounded"
-        android:hint="shhh its a secret..."
+        android:hint="your password"
         android:inputType="textPassword"
         android:paddingLeft="15dp"
+        android:paddingStart="8dp"
+        android:paddingRight="48dp"
         android:layoutDirection="ltr"
         android:gravity="center_vertical"
         android:textAlignment="viewStart"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvPasswordLabel" />
+
+    <ImageView
+        android:id="@+id/ivPasswordToggle"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginRight="15dp"
+        android:src="@drawable/ic_eye_closed"
+        android:contentDescription="Toggle password visibility"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_constraintRight_toRightOf="@id/etPassword"
+        app:layout_constraintTop_toTopOf="@id/etPassword"
+        app:layout_constraintBottom_toBottomOf="@id/etPassword" />
+
+    <TextView
+        android:id="@+id/tvPasswordError"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="31dp"
+        android:layout_marginRight="31dp"
+        android:layout_marginTop="4dp"
+        android:textColor="#DA0000"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/etPassword" />
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btnLogin"
@@ -103,14 +168,14 @@
         android:layout_marginLeft="31dp"
         android:layout_marginRight="31dp"
         android:layout_marginTop="30dp"
-        android:background="@drawable/button_selector"
-        android:text="Login to Cardify"
-        android:textColor="#000000"
+        android:background="@drawable/btn_rounded"
+        android:text="login to Cardify"
+        android:textColor="#FFFFFF"
         android:textAllCaps="false"
         android:fontFamily="@font/ibm_plex_sans_semibold"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/etPassword" />
+        app:layout_constraintTop_toBottomOf="@id/tvPasswordError" />
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btnRegister"
@@ -119,9 +184,9 @@
         android:layout_marginLeft="31dp"
         android:layout_marginRight="31dp"
         android:layout_marginTop="12dp"
-        android:background="@drawable/button_selector"
-        android:text="Sign up"
-        android:textColor="#000000"
+        android:background="@drawable/btn_rounded"
+        android:text="sign up"
+        android:textColor="#FFFFFF"
         android:textAllCaps="false"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
@@ -131,8 +196,8 @@
         android:id="@+id/tvForgotPassword"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Forgot password?"
-        android:textColor="#9FE88D"
+        android:text="forgot password?"
+        android:textColor="#006769"
         android:layout_marginTop="15dp"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
