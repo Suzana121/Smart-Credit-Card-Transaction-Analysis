@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController // ייבוא חסר
 import com.cardify.app.R
 import com.cardify.app.data.UserSession
 import com.cardify.app.data.model.Transaction
@@ -54,6 +55,7 @@ object CardifyColors {
 
 @Composable
 fun HomeScreen(
+    navController: NavHostController, // הוספת הפרמטר החסר
     onNavigate: (String) -> Unit = {},
     onShareClick: (Transaction) -> Unit = {},
     viewModel: HomeViewModel = viewModel()
@@ -67,7 +69,7 @@ fun HomeScreen(
     val transactions    by viewModel.transactions.collectAsState()
     val isLoading       by viewModel.isLoading.collectAsState()
     val isUploading     by viewModel.isUploading.collectAsState()
-    val isProcessing    by viewModel.isProcessing.collectAsState() // האזנה למצב העיבוד החדש
+    val isProcessing    by viewModel.isProcessing.collectAsState()
     val isSuccess       by viewModel.isSuccess.collectAsState()
     val uploadMessage   by viewModel.uploadMessage.collectAsState()
     val manualOverrides by viewModel.manualOverrides.collectAsState()
@@ -86,7 +88,12 @@ fun HomeScreen(
         }
     }
 
-    AppScaffold(currentRoute = "home", onNavigate = onNavigate) { padding ->
+    // עדכון ה-AppScaffold שיקבל את ה-navController
+    AppScaffold(
+
+        navController = navController,
+        onNavigate = onNavigate
+    ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
@@ -222,7 +229,6 @@ fun HomeScreen(
                 }
             }
 
-            // הצגת שכבת העיבוד (Processing Overlay) מעל הכל
             if (isProcessing) {
                 ProcessingOverlay(isSuccess = isSuccess)
             }
@@ -230,6 +236,7 @@ fun HomeScreen(
     }
 }
 
+// שאר רכיבי העזר (TransactionRowWithConfirm, UploadSection וכו') נשארים ללא שינוי...
 @Composable
 fun TransactionRowWithConfirm(
     transaction: com.cardify.app.ui.components.TransactionItem,

@@ -41,6 +41,7 @@ import com.cardify.app.ui.home.CardifyColors
 
 @Composable
 fun ChatsScreen(
+    navController: androidx.navigation.NavHostController, // הגדרה נכונה של הטיפוס
     onNavigate: (String) -> Unit,
     onOpenChat: (Chat) -> Unit,
     pendingTransaction: ChatTransaction? = null,
@@ -99,7 +100,11 @@ fun ChatsScreen(
         )
     }
 
-    AppScaffold(currentRoute = "wallet", onNavigate = onNavigate) { padding ->
+    // כאן הקריאה ל-AppScaffold עם ה-navController כדי שהאנימציה תעבוד
+    AppScaffold(
+        navController = navController,
+        onNavigate = onNavigate
+    ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()

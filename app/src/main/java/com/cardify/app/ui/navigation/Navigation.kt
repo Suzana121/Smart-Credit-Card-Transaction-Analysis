@@ -8,14 +8,12 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.google.gson.Gson
 import com.cardify.app.data.UserSession
-import com.cardify.app.data.model.Chat
 import com.cardify.app.data.model.ChatTransaction
 import com.cardify.app.data.model.Friend
 import com.cardify.app.ui.chat.ChatViewModel
 import com.cardify.app.ui.home.HomeScreen
 import com.cardify.app.ui.account.AccountScreen
 import com.cardify.app.ui.edit_account.EditAccountScreen
-import com.cardify.app.ui.shared_info.ShareWithFriendsScreen
 import com.cardify.app.ui.transactions.TransactionsScreen
 import com.cardify.app.ui.stats.StatsScreen
 import com.cardify.app.ui.chat.ChatsScreen
@@ -31,15 +29,15 @@ fun AppNavigation(startDestination: String = "home") {
 
     var pendingShareTxn    by remember { mutableStateOf<ChatTransaction?>(null) }
     var showFriendPicker   by remember { mutableStateOf(false) }
+
     val chatViewModelGlobal: ChatViewModel = viewModel()
     val accountViewModelGlobal: AccountViewModel = viewModel()
 
     fun clearPendingEverywhere() {
         pendingShareTxn  = null
         showFriendPicker = false
-        // נקה גם מה-savedStateHandle של wallet
         try {
-            navController.getBackStackEntry("wallet")
+            navController.getBackStackEntry("chat")
                 .savedStateHandle.remove<String>("pendingTransaction")
         } catch (_: Exception) {}
     }
@@ -52,19 +50,20 @@ fun AppNavigation(startDestination: String = "home") {
             onSuccess         = { chatId ->
                 val txnJson = gson.toJson(txn)
 
-                // נקה wallet לפני ניווט
                 try {
-                    navController.getBackStackEntry("wallet")
+                    navController.getBackStackEntry("chat")
                         .savedStateHandle.remove<String>("pendingTransaction")
                 } catch (_: Exception) {}
 
-                navController.navigate("wallet") {
+                // מעבר למסך ה-Chats הראשי (כדי שיהיה ב-Backstack) ואז לצ'אט הספציפי
+                navController.navigate("chat") {
                     popUpTo("home") { inclusive = false }
                     launchSingleTop = true
                 }
                 navController.navigate("chat/$chatId") {
                     launchSingleTop = true
                 }
+
                 navController.getBackStackEntry("chat/$chatId")
                     .savedStateHandle.apply {
                         set("pendingTransaction", txnJson)
@@ -80,7 +79,10 @@ fun AppNavigation(startDestination: String = "home") {
     if (showFriendPicker && pendingShareTxn != null) {
         val friends by chatViewModelGlobal.friends.collectAsState()
         val chats   by chatViewModelGlobal.chats.collectAsState()
-        LaunchedEffect(Unit) { chatViewModelGlobal.loadFriends(); chatViewModelGlobal.loadChats() }
+        LaunchedEffect(Unit) {
+            chatViewModelGlobal.loadFriends()
+            chatViewModelGlobal.loadChats()
+        }
 
         val currentUserId = UserSession.userId ?: ""
 
@@ -95,9 +97,10 @@ fun AppNavigation(startDestination: String = "home") {
 
     NavHost(navController = navController, startDestination = startDestination) {
 
-        // ─── Home ─────────────────────────────────────────────────────────────
+        // ─── Home ──────────────────────────────────────────────────────────
         composable("home") {
             HomeScreen(
+                navController = navController,
                 onNavigate = { route ->
                     if (route != "home") navController.navigate(route) {
                         popUpTo("home") { inclusive = false }
@@ -118,27 +121,8 @@ fun AppNavigation(startDestination: String = "home") {
             )
         }
 
-        // ─── Share with Friends (legacy) ──────────────────────────────────────
-        composable(
-            route = "share_with_friends/{transactionId}",
-            arguments = listOf(navArgument("transactionId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val txnId = backStackEntry.arguments?.getString("transactionId")
-            ShareWithFriendsScreen(
-                transactionId = txnId,
-                onNavigate = { route ->
-                    navController.navigate(route) {
-                        popUpTo("home") { inclusive = false }
-                        launchSingleTop = true
-                    }
-                },
-                onBack = { navController.popBackStack() }
-            )
-        }
-
-        // ─── Chats (wallet) ───────────────────────────────────────────────────
-        composable("wallet") {
-            // נקה pending גלובלי בכניסה למסך
+        // ─── Chats List (היה wallet בעבר) ──────────────────────────────────
+        composable("chat") {
             LaunchedEffect(Unit) {
                 pendingShareTxn  = null
                 showFriendPicker = false
@@ -151,8 +135,9 @@ fun AppNavigation(startDestination: String = "home") {
             }
 
             ChatsScreen(
+                navController = navController,
                 onNavigate = { route ->
-                    if (route != "wallet") navController.navigate(route) {
+                    if (route != "chat") navController.navigate(route) {
                         popUpTo("home") { inclusive = false }
                         launchSingleTop = true
                     }
@@ -170,15 +155,13 @@ fun AppNavigation(startDestination: String = "home") {
 
                     val otherPhone = if (!chat.isGroup) {
                         val otherId = chat.participants.firstOrNull { it != currentUserId } ?: ""
-                        // מנסה לאתר טלפון מרשימת החברים — תמיד, גם אם הרשימה עדיין נטענת
                         chatViewModelGlobal.friends.value
                             .firstOrNull { f -> f.name == chat.participantNames[otherId] }?.phone
-                            ?: otherId  // fallback ל-userId — מספיק כדי שכפתור העט יופיע
+                            ?: otherId
                     } else ""
 
                     val displayNamesJson = try { gson.toJson(chat.displayNames) } catch (e: Exception) { "{}" }
 
-                    // ── נקה את ה-pending מ-wallet לפני הניווט לצ'ט ──
                     entry?.savedStateHandle?.remove<String>("pendingTransaction")
 
                     navController.navigate("chat/${chat.id}") { launchSingleTop = true }
@@ -196,7 +179,7 @@ fun AppNavigation(startDestination: String = "home") {
             )
         }
 
-        // ─── Chat ─────────────────────────────────────────────────────────────
+        // ─── Single Chat Room ──────────────────────────────────────────────
         composable(
             route = "chat/{chatId}",
             arguments = listOf(navArgument("chatId") { type = NavType.StringType })
@@ -227,68 +210,37 @@ fun AppNavigation(startDestination: String = "home") {
                     accountViewModelGlobal.setNickname(phone, nickname)
                 },
                 onTransactionSent = {
-                    // נקה מה-savedStateHandle של הצ'ט הנוכחי
                     backStackEntry.savedStateHandle.remove<String>("pendingTransaction")
-                    // נקה גם מ-wallet אם קיים
                     try {
-                        navController.getBackStackEntry("wallet")
+                        navController.getBackStackEntry("chat")
                             .savedStateHandle.remove<String>("pendingTransaction")
                     } catch (_: Exception) {}
                 },
                 onNavigateToChat  = { targetChat ->
-                    val currentUserId = UserSession.userId ?: ""
-                    val targetName = if (targetChat.isGroup) {
-                        targetChat.groupName.ifBlank { "Group" }
-                    } else {
-                        val otherId = targetChat.participants.firstOrNull { it != currentUserId } ?: ""
-                        targetChat.displayNames[otherId]
-                            ?: targetChat.participantNames[otherId]
-                            ?: "Chat"
-                    }
-                    val targetDisplayNamesJson = try {
-                        gson.toJson(targetChat.displayNames)
-                    } catch (e: Exception) { "{}" }
-
                     navController.navigate("chat/${targetChat.id}") { launchSingleTop = true }
-                    navController.getBackStackEntry("chat/${targetChat.id}")
-                        .savedStateHandle.apply {
-                            set("chatName",         targetName)
-                            set("isGroup",          targetChat.isGroup)
-                            set("displayNamesJson", targetDisplayNamesJson)
-                            set("otherPhone",       "")
-                        }
                 },
                 onBack            = { navController.popBackStack() },
                 initialPendingTxn = pendingTxn
             )
         }
 
-        // ─── Transactions ─────────────────────────────────────────────────────
+        // ─── Transactions ───────────────────────────────────────────────────
         composable("transactions") {
             TransactionsScreen(
+                navController = navController,
                 onNavigate = { route ->
                     if (route != "transactions") navController.navigate(route) {
                         popUpTo("home") { inclusive = false }
                         launchSingleTop = true
                     }
-                },
-                onShareToChat = { transaction ->
-                    pendingShareTxn = ChatTransaction(
-                        businessName = transaction.businessName,
-                        amount       = transaction.amount,
-                        date         = transaction.date,
-                        category     = transaction.category,
-                        status       = transaction.status,
-                        explanation  = transaction.explanation ?: ""
-                    )
-                    showFriendPicker = true
                 }
             )
         }
 
-        // ─── Stats ────────────────────────────────────────────────────────────
+        // ─── Stats ──────────────────────────────────────────────────────────
         composable("stats") {
             StatsScreen(
+                navController = navController,
                 onNavigate = { route ->
                     if (route != "stats") navController.navigate(route) {
                         popUpTo("home") { inclusive = false }
@@ -298,12 +250,14 @@ fun AppNavigation(startDestination: String = "home") {
             )
         }
 
-        // ─── Account ──────────────────────────────────────────────────────────
+        // ─── Account ────────────────────────────────────────────────────────
         composable("account") {
             val context = androidx.compose.ui.platform.LocalContext.current
             AccountScreen(
+                navController = navController,
                 onNavigate = { route ->
                     if (route != "account") navController.navigate(route) {
+                        popUpTo("home") { inclusive = false }
                         launchSingleTop = true
                     }
                 },
@@ -319,9 +273,10 @@ fun AppNavigation(startDestination: String = "home") {
             )
         }
 
-        // ─── Edit Account ─────────────────────────────────────────────────────
+        // ─── Edit Account ───────────────────────────────────────────────────
         composable("edit_account") {
             EditAccountScreen(
+                navController = navController,
                 onNavigate = { route ->
                     if (route != "edit_account") navController.navigate(route) {
                         launchSingleTop = true

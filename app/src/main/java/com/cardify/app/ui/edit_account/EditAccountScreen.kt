@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.navigation.NavHostController // ייבוא חסר
 import coil.compose.AsyncImage
 import com.cardify.app.R
 import com.cardify.app.ui.components.AppScaffold
@@ -50,6 +51,7 @@ import java.io.File
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditAccountScreen(
+    navController: NavHostController, // הוספת navController
     onNavigate: (String) -> Unit,
     onBack: () -> Unit,
     viewModel: EditAccountViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
@@ -158,7 +160,11 @@ fun EditAccountScreen(
         }
     }
 
-    AppScaffold(currentRoute = "account", onNavigate = onNavigate) { padding ->
+    // תיקון ה-AppScaffold (הסרת currentRoute והוספת navController)
+    AppScaffold(
+        navController = navController,
+        onNavigate    = onNavigate
+    ) { padding ->
         if (viewModel.isLoading) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)

@@ -33,15 +33,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.cardify.app.R
 import com.cardify.app.ui.components.AppScaffold
 import com.cardify.app.data.model.*
 
-
 @Composable
 fun AccountScreen(
+    navController: NavHostController, // הוספת הפרמטר החסר
     onNavigate: (String) -> Unit,
     onLogout: () -> Unit,
     onEditProfile: () -> Unit,
@@ -62,8 +63,8 @@ fun AccountScreen(
     var showAddFriend      by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
+    val scrollState = rememberScrollState()
 
-    // רענון נתונים בכניסה למסך — מביא תמונה מעודכנת אחרי עריכה
     LaunchedEffect(Unit) {
         viewModel.refreshUserData()
         viewModel.loadFriendsData()
@@ -79,14 +80,16 @@ fun AccountScreen(
         }
     }
 
-    AppScaffold(currentRoute = "account", onNavigate = onNavigate) { padding ->
+    AppScaffold(
+        navController = navController, // העברת ה-Controller לאנימציה ולפתרון השגיאה
+        onNavigate    = onNavigate
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.White)
                 .padding(padding)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .verticalScroll(scrollState) // הוספת גלילה לכל המסך
         ) {
             if (isLoading) {
                 Box(
@@ -96,7 +99,7 @@ fun AccountScreen(
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             } else {
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 ProfileSection(
                     name          = name,
                     email         = email,
@@ -119,16 +122,16 @@ fun AccountScreen(
                 onAddSuggestionClick = { viewModel.sendFriendRequest(it) }
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
-
             if (requestsList.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(32.dp))
                 RequestsSection(
                     requests       = requestsList,
                     onRequestClick = { selectedRequest = it },
                     onConfirm      = { viewModel.confirmFriendRequest(it) }
                 )
-                Spacer(modifier = Modifier.height(32.dp))
             }
+
+            Spacer(modifier = Modifier.height(40.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -140,6 +143,7 @@ fun AccountScreen(
                     text = " log out",
                     fontSize = 13.sp,
                     color = Color.Red,
+                    fontWeight = FontWeight.Bold,
                     modifier = Modifier
                         .padding(start = 4.dp)
                         .clickable { viewModel.logout(context, onLogoutSuccess = onLogout) }
@@ -149,6 +153,7 @@ fun AccountScreen(
         }
     }
 
+    // --- Dialogs & Sheets ---
     if (showAddFriend) {
         AddFriendSheet(
             viewModel = viewModel,
@@ -180,11 +185,11 @@ fun AccountScreen(
     }
 
     selectedSuggestion?.let { suggestion ->
-        SuggestionItem(
-            suggestion = suggestion,
-            onAddClick = { viewModel.sendFriendRequest(suggestion); selectedSuggestion = null },
-            onDelete   = { selectedSuggestion = null },
-            onDismiss  = { selectedSuggestion = null }
+        // כאן הנחתי שיש לך רכיב מתאים להצגת הצעה, אם לא - FriendSheet יכול להתאים
+        FriendSheet(
+            friend    = suggestion,
+            viewModel = viewModel,
+            onDismiss = { selectedSuggestion = null }
         )
     }
 }
@@ -205,7 +210,6 @@ fun FriendsSection(
     val nicknames by viewModel.nicknames.collectAsState()
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        // Header: Your Friends + sync icon
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -355,7 +359,7 @@ fun FriendItem(
                     border   = BorderStroke(2.dp, Color.White)
                 ) {
                     Icon(
-                        Icons.Default.Timer, "Pending Approval",
+                        Icons.Default.Timer, "Pending",
                         tint     = Color.White,
                         modifier = Modifier.padding(2.dp).size(12.dp)
                     )

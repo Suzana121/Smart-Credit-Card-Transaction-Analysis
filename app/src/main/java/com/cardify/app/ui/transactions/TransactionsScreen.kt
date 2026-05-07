@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.cardify.app.data.model.Friend
@@ -45,6 +46,7 @@ private val RegularGreen = Color(0xFF38D325)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionsScreen(
+    navController: NavHostController,
     onNavigate: (String) -> Unit = {},
     onShareToChat: ((Transaction) -> Unit)? = null,
     viewModel: TransactionsViewModel = viewModel()
@@ -103,7 +105,7 @@ fun TransactionsScreen(
         errorMessage?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show(); viewModel.clearError() }
     }
 
-    AppScaffold(currentRoute = "transactions", onNavigate = onNavigate) { padding ->
+    AppScaffold(navController = navController,onNavigate = onNavigate) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
 
             OutlinedTextField(
