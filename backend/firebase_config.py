@@ -2,19 +2,16 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 import os
 
-
-SERVICE_ACCOUNT_KEY_PATH = 'serviceAccountKey.json' 
+SERVICE_ACCOUNT_KEY_PATH = 'serviceAccountKey.json'
 
 # בדיקה אם Firebase כבר אותחל
 if not firebase_admin._apps:
     try:
-        # אתחול עם מפתח השירות
         cred = credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH)
         firebase_admin.initialize_app(cred)
         print("Firebase Admin SDK initialized successfully.")
     except Exception as e:
         print(f"Error initializing Firebase Admin SDK: {e}")
-        # אם יש בעיה בנתיב או בקובץ, האפליקציה תיכשל
 
 # מופע ה-Firestore DB
 db = firestore.client()

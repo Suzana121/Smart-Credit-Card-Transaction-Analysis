@@ -1,7 +1,12 @@
 package com.cardify.app.data.repository
 
+import android.content.Context
+import android.net.Uri
 import com.cardify.app.data.api.RetrofitClient
 import com.cardify.app.data.model.*
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Response
 
 class AuthRepository {
@@ -44,7 +49,36 @@ class AuthRepository {
             if (response.isSuccessful) {
                 Result.success(true)
             } else {
-                Result.failure(Exception("Update failed: ${response.message()}"))
+                // קריאת הודעת השגיאה מהשרת (409 email/phone כפול)
+                val errorBody = response.errorBody()?.string() ?: ""
+                Result.failure(Exception(errorBody.ifEmpty { "Update failed: ${response.message()}" }))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * העלאת תמונת פרופיל לשרת → Firebase Storage
+     * מחזיר את ה-URL הציבורי של התמונה
+     */
+    suspend fun uploadProfileImage(uri: Uri, context: Context): Result<String> {
+        return try {
+            val stream      = context.contentResolver.openInputStream(uri)
+                ?: return Result.failure(Exception("Cannot open image"))
+            val bytes       = stream.readBytes()
+            stream.close()
+
+            val requestBody = bytes.toRequestBody("image/jpeg".toMediaTypeOrNull())
+            val part        = MultipartBody.Part.createFormData("file", "profile.jpg", requestBody)
+
+            val response = apiService.uploadProfileImage(part)
+            if (response.isSuccessful) {
+                val url = response.body()?.get("url") ?: ""
+                if (url.isEmpty()) Result.failure(Exception("No URL returned"))
+                else Result.success(url)
+            } else {
+                Result.failure(Exception("Image upload failed: ${response.code()}"))
             }
         } catch (e: Exception) {
             Result.failure(e)
