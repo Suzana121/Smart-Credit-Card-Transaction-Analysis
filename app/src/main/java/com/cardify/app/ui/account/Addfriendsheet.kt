@@ -27,8 +27,8 @@ fun AddFriendSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color.White,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        containerColor   = Color.White,
+        shape            = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
     ) {
         Column(
             modifier = Modifier
@@ -37,33 +37,42 @@ fun AddFriendSheet(
                 .padding(bottom = 40.dp),
         ) {
             Text(
-                text = "Add a friend",
+                text     = "Add a friend",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
             OutlinedTextField(
-                value = phoneInput,
+                value         = phoneInput,
                 onValueChange = { phoneInput = it },
-                label = { Text("Phone number") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true,
+                label         = { Text("Phone number") },
+                modifier      = Modifier.fillMaxWidth(),
+                shape         = RoundedCornerShape(12.dp),
+                singleLine    = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                trailingIcon = {
+                trailingIcon  = {
                     if (viewModel.isSearching) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = teal)
+                        CircularProgressIndicator(
+                            modifier    = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                            color       = MaterialTheme.colorScheme.primary
+                        )
                     } else {
                         IconButton(onClick = { viewModel.searchUser(phoneInput) }) {
-                            Icon(Icons.Default.Search, contentDescription = "Search", tint = teal)
+                            Icon(Icons.Default.Search, contentDescription = "Search", tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
             )
 
             if (viewModel.searchErrorMessage != null) {
-                Text(text = viewModel.searchErrorMessage!!, color = Color.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                Text(
+                    text     = viewModel.searchErrorMessage!!,
+                    color    = Color.Red,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -72,37 +81,28 @@ fun AddFriendSheet(
                 viewModel.searchedUser?.let { user ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF7F8F9)),
-                        shape = RoundedCornerShape(16.dp)
+                        colors   = CardDefaults.cardColors(containerColor = Color(0xFFF7F8F9)),
+                        shape    = RoundedCornerShape(16.dp)
                     ) {
-                        Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(
+                            modifier             = Modifier.padding(16.dp).fillMaxWidth(),
+                            verticalAlignment    = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
                             Column {
-                                Text(text = user.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text(text = user.name,  fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                 Text(text = user.phone, fontSize = 14.sp, color = Color.Gray)
                             }
-                            // בתוך AddFriendSheet.kt - תחת הכפתור "Add"
                             Button(
-                                onClick = {
-                                    // יצירת אובייקט Friend מתוך ה-searchedUser שנמצא
-                                    val friendToAdd = Friend(
-                                        name = user.name,
-                                        phone = user.phone,
-                                        status = "none" // סטטוס התחלתי
-                                    )
-
-                                    // קריאה לפונקציה עם אובייקט Friend אחד בלבד
-                                    viewModel.sendFriendRequest(friendToAdd)
-
-                                    // סגירת ה-Sheet בנפרד
-                                    onDismiss()
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = teal)
+                                onClick = { viewModel.sendFriendRequest(user.phone) { onDismiss() } },
+                                colors  = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                             ) {
                                 Text("Add")
-                            }                         }
+                            }
                         }
                     }
                 }
             }
         }
     }
+}

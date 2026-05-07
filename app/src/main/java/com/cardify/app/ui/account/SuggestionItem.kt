@@ -55,12 +55,12 @@ fun SuggestionItem(
                 border = BorderStroke(1.dp, Color(0xFFE7E8E9))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Name", color = teal, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text("Name", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Text(suggestion.name, color = Color.Black, fontSize = 16.sp)
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E8E9))
 
-                    Text("Phone number", color = teal, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text("Phone number", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Text(suggestion.phone, color = Color.Black, fontSize = 16.sp)
                 }
             }
@@ -72,7 +72,7 @@ fun SuggestionItem(
                 onClick = { onAddClick(); onDismiss() },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = teal)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text("Add", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }

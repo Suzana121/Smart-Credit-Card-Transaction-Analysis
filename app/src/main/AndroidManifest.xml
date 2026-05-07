@@ -1,11 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- הרשאות רשת ותקשורת -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- הרשאות מיקום -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- הרשאות מדיה וחומרה -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- הרשאות אנשי קשר -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
 
     <application
         android:allowBackup="true"
@@ -14,12 +23,14 @@
         android:theme="@style/Theme.Cardify"
         android:usesCleartextTraffic="true">
 
+        <!-- Main Activity -->
         <activity
             android:name=".MainActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize">
         </activity>
 
+        <!-- Login & Onboarding - Launcher -->
         <activity
             android:name=".ui.login.LoginActivity"
             android:exported="true"
@@ -42,11 +53,12 @@
             android:name=".ui.login.RegisterActivity"
             android:exported="false" />
 
+        <!-- Main App Sections -->
         <activity android:name=".ui.home.HomeActivity"     android:exported="false" />
         <activity android:name=".ui.activity.ActivityActivity" android:exported="false" />
         <activity android:name=".ui.stats.StatsActivity"   android:exported="false" />
 
-        <!-- FileProvider לשיתוף קובץ PDF -->
+        <!-- FileProvider לשיתוף קבצים (PDF ותמונות פרופיל) -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -56,7 +68,6 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
-
 
     </application>
 
