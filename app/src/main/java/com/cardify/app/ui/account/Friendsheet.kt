@@ -35,30 +35,31 @@ fun FriendSheet(
     viewModel: AccountViewModel,
     onDismiss: () -> Unit
 ) {
-    val context      = LocalContext.current
-    val nicknames    by viewModel.nicknames.collectAsState()
-    val currentNick  = nicknames[friend.phone] ?: ""
-    val displayName  = currentNick.ifBlank { friend.name }
+    val context     = LocalContext.current
+    val nicknames   by viewModel.nicknames.collectAsState()
+    val currentNick = nicknames[friend.phone] ?: ""
+    val displayName = currentNick.ifBlank { friend.name }
 
     var showDeleteDialog   by remember { mutableStateOf(false) }
     var showNicknameDialog by remember { mutableStateOf(false) }
     var deleteSent         by remember { mutableStateOf(false) }
     var deleteReceived     by remember { mutableStateOf(false) }
 
-    // ─── דיאלוג מחיקה ────────────────────────────────────────────
+    // ─── דיאלוג מחיקה ────────────────────────────────────────────────────────
+
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = {
                 Text(
-                    if (friend.isPending) "Cancel Friend Request?" else "Delete $displayName?",
+                    text       = if (friend.isPending) "Cancel Friend Request?" else "Delete $displayName?",
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
                 Column {
                     Text(
-                        if (friend.isPending) "Are you sure you want to cancel this friend request?"
+                        text  = if (friend.isPending) "Are you sure you want to cancel this friend request?"
                         else "Remove this friend? This cannot be undone.",
                         color = Color.Gray
                     )
@@ -66,18 +67,30 @@ fun FriendSheet(
                         Spacer(Modifier.height(16.dp))
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable { deleteSent = !deleteSent }
+                            modifier          = Modifier
+                                .fillMaxWidth()
+                                .clickable { deleteSent = !deleteSent }
+                                .padding(vertical = 4.dp)
                         ) {
-                            Checkbox(checked = deleteSent, onCheckedChange = { deleteSent = it },
-                                colors = CheckboxDefaults.colors(checkedColor = teal))
+                            Checkbox(
+                                checked         = deleteSent,
+                                onCheckedChange = { deleteSent = it },
+                                colors          = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary)
+                            )
                             Text("Delete files I shared with them", fontSize = 14.sp)
                         }
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable { deleteReceived = !deleteReceived }
+                            modifier          = Modifier
+                                .fillMaxWidth()
+                                .clickable { deleteReceived = !deleteReceived }
+                                .padding(vertical = 4.dp)
                         ) {
-                            Checkbox(checked = deleteReceived, onCheckedChange = { deleteReceived = it },
-                                colors = CheckboxDefaults.colors(checkedColor = teal))
+                            Checkbox(
+                                checked         = deleteReceived,
+                                onCheckedChange = { deleteReceived = it },
+                                colors          = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary)
+                            )
                             Text("Delete files they shared with me", fontSize = 14.sp)
                         }
                     }
@@ -92,27 +105,36 @@ fun FriendSheet(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
                 ) {
-                    Text(if (friend.isPending) "Cancel Request" else "Delete", color = Color.White)
+                    Text(
+                        text  = if (friend.isPending) "Cancel Request" else "Delete",
+                        color = Color.White
+                    )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel", color = Color.Gray)
+                }
             }
         )
     }
 
-    // ─── דיאלוג שינוי כינוי ──────────────────────────────────────
+    // ─── דיאלוג שינוי כינוי ──────────────────────────────────────────────────
+
     if (showNicknameDialog) {
         var nicknameInput by remember { mutableStateOf(currentNick) }
         CompositionLocalProvider(LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
             AlertDialog(
                 onDismissRequest = { showNicknameDialog = false },
-                title = { Text("Rename ${friend.name}", fontWeight = FontWeight.Bold) },
-                text  = {
+                title = {
+                    Text("Rename ${friend.name}", fontWeight = FontWeight.Bold)
+                },
+                text = {
                     Column {
                         Text(
-                            "Set a custom name for ${friend.name}.\nLeave blank to use the original name.",
-                            fontSize = 13.sp, color = Color.Gray
+                            text     = "Set a custom name for ${friend.name}.\nLeave blank to use the original name.",
+                            fontSize = 13.sp,
+                            color    = Color.Gray
                         )
                         Spacer(Modifier.height(12.dp))
                         OutlinedTextField(
@@ -122,7 +144,8 @@ fun FriendSheet(
                             singleLine    = true,
                             modifier      = Modifier.fillMaxWidth(),
                             colors        = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = teal)
+                                focusedBorderColor = MaterialTheme.colorScheme.primary
+                            )
                         )
                     }
                 },
@@ -132,7 +155,7 @@ fun FriendSheet(
                             viewModel.setNickname(friend.phone, nicknameInput.trim())
                             showNicknameDialog = false
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = teal)
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) { Text("Save") }
                 },
                 dismissButton = {
@@ -143,8 +166,13 @@ fun FriendSheet(
         }
     }
 
-    // ─── Bottom Sheet ─────────────────────────────────────────────
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color.White) {
+    // ─── Bottom Sheet ─────────────────────────────────────────────────────────
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor   = Color.White,
+        dragHandle       = { BottomSheetDefaults.DragHandle() }
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -152,7 +180,7 @@ fun FriendSheet(
                 .padding(bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // ── תמונת פרופיל ──
+            // ── תמונת פרופיל ──────────────────────────────────────────────────
             Box(
                 modifier = Modifier
                     .size(80.dp)
@@ -170,8 +198,11 @@ fun FriendSheet(
                         error              = painterResource(R.drawable.user)
                     )
                 } else {
-                    Icon(Icons.Default.Person, null,
-                        modifier = Modifier.size(40.dp), tint = Color.Gray)
+                    Icon(
+                        Icons.Default.Person, null,
+                        modifier = Modifier.size(40.dp),
+                        tint     = Color.Gray
+                    )
                 }
             }
 
@@ -187,32 +218,41 @@ fun FriendSheet(
                 Spacer(Modifier.height(8.dp))
                 Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFFFFF3E0)) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        modifier          = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Timer, null,
-                            tint = Color(0xFFEF6C00), modifier = Modifier.size(14.dp))
+                        Icon(
+                            Icons.Default.Timer, null,
+                            tint     = Color(0xFFEF6C00),
+                            modifier = Modifier.size(14.dp)
+                        )
                         Spacer(Modifier.width(4.dp))
-                        Text("Pending Approval", color = Color(0xFFEF6C00),
-                            fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            "Pending Approval",
+                            color      = Color(0xFFEF6C00),
+                            fontSize   = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
 
             Spacer(Modifier.height(24.dp))
 
-            // ─── שינוי כינוי ──────────────────────────────────────
+            // ── שינוי כינוי ───────────────────────────────────────────────────
             Surface(
                 modifier = Modifier.fillMaxWidth().clickable { showNicknameDialog = true },
                 shape    = RoundedCornerShape(12.dp),
                 color    = Color(0xFFF7F8F9)
             ) {
-                Row(modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Edit, null, tint = teal)
+                Row(
+                    modifier          = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Edit, null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(16.dp))
                     Column {
-                        Text("Rename contact", color = teal, fontWeight = FontWeight.Medium)
+                        Text("Rename contact", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium)
                         if (currentNick.isNotBlank()) {
                             Text("Currently: $currentNick", fontSize = 11.sp, color = Color.Gray)
                         }
@@ -222,19 +262,22 @@ fun FriendSheet(
 
             Spacer(Modifier.height(8.dp))
 
-            // ─── מחיקה ────────────────────────────────────────────
+            // ── מחיקה ─────────────────────────────────────────────────────────
             Surface(
                 modifier = Modifier.fillMaxWidth().clickable { showDeleteDialog = true },
                 shape    = RoundedCornerShape(12.dp),
                 color    = Color(0xFFF7F8F9)
             ) {
-                Row(modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier          = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Icon(Icons.Default.Delete, null, tint = Color(0xFFD32F2F))
                     Spacer(Modifier.width(16.dp))
                     Text(
-                        if (friend.isPending) "Cancel Friend Request" else "Delete Friend",
-                        color = Color(0xFFD32F2F), fontWeight = FontWeight.Medium
+                        text       = if (friend.isPending) "Cancel Friend Request" else "Delete Friend",
+                        color      = Color(0xFFD32F2F),
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }

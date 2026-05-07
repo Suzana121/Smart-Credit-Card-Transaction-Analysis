@@ -43,7 +43,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import com.cardify.app.R
-import com.cardify.app.ui.account.teal
 import com.cardify.app.ui.components.AppScaffold
 import com.cardify.app.ui.components.AppTeal
 import java.io.File
@@ -122,7 +121,7 @@ fun EditAccountScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Box(modifier = Modifier.size(40.dp).background(teal, CircleShape),
+                    Box(modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primary, CircleShape),
                         contentAlignment = Alignment.Center) {
                         Image(painter = painterResource(id = R.drawable.camera),
                             contentDescription = null, modifier = Modifier.size(22.dp))
@@ -142,7 +141,7 @@ fun EditAccountScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Box(modifier = Modifier.size(40.dp).background(teal, CircleShape),
+                    Box(modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primary, CircleShape),
                         contentAlignment = Alignment.Center) {
                         Text("🖼", fontSize = 20.sp)
                     }
@@ -162,7 +161,7 @@ fun EditAccountScreen(
     AppScaffold(currentRoute = "account", onNavigate = onNavigate) { padding ->
         if (viewModel.isLoading) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = teal)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else {
             Column(
@@ -180,7 +179,7 @@ fun EditAccountScreen(
                     when {
                         viewModel.isUploading -> {
                             Box(Modifier.size(108.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(color = teal)
+                                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                             }
                         }
                         !viewModel.profileImage.isNullOrEmpty() -> {
@@ -205,7 +204,7 @@ fun EditAccountScreen(
                     }
                     Box(
                         modifier = Modifier.size(30.dp).align(Alignment.BottomEnd)
-                            .background(teal, CircleShape)
+                            .background(MaterialTheme.colorScheme.primary, CircleShape)
                             .clickable(enabled = !viewModel.isUploading) { showImagePicker = true },
                         contentAlignment = Alignment.Center
                     ) {
@@ -247,7 +246,7 @@ fun EditAccountScreen(
                     modifier = Modifier.width(220.dp).height(38.dp),
                     shape    = RoundedCornerShape(12.dp),
                     enabled  = !viewModel.isUpdating && !viewModel.isUploading,
-                    colors   = ButtonDefaults.buttonColors(containerColor = teal)
+                    colors   = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     if (viewModel.isUpdating) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)

@@ -12,6 +12,7 @@ import hashlib
 import logging
 import uuid
 import sys
+import re
 
 logger = logging.getLogger(__name__)
 upload_bp = Blueprint('upload', __name__)
@@ -318,6 +319,48 @@ def post_share():
         return jsonify({"error": str(e)}), 500
 
 
+
+@upload_bp.route('/sync-contacts', methods=['POST'])
+@jwt_required()
+def sync_contacts():
+    data = request.get_json()
+    raw_phones = data.get('phones', [])
+
+    # נרמול מספרי הטלפון שמגיעים מהמכשיר
+    normalized_phones = set() # שימוש ב-set לחיפוש מהיר יותר
+    for p in raw_phones:
+        clean_p = re.sub(r'\D', '', p)
+        if clean_p.startswith('972'):
+            clean_p = '0' + clean_p[3:]
+        if clean_p:
+            normalized_phones.add(clean_p)
+
+    matches = []
+
+    try:
+        users_ref = db.collection('users')
+        all_users = users_ref.stream()
+
+        for user_doc in all_users:
+            user_data = user_doc.to_dict()
+            user_phone = str(user_data.get('phone', ''))
+            clean_db_phone = re.sub(r'\D', '', user_phone)
+
+            # בדיקה אם המשתמש קיים באנשי הקשר של השולח
+            if clean_db_phone in normalized_phones:
+                matches.append({
+                    "id": user_doc.id,
+                    "name": user_data.get('username', 'Unknown'),
+                    "phone": user_phone,
+                    "photo_url": user_data.get('photo_url'),
+                    "is_from_contacts": True
+                })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    # החזרת המשתמשים שנמצאו בלבד
+    return jsonify(matches), 200
 # ─────────────────────────────────────────────
 # POST /api/upload
 # ─────────────────────────────────────────────

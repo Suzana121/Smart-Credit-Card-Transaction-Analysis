@@ -59,6 +59,13 @@ interface AuthApiService {
         @Query("status")  status: String? = null
     ): Response<TransactionPage>
 
+
+
+    @POST("api/sync-contacts")
+    suspend fun syncContacts(
+        @Body request: SyncContactsRequest
+    ): Response<List<Friend>>
+
     @GET("api/uploads")
     suspend fun getUploads(): Response<List<UploadedFile>>
 
@@ -150,3 +157,4 @@ interface AuthApiService {
     @GET("auth/admin/dashboard")
     suspend fun getAdminDashboard(): Response<Map<String, Any>>
 }
+

@@ -1,6 +1,7 @@
 package com.cardify.app.ui.account
 
 import android.content.Context
+import android.provider.ContactsContract
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -13,15 +14,18 @@ import com.cardify.app.data.model.*
 import com.cardify.app.data.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class AccountViewModel(
     private val repository: AuthRepository = AuthRepository()
 ) : ViewModel() {
 
-    var searchedUser        by mutableStateOf<UserProfile?>(null); private set
-    var isSearching         by mutableStateOf(false);               private set
-    var searchErrorMessage  by mutableStateOf<String?>(null);       private set
+    var searchedUser       by mutableStateOf<UserProfile?>(null); private set
+    var isSearching        by mutableStateOf(false);               private set
+    var searchErrorMessage by mutableStateOf<String?>(null);       private set
+
+    // ─── פרופיל ───────────────────────────────────────────────────────────────
 
     private val _username = MutableStateFlow(UserSession.username ?: "Guest")
     val username: StateFlow<String> = _username
@@ -32,12 +36,13 @@ class AccountViewModel(
     private val _phone = MutableStateFlow(UserSession.phone ?: "")
     val phone: StateFlow<String> = _phone
 
-    // ← חדש: תמונת פרופיל
     private val _profileImage = MutableStateFlow(UserSession.profileImage ?: "")
     val profileImage: StateFlow<String> = _profileImage
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
+
+    // ─── חברים ────────────────────────────────────────────────────────────────
 
     private val _friends = MutableStateFlow<List<Friend>>(emptyList())
     val friends: StateFlow<List<Friend>> = _friends
@@ -45,13 +50,43 @@ class AccountViewModel(
     private val _requests = MutableStateFlow<List<Friend>>(emptyList())
     val requests: StateFlow<List<Friend>> = _requests
 
+    // תוצאות סנכרון אנשי קשר — הצעות חברות
+    private val _syncResults = MutableStateFlow<List<Friend>>(emptyList())
+    val syncResults: StateFlow<List<Friend>> = _syncResults.asStateFlow()
+
+    // ─── כינויים ──────────────────────────────────────────────────────────────
+
     private val _nicknames = MutableStateFlow<Map<String, String>>(emptyMap())
     val nicknames: StateFlow<Map<String, String>> = _nicknames
+
+    // ─── init ─────────────────────────────────────────────────────────────────
 
     init {
         refreshUserData()
         loadFriendsData()
         loadNicknames()
+    }
+
+    // ─── פרופיל ───────────────────────────────────────────────────────────────
+
+    fun refreshUserData() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            repository.fetchUserData().onSuccess { user ->
+                _username.value     = user.name
+                _email.value        = user.email
+                _phone.value        = user.phone ?: ""
+                _profileImage.value = user.profileImage ?: ""
+
+                UserSession.username     = user.name
+                UserSession.email        = user.email
+                UserSession.phone        = user.phone
+                UserSession.profileImage = user.profileImage
+            }.onFailure { e ->
+                Log.e("AccountVM", "Failed to fetch user data", e)
+            }
+            _isLoading.value = false
+        }
     }
 
     // ─── כינויים ──────────────────────────────────────────────────────────────
@@ -117,6 +152,33 @@ class AccountViewModel(
         }
     }
 
+    fun sendFriendRequest(phone: String, onResult: (String) -> Unit = {}) {
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.addFriend(FriendRequestData(phone))
+                if (response.isSuccessful) {
+                    // הסרה מרשימת ההצעות אם קיים שם
+                    _syncResults.value = _syncResults.value.filter { it.phone != phone }
+                    loadFriendsData()
+                    onResult("Friend request sent!")
+                } else {
+                    val err = response.errorBody()?.string() ?: ""
+                    onResult(when {
+                        err.contains("yourself")       -> "You cannot add yourself"
+                        err.contains("already exists") -> "Request already exists"
+                        else                           -> "User not found"
+                    })
+                }
+            } catch (e: Exception) {
+                Log.e("AccountVM", "Failed to send friend request", e)
+                onResult("Network error")
+            }
+        }
+    }
+
+    // overload נוח לשימוש עם אובייקט Friend (למשל מ-SuggestionCard)
+    fun sendFriendRequest(friend: Friend) = sendFriendRequest(friend.phone)
+
     fun confirmFriendRequest(friend: Friend) {
         viewModelScope.launch {
             try {
@@ -144,59 +206,56 @@ class AccountViewModel(
         }
     }
 
-    // ─── פרופיל ───────────────────────────────────────────────────────────────
+    // ─── סנכרון אנשי קשר ─────────────────────────────────────────────────────
 
-    fun refreshUserData() {
+    fun syncContacts(context: Context) {
         viewModelScope.launch {
-            _isLoading.value = true
-            repository.fetchUserData().onSuccess { user ->
-                _username.value     = user.name
-                _email.value        = user.email
-                _phone.value        = user.phone ?: ""
-                _profileImage.value = user.profileImage ?: ""  // ← עדכון תמונה
+            _syncResults.value = emptyList()
 
-                // שמירה ב-UserSession כדי שיהיה זמין בכל המסכים
-                UserSession.username     = user.name
-                UserSession.email        = user.email
-                UserSession.phone        = user.phone
-                UserSession.profileImage = user.profileImage
-            }.onFailure { e ->
-                Log.e("AccountVM", "Failed to fetch user data", e)
+            val contactNumbers = mutableListOf<String>()
+            val cursor = context.contentResolver.query(
+                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                null, null, null, null
+            )
+
+            cursor?.use {
+                val numberIndex = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+                while (it.moveToNext()) {
+                    val rawNumber = it.getString(numberIndex).replace(Regex("[^0-9+]"), "")
+                    if (rawNumber.isNotEmpty()) contactNumbers.add(rawNumber)
+                }
             }
-            _isLoading.value = false
-        }
-    }
 
-    fun sendFriendRequest(phone: String, onResult: (String) -> Unit) {
-        viewModelScope.launch {
+            if (contactNumbers.isEmpty()) return@launch
+
             try {
-                val response = RetrofitClient.apiService.addFriend(FriendRequestData(phone))
+                _isLoading.value = true
+                val response = RetrofitClient.apiService.syncContacts(
+                    SyncContactsRequest(phones = contactNumbers)
+                )
                 if (response.isSuccessful) {
-                    loadFriendsData()
-                    onResult("Friend request sent!")
-                } else {
-                    val err = response.errorBody()?.string() ?: ""
-                    onResult(when {
-                        err.contains("yourself")       -> "You cannot add yourself"
-                        err.contains("already exists") -> "Request already exists"
-                        else                           -> "User not found"
-                    })
+                    val matchedUsers = response.body() ?: emptyList()
+                    _syncResults.value = matchedUsers.filter { matched ->
+                        val isAlreadyFriend    = _friends.value.any  { it.phone == matched.phone }
+                        val isAlreadyRequested = _requests.value.any { it.phone == matched.phone }
+                        !isAlreadyFriend && !isAlreadyRequested
+                    }
                 }
             } catch (e: Exception) {
-                onResult("Network error")
+                Log.e("AccountVM", "Failed to sync with server", e)
+            } finally {
+                _isLoading.value = false
             }
         }
     }
 
-    fun logout(context: Context, onLogoutSuccess: () -> Unit) {
-        UserSession.clear()
-        context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE).edit().clear().apply()
-        onLogoutSuccess()
-    }
+    // ─── חיפוש ────────────────────────────────────────────────────────────────
 
     fun searchUser(phone: String) {
-        searchErrorMessage = null; searchedUser = null
+        searchErrorMessage = null
+        searchedUser       = null
         val clean = phone.trim()
+
         if (clean.isEmpty())                        { searchErrorMessage = "Please enter a phone number"; return }
         if (!clean.all { it.isDigit() })            { searchErrorMessage = "Digits only"; return }
         if (clean.length < 9 || clean.length > 10) { searchErrorMessage = "9-10 digits required"; return }
@@ -212,11 +271,27 @@ class AccountViewModel(
                         UserProfile(id = body.id, name = body.username, phone = body.phone)
                     else null
                     if (searchedUser == null) searchErrorMessage = "User not found"
-                } else searchErrorMessage = "User not found"
-            } catch (e: Exception) { searchErrorMessage = "Network error" }
-            finally { isSearching = false }
+                } else {
+                    searchErrorMessage = "User not found"
+                }
+            } catch (e: Exception) {
+                searchErrorMessage = "Network error"
+            } finally {
+                isSearching = false
+            }
         }
     }
 
-    fun clearSearch() { searchedUser = null; isSearching = false }
+    fun clearSearch() {
+        searchedUser = null
+        isSearching  = false
+    }
+
+    // ─── logout ───────────────────────────────────────────────────────────────
+
+    fun logout(context: Context, onLogoutSuccess: () -> Unit) {
+        UserSession.clear()
+        context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE).edit().clear().apply()
+        onLogoutSuccess()
+    }
 }

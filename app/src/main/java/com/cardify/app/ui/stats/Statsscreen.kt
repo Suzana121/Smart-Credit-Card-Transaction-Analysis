@@ -29,7 +29,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.cardify.app.ui.account.teal
 import com.cardify.app.ui.components.AppScaffold
 import com.cardify.app.ui.components.TransactionItem
 import com.cardify.app.ui.components.TransactionRow
@@ -85,7 +84,7 @@ fun StatsScreen(
                 is StatsUiState.Loading -> {
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center),
-                        color = teal
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
                 is StatsUiState.Error -> {
@@ -98,7 +97,7 @@ fun StatsScreen(
                         Icon(Icons.Default.Refresh, null, tint = Color.Gray)
                         Spacer(Modifier.height(8.dp))
                         Text(state.message, color = Color.Gray)
-                        Text("Tap to retry", color = teal, fontSize = 12.sp)
+                        Text("Tap to retry", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
                     }
                 }
                 is StatsUiState.Success -> {
@@ -190,16 +189,16 @@ fun TotalSpendSection(
             ) {
                 IconButton(onClick = onPrevMonth, enabled = hasPrev) {
                     Icon(Icons.Default.KeyboardArrowLeft, null,
-                        tint = if (hasPrev) teal else Color(0xFFDADBDD))
+                        tint = if (hasPrev) MaterialTheme.colorScheme.primary else Color(0xFFDADBDD))
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(fullMonthName(selectedMonth), color = teal,
+                    Text(fullMonthName(selectedMonth), color = MaterialTheme.colorScheme.primary,
                         fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     Text("Total Spend", color = Color(0xFF878C90), fontSize = 13.sp)
                 }
                 IconButton(onClick = onNextMonth, enabled = hasNext) {
                     Icon(Icons.Default.KeyboardArrowRight, null,
-                        tint = if (hasNext) teal else Color(0xFFDADBDD))
+                        tint = if (hasNext) MaterialTheme.colorScheme.primary else Color(0xFFDADBDD))
                 }
             }
             Text(
@@ -457,7 +456,7 @@ fun CategoryTransactionList(categoryName: String, transactions: List<StatsTransa
     Column {
         HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Color(0xFFE7E8E9))
         Text("$categoryName Transactions", fontSize = 14.sp,
-            fontWeight = FontWeight.Bold, color = teal,
+            fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(bottom = 10.dp))
         transactions.forEach { tx ->
             TransactionRow(
@@ -482,7 +481,7 @@ fun LegendItem(
         Spacer(Modifier.width(8.dp))
         Column {
             Text(name, fontSize = 13.sp,
-                color = if (isSelected) teal else Color.Black,
+                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Black,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
             Text("${if (total > 0) (amount / total * 100).toInt() else 0}%",
                 fontSize = 11.sp, color = Color(0xFF878C90))
@@ -541,7 +540,7 @@ fun BarChartSection(
                             if (isSelected && selectedMonthTotal > 0) {
                                 Text("₪${"%,.0f".format(selectedMonthTotal)}",
                                     fontSize = 9.sp, fontWeight = FontWeight.Bold,
-                                    color = teal, textAlign = TextAlign.Center)
+                                    color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.Center)
                             }
                         }
                         Spacer(Modifier.height(4.dp))
@@ -552,12 +551,12 @@ fun BarChartSection(
                                     .fillMaxWidth()
                                     .fillMaxHeight(animatedHeight)
                                     .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                    .background(if (isSelected) teal else Color(0xFFDADBDD))
+                                    .background(if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFFDADBDD))
                             )
                         }
                         Spacer(Modifier.height(6.dp))
                         Text(monthData.month, fontSize = 12.sp,
-                            color = if (isSelected) teal else Color(0xFF878C90),
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFF878C90),
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                             textAlign = TextAlign.Center)
                     }
@@ -574,7 +573,7 @@ fun BarChartSection(
                     HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp),
                         color = Color(0xFFE7E8E9))
                     Text("$selectedMonthName Overview", fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold, color = teal,
+                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(bottom = 12.dp))
                     Row(modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly) {
