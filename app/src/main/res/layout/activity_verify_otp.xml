@@ -132,12 +132,26 @@
         android:hint="new password"
         android:inputType="textPassword"
         android:paddingLeft="15dp"
+        android:paddingRight="48dp"
         android:layoutDirection="ltr"
         android:gravity="center_vertical"
         android:textAlignment="viewStart"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvNewPasswordLabel" />
+
+    <ImageView
+        android:id="@+id/ivNewPasswordToggle"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginRight="15dp"
+        android:src="@drawable/ic_eye_closed"
+        android:contentDescription="Toggle new password visibility"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_constraintRight_toRightOf="@id/etNewPassword"
+        app:layout_constraintTop_toTopOf="@id/etNewPassword"
+        app:layout_constraintBottom_toBottomOf="@id/etNewPassword" />
 
     <TextView
         android:id="@+id/tvNewPasswordError"
@@ -179,12 +193,26 @@
         android:hint="confirm password"
         android:inputType="textPassword"
         android:paddingLeft="15dp"
+        android:paddingRight="48dp"
         android:layoutDirection="ltr"
         android:gravity="center_vertical"
         android:textAlignment="viewStart"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvConfirmPasswordLabel" />
+
+    <ImageView
+        android:id="@+id/ivConfirmPasswordToggle"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginRight="15dp"
+        android:src="@drawable/ic_eye_closed"
+        android:contentDescription="Toggle confirm password visibility"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_constraintRight_toRightOf="@id/etConfirmPassword"
+        app:layout_constraintTop_toTopOf="@id/etConfirmPassword"
+        app:layout_constraintBottom_toBottomOf="@id/etConfirmPassword" />
 
     <TextView
         android:id="@+id/tvConfirmPasswordError"
