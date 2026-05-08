@@ -36,7 +36,6 @@ import androidx.navigation.NavHostController
 import com.cardify.app.R
 import com.cardify.app.data.UserSession
 import com.cardify.app.data.model.Transaction
-import com.cardify.app.ui.components.AppScaffold
 import com.cardify.app.ui.components.TransactionRow
 import com.cardify.app.ui.components.TransactionRowVariant
 import com.cardify.app.ui.components.toTransactionItem
@@ -84,16 +83,11 @@ fun HomeScreen(
     LaunchedEffect(Unit) { viewModel.fetchTransactions(limit = selectedLimit.toIntOrNull() ?: 5) }
     LaunchedEffect(manualOverrides) { if (manualOverrides.isNotEmpty()) bannerDismissed = false }
 
-    AppScaffold(
-        navController = navController,
-        onNavigate = onNavigate
-    ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(colorScheme.background)
-                    .padding(padding)
             ) {
                 // באנר עדכון מודל AI
                 if (manualOverrides.isNotEmpty()) {
@@ -214,7 +208,7 @@ fun HomeScreen(
             }
         }
     }
-}
+
 
 @Composable
 fun UploadSection(

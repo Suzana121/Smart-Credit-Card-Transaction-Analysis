@@ -1,11 +1,9 @@
 package com.cardify.app.ui.chat
 
-import android.R
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+
+import android.os.Build
+import androidx.annotation.RequiresApi
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -39,6 +37,7 @@ import com.cardify.app.data.model.ChatTransaction
 import com.cardify.app.data.model.Friend
 import com.cardify.app.ui.components.AppScaffold
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ChatsScreen(
     navController: androidx.navigation.NavHostController, // הגדרה נכונה של הטיפוס
@@ -100,16 +99,11 @@ fun ChatsScreen(
         )
     }
 
-    // כאן הקריאה ל-AppScaffold עם ה-navController כדי שהאנימציה תעבוד
-    AppScaffold(
-        navController = navController,
-        onNavigate = onNavigate
-    ) { padding ->
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.White)
-                .padding(padding)
         ) {
             Column(Modifier.fillMaxSize()) {
                 Row(
@@ -255,7 +249,7 @@ fun ChatsScreen(
             }
         }
     }
-}
+
 
 // ─── helper ──────────────────────────────────────────────────────────────────
 
@@ -272,6 +266,7 @@ fun chatDisplayName(chat: Chat, currentUserId: String): String {
 
 // ─── ChatItem ────────────────────────────────────────────────────────────────
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ChatItem(
     chat: Chat,
@@ -504,6 +499,7 @@ fun NewChatDialog(
 
 // ─── formatChatTime ──────────────────────────────────────────────────────────
 
+@RequiresApi(Build.VERSION_CODES.O)
 fun formatChatTime(timestamp: String): String {
     if (timestamp.isBlank()) return ""
     return try {

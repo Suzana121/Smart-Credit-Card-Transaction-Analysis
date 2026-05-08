@@ -37,7 +37,6 @@ import coil.request.ImageRequest
 import com.cardify.app.data.model.Friend
 import com.cardify.app.data.model.Transaction
 import com.cardify.app.data.model.UploadedFile
-import com.cardify.app.ui.components.AppScaffold
 
 private val DarkGreen    = Color(0xFF006769)
 private val IrregularRed = Color(0xFFE23125)
@@ -105,8 +104,8 @@ fun TransactionsScreen(
         errorMessage?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show(); viewModel.clearError() }
     }
 
-    AppScaffold(navController = navController,onNavigate = onNavigate) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+
+        Column(modifier = Modifier.fillMaxSize()) {
 
             OutlinedTextField(
                 value         = searchQuery,
@@ -327,7 +326,7 @@ fun TransactionsScreen(
             }
         }
     }
-}
+
 
 // ─────────────────────────────────────────────
 // History Bottom Sheet
