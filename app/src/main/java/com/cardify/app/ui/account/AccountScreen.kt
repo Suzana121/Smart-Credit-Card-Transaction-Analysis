@@ -37,7 +37,6 @@ import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.cardify.app.R
-import com.cardify.app.ui.components.AppScaffold
 import com.cardify.app.data.model.*
 
 @Composable
@@ -80,15 +79,11 @@ fun AccountScreen(
         }
     }
 
-    AppScaffold(
-        navController = navController, // העברת ה-Controller לאנימציה ולפתרון השגיאה
-        onNavigate    = onNavigate
-    ) { padding ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.White)
-                .padding(padding)
                 .verticalScroll(scrollState) // הוספת גלילה לכל המסך
         ) {
             if (isLoading) {
@@ -151,7 +146,7 @@ fun AccountScreen(
             }
             Spacer(modifier = Modifier.height(50.dp))
         }
-    }
+
 
     // --- Dialogs & Sheets ---
     if (showAddFriend) {

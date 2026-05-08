@@ -1,5 +1,7 @@
 package com.cardify.app.ui.chat
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
@@ -46,6 +48,7 @@ import com.cardify.app.data.model.ReplySnapshot
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
@@ -680,6 +683,7 @@ fun ForwardSheet(
 
 // ─── MessageBubble ────────────────────────────────────────────────────────────
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MessageBubble(
     message: ChatMessage,
@@ -943,6 +947,7 @@ fun PendingTransactionPreview(txn: ChatTransaction, onRemove: () -> Unit) {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 fun extractDateLabel(timestamp: String): String {
     if (timestamp.isBlank()) return ""
     return try {
