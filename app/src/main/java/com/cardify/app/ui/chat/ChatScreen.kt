@@ -36,11 +36,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cardify.app.data.UserSession
-import com.cardify.app.data.api.RetrofitClient
 import com.cardify.app.data.model.Chat
 import com.cardify.app.data.model.ChatMessage
 import com.cardify.app.data.model.ChatTransaction
@@ -61,7 +62,7 @@ fun ChatScreen(
     onNavigateToChat: ((Chat) -> Unit)? = null,
     onBack: () -> Unit,
     initialPendingTxn: ChatTransaction? = null,
-    // ← callback במקום accountViewModel — מבטיח שאותו instance ישמש
+    externalNicknames: Map<String, String> = emptyMap(),
     onSetNickname: (phone: String, nickname: String) -> Unit = { _, _ -> },
     viewModel: ChatViewModel = viewModel()
 ) {
@@ -76,24 +77,20 @@ fun ChatScreen(
     val currentUserId = UserSession.userId ?: ""
     val scope         = rememberCoroutineScope()
 
-    // ← nicknames נטענים ישירות מהשרת — לא תלויים ב-AccountViewModel instance
-    var nicknames by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    // שם תצוגה — מתעדכן מיידית אחרי שינוי כינוי
-    var displayChatName by remember { mutableStateOf(chatName) }
+    val nicknames = externalNicknames
 
-    LaunchedEffect(Unit) {
-        try {
-            val response = RetrofitClient.apiService.getAllNicknames()
-            if (response.isSuccessful) {
-                val loaded = response.body() ?: emptyMap()
-                nicknames = loaded
-                // אם יש כינוי קיים — מציג אותו מיד ב-TopBar
-                if (otherPhone.isNotBlank()) {
-                    val existingNick = loaded[otherPhone]
-                    if (!existingNick.isNullOrBlank()) displayChatName = existingNick
-                }
-            }
-        } catch (_: Exception) {}
+    var currentGroupName by remember(chatId, chats) {
+        mutableStateOf(
+            if (isGroup) chats.firstOrNull { it.id == chatId }?.groupName
+                ?.takeIf { it.isNotBlank() } ?: chatName
+            else chatName
+        )
+    }
+
+    val displayChatName = remember(otherPhone, nicknames, currentGroupName, isGroup) {
+        if (isGroup) currentGroupName
+        else if (otherPhone.isNotBlank()) nicknames[otherPhone]?.takeIf { it.isNotBlank() } ?: chatName
+        else chatName
     }
 
     val senderPhones: Map<String, String> = remember(messages, friends) {
@@ -103,6 +100,9 @@ fun ChatScreen(
 
     var showNicknameDialog by remember { mutableStateOf(false) }
     var nicknameInput      by remember { mutableStateOf("") }
+
+    var showGroupNameDialog by remember { mutableStateOf(false) }
+    var groupNameInput      by remember { mutableStateOf("") }
 
     var searchActive by remember { mutableStateOf(false) }
     var searchQuery  by remember { mutableStateOf("") }
@@ -134,15 +134,21 @@ fun ChatScreen(
         derivedStateOf { floatingDateLabel.isNotBlank() && listState.firstVisibleItemIndex > 0 }
     }
 
-    LaunchedEffect(chatId) { viewModel.loadMessages(chatId); viewModel.loadChats(); viewModel.loadFriends() }
-    LaunchedEffect(initialPendingTxn) { initialPendingTxn?.let { viewModel.setPendingTransaction(it) } }
+    LaunchedEffect(chatId) {
+        viewModel.loadMessages(chatId)
+        viewModel.loadChats()
+        viewModel.loadFriends()
+    }
+    LaunchedEffect(initialPendingTxn) {
+        initialPendingTxn?.let { viewModel.setPendingTransaction(it) }
+    }
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty() && !searchActive) listState.animateScrollToItem(messages.size - 1)
     }
 
-    // ─── דיאלוג אישור מחיקה ──────────────────────────────────────
+    // ─── Delete confirmation dialog ───────────────────────────────────────────
     if (messageToDelete != null) {
-        CompositionLocalProvider(LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
             AlertDialog(
                 onDismissRequest = { messageToDelete = null },
                 title = { Text("Delete Message", fontWeight = FontWeight.Bold) },
@@ -156,22 +162,63 @@ fun ChatScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE23125))
                     ) { Text("Delete") }
                 },
-                dismissButton = { TextButton(onClick = { messageToDelete = null }) { Text("Cancel") } },
+                dismissButton = {
+                    TextButton(onClick = { messageToDelete = null }) { Text("Cancel") }
+                },
                 shape = RoundedCornerShape(16.dp)
             )
         }
     }
 
-    // ─── דיאלוג שינוי כינוי ──────────────────────────────────────
-    if (showNicknameDialog && otherPhone.isNotBlank()) {
-        CompositionLocalProvider(LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
-            AlertDialog(
-                onDismissRequest = { showNicknameDialog = false },
-                title = { Text("Rename $chatName", fontWeight = FontWeight.Bold) },
-                text  = {
-                    Column {
-                        Text("Set a custom name for $chatName.\nLeave blank to use the original name.",
-                            fontSize = 13.sp, color = Color.Gray)
+    // ─── Nickname dialog — Dialog מותאם, ללא padding מיותר ───────────────────
+    if (showNicknameDialog && !isGroup) {
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+            Dialog(onDismissRequest = { showNicknameDialog = false }) {
+                Surface(
+                    shape    = RoundedCornerShape(16.dp),
+                    color    = Color.White,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(24.dp)) {
+                        Text(
+                            "Rename $chatName",
+                            fontWeight = FontWeight.Bold,
+                            fontSize   = 18.sp
+                        )
+                        Spacer(Modifier.height(16.dp))
+
+                        // מספר טלפון — מוצג כשיש otherPhone
+                        if (otherPhone.isNotBlank()) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.07f))
+                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Phone,
+                                    contentDescription = null,
+                                    tint     = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text       = otherPhone,
+                                    fontSize   = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color      = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Spacer(Modifier.height(12.dp))
+                        }
+
+                        Text(
+                            "Set a custom name for $chatName.\nLeave blank to use the original name.",
+                            fontSize = 13.sp,
+                            color    = Color.Gray
+                        )
                         Spacer(Modifier.height(12.dp))
                         OutlinedTextField(
                             value         = nicknameInput,
@@ -180,31 +227,96 @@ fun ChatScreen(
                             singleLine    = true,
                             modifier      = Modifier.fillMaxWidth(),
                             colors        = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary)
+                                focusedBorderColor = MaterialTheme.colorScheme.primary
+                            )
                         )
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            // ← משתמש ב-callback שמגיע מה-AppNavigation עם ה-accountViewModelGlobal
-                            val newNick = nicknameInput.trim()
-                            onSetNickname(otherPhone, newNick)
-                            // עדכון מקומי מיידי — nicknames + שם בTopBar
-                            nicknames = if (newNick.isBlank()) {
-                                nicknames - otherPhone
-                            } else {
-                                nicknames + (otherPhone to newNick)
+                        Spacer(Modifier.height(24.dp))
+                        Row(
+                            modifier              = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment     = Alignment.CenterVertically
+                        ) {
+                            TextButton(onClick = { showNicknameDialog = false }) {
+                                Text("Cancel")
                             }
-                            displayChatName = if (newNick.isBlank()) chatName else newNick
-                            showNicknameDialog = false
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) { Text("Save") }
-                },
-                dismissButton = { TextButton(onClick = { showNicknameDialog = false }) { Text("Cancel") } },
-                shape = RoundedCornerShape(16.dp)
-            )
+                            Spacer(Modifier.width(8.dp))
+                            Button(
+                                onClick = {
+                                    onSetNickname(otherPhone, nicknameInput.trim())
+                                    showNicknameDialog = false
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                )
+                            ) { Text("Save") }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ─── Group name dialog — Dialog מותאם, ללא padding מיותר ────────────────
+    if (showGroupNameDialog && isGroup) {
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+            Dialog(onDismissRequest = { showGroupNameDialog = false }) {
+                Surface(
+                    shape    = RoundedCornerShape(16.dp),
+                    color    = Color.White,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(24.dp)) {
+                        Text(
+                            "Rename Group",
+                            fontWeight = FontWeight.Bold,
+                            fontSize   = 18.sp
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            "Set a new name for this group.",
+                            fontSize = 13.sp,
+                            color    = Color.Gray
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value         = groupNameInput,
+                            onValueChange = { groupNameInput = it },
+                            label         = { Text("Group name") },
+                            singleLine    = true,
+                            modifier      = Modifier.fillMaxWidth(),
+                            colors        = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary
+                            )
+                        )
+                        Spacer(Modifier.height(24.dp))
+                        Row(
+                            modifier              = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment     = Alignment.CenterVertically
+                        ) {
+                            TextButton(onClick = { showGroupNameDialog = false }) {
+                                Text("Cancel")
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            Button(
+                                onClick = {
+                                    val trimmed = groupNameInput.trim()
+                                    if (trimmed.isNotBlank()) {
+                                        viewModel.updateGroupName(chatId, trimmed) {
+                                            currentGroupName = trimmed
+                                        }
+                                        showGroupNameDialog = false
+                                    }
+                                },
+                                enabled = groupNameInput.isNotBlank(),
+                                colors  = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                )
+                            ) { Text("Save") }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -253,9 +365,12 @@ fun ChatScreen(
                 title = {
                     if (searchActive) {
                         OutlinedTextField(
-                            value = searchQuery, onValueChange = { searchQuery = it },
-                            placeholder = { Text("Search messages...", fontSize = 13.sp,
-                                color = Color.White.copy(alpha = 0.7f)) },
+                            value         = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder   = {
+                                Text("Search messages...", fontSize = 13.sp,
+                                    color = Color.White.copy(alpha = 0.7f))
+                            },
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor   = Color.White.copy(alpha = 0.5f),
@@ -278,37 +393,47 @@ fun ChatScreen(
                 actions = {
                     if (searchActive) {
                         if (matchIndices.isNotEmpty()) {
-                            Text("${currentMatchIndex + 1}/${matchIndices.size}",
+                            Text(
+                                "${currentMatchIndex + 1}/${matchIndices.size}",
                                 color = Color.White, fontSize = 12.sp,
-                                modifier = Modifier.padding(end = 4.dp))
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
                             IconButton(onClick = {
                                 if (currentMatchIndex > 0) {
                                     currentMatchIndex--
-                                    scope.launch { listState.animateScrollToItem(matchIndices[currentMatchIndex]) }
+                                    scope.launch {
+                                        listState.animateScrollToItem(matchIndices[currentMatchIndex])
+                                    }
                                 }
                             }) { Icon(Icons.Default.KeyboardArrowUp, null, tint = Color.White) }
                             IconButton(onClick = {
                                 if (currentMatchIndex < matchIndices.size - 1) {
                                     currentMatchIndex++
-                                    scope.launch { listState.animateScrollToItem(matchIndices[currentMatchIndex]) }
+                                    scope.launch {
+                                        listState.animateScrollToItem(matchIndices[currentMatchIndex])
+                                    }
                                 }
                             }) { Icon(Icons.Default.KeyboardArrowDown, null, tint = Color.White) }
                         } else if (searchQuery.isNotBlank()) {
-                            Text("No results", color = Color.White.copy(alpha = 0.7f),
-                                fontSize = 12.sp, modifier = Modifier.padding(end = 8.dp))
+                            Text(
+                                "No results", color = Color.White.copy(alpha = 0.7f),
+                                fontSize = 12.sp, modifier = Modifier.padding(end = 8.dp)
+                            )
                         }
                         IconButton(onClick = { searchActive = false; searchQuery = "" }) {
                             Icon(Icons.Default.Close, null, tint = Color.White)
                         }
                     } else {
-                        // כפתור עריכת כינוי — תמיד בצ'ט 1:1
-                        if (!isGroup && otherPhone.isNotBlank()) {
-                            IconButton(onClick = {
+                        IconButton(onClick = {
+                            if (isGroup) {
+                                groupNameInput      = currentGroupName
+                                showGroupNameDialog = true
+                            } else {
                                 nicknameInput      = nicknames[otherPhone] ?: ""
                                 showNicknameDialog = true
-                            }) {
-                                Icon(Icons.Default.Edit, null, tint = Color.White)
                             }
+                        }) {
+                            Icon(Icons.Default.Edit, null, tint = Color.White)
                         }
                         IconButton(onClick = { searchActive = true }) {
                             Icon(Icons.Default.Search, null, tint = Color.White)
@@ -323,10 +448,16 @@ fun ChatScreen(
             )
         },
         bottomBar = {
-            Column {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+            ) {
                 if (pendingTxn != null) {
-                    PendingTransactionPreview(txn = pendingTxn!!,
-                        onRemove = { viewModel.clearPendingTransaction() })
+                    PendingTransactionPreview(
+                        txn      = pendingTxn!!,
+                        onRemove = { viewModel.clearPendingTransaction() }
+                    )
                 }
                 if (replyTo != null) {
                     ReplyPreview(
@@ -337,17 +468,20 @@ fun ChatScreen(
                     )
                 }
                 Row(
-                    modifier = Modifier.fillMaxWidth().background(Color.White)
+                    modifier = Modifier
+                        .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedTextField(
-                        value = text, onValueChange = { text = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Message...", fontSize = 14.sp) },
-                        shape = RoundedCornerShape(24.dp), maxLines = 3,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor   =MaterialTheme.colorScheme.primary,
+                        value         = text,
+                        onValueChange = { text = it },
+                        modifier      = Modifier.weight(1f),
+                        placeholder   = { Text("Message...", fontSize = 14.sp) },
+                        shape         = RoundedCornerShape(24.dp),
+                        maxLines      = 3,
+                        colors        = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor   = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = Color(0xFFDDDDDD))
                     )
                     Spacer(Modifier.width(8.dp))
@@ -367,9 +501,11 @@ fun ChatScreen(
                                 if (hadPendingTxn) onTransactionSent?.invoke()
                             }
                         },
-                        modifier = Modifier.size(44.dp).background(
-                            if (canSend) MaterialTheme.colorScheme.primary else Color(0xFFCCCCCC),
-                            RoundedCornerShape(22.dp))
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(
+                                if (canSend) MaterialTheme.colorScheme.primary else Color(0xFFCCCCCC),
+                                RoundedCornerShape(22.dp))
                     ) {
                         Icon(Icons.Default.Send, null, tint = Color.White,
                             modifier = Modifier.size(20.dp))
@@ -391,8 +527,10 @@ fun ChatScreen(
             }
             Box(modifier = Modifier.fillMaxSize().padding(padding)) {
                 LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5))
+                    state          = listState,
+                    modifier       = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFFF5F5F5))
                         .padding(horizontal = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(vertical = 12.dp)
@@ -453,13 +591,19 @@ fun ChatScreen(
                         .padding(end = 12.dp, bottom = 12.dp)
                 ) {
                     SmallFloatingActionButton(
-                        onClick = { scope.launch {
-                            if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
-                        }},
-                        containerColor = MaterialTheme.colorScheme.primary, contentColor = Color.White,
-                        shape = CircleShape, modifier = Modifier.size(38.dp)
+                        onClick = {
+                            scope.launch {
+                                if (messages.isNotEmpty())
+                                    listState.animateScrollToItem(messages.size - 1)
+                            }
+                        },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor   = Color.White,
+                        shape          = CircleShape,
+                        modifier       = Modifier.size(38.dp)
                     ) {
-                        Icon(Icons.Default.KeyboardArrowDown, null, modifier = Modifier.size(22.dp))
+                        Icon(Icons.Default.KeyboardArrowDown, null,
+                            modifier = Modifier.size(22.dp))
                     }
                 }
             }
@@ -467,7 +611,7 @@ fun ChatScreen(
     }
 }
 
-// ─── MessageOptionsSheet ─────────────────────────────────────────────────────
+// ─── MessageOptionsSheet ──────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -515,7 +659,7 @@ fun MessageOptionsSheet(
             OptionRow("↩",  "Reply",   MaterialTheme.colorScheme.primary, onReply)
             if (!message.deleted) OptionRow("↪", "Forward", MaterialTheme.colorScheme.primary, onForward)
             if (isMe && !message.deleted) {
-                Divider(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
                 OptionRow("🗑", "Delete", Color(0xFFE23125), onDelete)
             }
         }
@@ -535,7 +679,7 @@ private fun OptionRow(icon: String, label: String, color: Color, onClick: () -> 
     }
 }
 
-// ─── EmojiPickerSheet ────────────────────────────────────────────────────────
+// ─── EmojiPickerSheet ─────────────────────────────────────────────────────────
 
 private val EMOJI_CATEGORIES = listOf(
     "😊 Smileys"  to listOf("😀","😃","😄","😁","😆","😅","🤣","😂","🙂","🙃","😉","😊","😇","🥰","😍","🤩","😘","😗","😚","😙","🥲","😋","😛","😜","🤪","😝","🤑","🤗","🤭","🤫","🤔","🤐","🤨","😐","😑","😶","😏","😒","🙄","😬","🤥","😌","😔","😪","🤤","😴","😷","🤒","🤕","🤢","🤧","🥵","🥶","🥴","😵","🤯","🤠","🥳","😎","🤓","🧐","😕","😟","🙁","☹️","😮","😯","😲","😳","🥺","😦","😧","😨","😰","😥","😢","😭","😱","😖","😣","😞","😓","😩","😫","🥱","😤","😡","😠","🤬","😈","👿","💀","☠️","💩","🤡","👹","👺","👻","👽","👾","🤖"),
@@ -630,8 +774,10 @@ fun ForwardSheet(
             Text("Forward to...", fontWeight = FontWeight.Bold, fontSize = 18.sp,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp))
             if (otherChats.isEmpty()) {
-                Column(modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp, horizontal = 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp, horizontal = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Text("💬", fontSize = 40.sp)
                     Spacer(Modifier.height(12.dp))
                     Text("No other chats to forward to", fontWeight = FontWeight.SemiBold,
@@ -655,11 +801,14 @@ fun ForwardSheet(
                                 .padding(horizontal = 20.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(modifier = Modifier.size(46.dp).clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center) {
+                            Box(
+                                modifier = Modifier.size(46.dp).clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Text(displayName.take(1).uppercase(), fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary)
                             }
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
@@ -670,9 +819,11 @@ fun ForwardSheet(
                                 }
                             }
                             Icon(Icons.Default.Send, null,
-                                tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp))
                         }
-                        HorizontalDivider(modifier = Modifier.padding(start = 78.dp),
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 78.dp),
                             color = Color(0xFFEEEEEE))
                     }
                 }
@@ -709,20 +860,25 @@ fun MessageBubble(
     }
 
     val highlightAlpha by animateFloatAsState(
-        targetValue = if (isHighlighted) 0.25f else 0f,
+        targetValue   = if (isHighlighted) 0.25f else 0f,
         animationSpec = tween(300), label = "highlight"
     )
 
     if (message.deleted) {
-        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-            horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start) {
-            Box(modifier = Modifier.widthIn(max = 200.dp)
-                .background(Color(0xFFEEEEEE), RoundedCornerShape(12.dp))
-                .padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+            horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start
+        ) {
+            Box(
+                modifier = Modifier.widthIn(max = 200.dp)
+                    .background(Color(0xFFEEEEEE), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("🗑", fontSize = 14.sp)
-                    Text("Message deleted", fontSize = 13.sp, color = Color.Gray, fontStyle = FontStyle.Italic)
+                    Text("Message deleted", fontSize = 13.sp,
+                        color = Color.Gray, fontStyle = FontStyle.Italic)
                 }
             }
         }
@@ -742,7 +898,9 @@ fun MessageBubble(
                         }
                     },
                     onHorizontalDrag = { _, dragAmount ->
-                        scope.launch { offsetX.snapTo((offsetX.value + dragAmount).coerceIn(0f, 120f)) }
+                        scope.launch {
+                            offsetX.snapTo((offsetX.value + dragAmount).coerceIn(0f, 120f))
+                        }
                     }
                 )
             }
@@ -751,18 +909,24 @@ fun MessageBubble(
     ) {
         if (offsetX.value > 20f) {
             Icon(Icons.Default.Reply, null,
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = (offsetX.value / THRESHOLD).coerceIn(0f, 1f)),
+                tint = MaterialTheme.colorScheme.primary.copy(
+                    alpha = (offsetX.value / THRESHOLD).coerceIn(0f, 1f)),
                 modifier = Modifier.size(22.dp).align(Alignment.Start).padding(start = 4.dp))
         }
         if (!isMe && showSenderName) {
-            Text(senderDisplayName, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary,
+            Text(senderDisplayName, fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(start = 4.dp, bottom = 2.dp))
         }
         if (message.forwarded) {
-            Row(modifier = Modifier.padding(bottom = 2.dp,
-                start = if (isMe) 0.dp else 4.dp, end = if (isMe) 4.dp else 0.dp),
-                verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.padding(
+                    bottom = 2.dp,
+                    start  = if (isMe) 0.dp else 4.dp,
+                    end    = if (isMe) 4.dp else 0.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text("↪ ", fontSize = 11.sp, color = Color.Gray)
                 Text("Forwarded", fontSize = 11.sp, color = Color.Gray, fontStyle = FontStyle.Italic)
             }
@@ -771,7 +935,8 @@ fun MessageBubble(
             modifier = Modifier.widthIn(max = 280.dp)
                 .background(
                     if (isMe) MaterialTheme.colorScheme.primary else Color.White,
-                    RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp,
+                    RoundedCornerShape(
+                        topStart    = 16.dp, topEnd     = 16.dp,
                         bottomStart = if (isMe) 16.dp else 4.dp,
                         bottomEnd   = if (isMe) 4.dp  else 16.dp))
                 .pointerInput(isMe) { detectTapGestures(onLongPress = { onLongPress() }) }
@@ -813,21 +978,30 @@ fun ReactionsBar(
     val grouped = reactions.values.groupBy { it }.mapValues { it.value.size }
     val myEmoji = reactions[currentUserId] ?: ""
     LazyRow(
-        modifier = Modifier.padding(top = 3.dp,
-            start = if (isMe) 0.dp else 4.dp, end = if (isMe) 4.dp else 0.dp),
+        modifier = Modifier.padding(
+            top   = 3.dp,
+            start = if (isMe) 0.dp else 4.dp,
+            end   = if (isMe) 4.dp else 0.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         items(grouped.entries.toList()) { (emoji, count) ->
             val isMine = emoji == myEmoji
             Box(
                 modifier = Modifier.clip(RoundedCornerShape(12.dp))
-                    .background(if (isMine) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color(0xFFF0F0F0))
+                    .background(
+                        if (isMine) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                        else Color(0xFFF0F0F0))
                     .clickable { onReactionClick(emoji) }
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
                 Text(buildAnnotatedString {
                     append(emoji)
-                    if (count > 1) { append(" "); withStyle(SpanStyle(fontSize = 11.sp, color = Color.Gray)) { append(count.toString()) } }
+                    if (count > 1) {
+                        append(" ")
+                        withStyle(SpanStyle(fontSize = 11.sp, color = Color.Gray)) {
+                            append(count.toString())
+                        }
+                    }
                 }, fontSize = 14.sp)
             }
         }
@@ -836,7 +1010,8 @@ fun ReactionsBar(
 
 @Composable
 fun QuotedMessage(
-    reply: ReplySnapshot, isMe: Boolean,
+    reply: ReplySnapshot,
+    isMe: Boolean,
     nicknames: Map<String, String> = emptyMap(),
     senderPhones: Map<String, String> = emptyMap()
 ) {
@@ -844,19 +1019,22 @@ fun QuotedMessage(
     val textColor = if (isMe) Color.White else Color.Black
     val nameColor = if (isMe) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.primary
     val barColor  = if (isMe) Color.White.copy(alpha = 0.6f) else MaterialTheme.colorScheme.primary
-    Row(modifier = Modifier.fillMaxWidth()
-        .background(bgColor, RoundedCornerShape(8.dp)).padding(end = 8.dp),
-        verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .background(bgColor, RoundedCornerShape(8.dp)).padding(end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Box(modifier = Modifier.width(3.dp).height(36.dp)
             .background(barColor, RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)))
         Spacer(Modifier.width(8.dp))
         Column(modifier = Modifier.padding(vertical = 6.dp)) {
-            Text(reply.senderName, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = nameColor)
+            Text(reply.senderName, fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold, color = nameColor)
             val preview = when {
-                reply.isAudio -> "🎤 Voice message"
+                reply.isAudio                  -> "🎤 Voice message"
                 reply.businessName.isNotBlank() -> "📊 ${reply.businessName}"
-                reply.text.isNotBlank() -> reply.text.take(60)
-                else -> ""
+                reply.text.isNotBlank()         -> reply.text.take(60)
+                else                            -> ""
             }
             if (preview.isNotBlank()) {
                 Text(preview, fontSize = 12.sp, color = textColor.copy(alpha = 0.75f),
@@ -877,10 +1055,12 @@ fun ReplyPreview(
     val displayName = if (phone.isNotBlank())
         nicknames[phone]?.takeIf { it.isNotBlank() } ?: message.senderName
     else message.senderName
-    Row(modifier = Modifier.fillMaxWidth()
-        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
-        .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Box(modifier = Modifier.width(3.dp).height(36.dp)
             .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp)))
         Spacer(Modifier.width(8.dp))
@@ -904,10 +1084,15 @@ fun ReplyPreview(
 @Composable
 fun TransactionCard(txn: ChatTransaction, isMe: Boolean) {
     val textColor = if (isMe) Color.White else Color.Black
-    Column(modifier = Modifier.fillMaxWidth()
-        .background(if (isMe) Color.White.copy(alpha = 0.15f) else Color(0xFFF0F0F0),
-            RoundedCornerShape(10.dp)).padding(10.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .background(
+                if (isMe) Color.White.copy(alpha = 0.15f) else Color(0xFFF0F0F0),
+                RoundedCornerShape(10.dp))
+            .padding(10.dp)
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween) {
             Text(txn.businessName, fontWeight = FontWeight.Bold, fontSize = 13.sp,
                 color = textColor, modifier = Modifier.weight(1f))
             Text("₪${"%.2f".format(txn.amount)}", fontWeight = FontWeight.Bold, fontSize = 13.sp,
@@ -920,10 +1105,12 @@ fun TransactionCard(txn: ChatTransaction, isMe: Boolean) {
             Text(txn.date, fontSize = 11.sp,
                 color = if (isMe) Color.White.copy(alpha = 0.8f) else Color.Gray)
         }
-        Text(if (txn.status == "IRREGULAR") "⚠️ Irregular" else "✓ Regular",
+        Text(
+            if (txn.status == "IRREGULAR") "⚠️ Irregular" else "✓ Regular",
             fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
             color = if (txn.status == "IRREGULAR") Color(0xFFE23125)
-            else if (isMe) Color.White.copy(alpha = 0.9f) else Color(0xFF38D325))
+            else if (isMe) Color.White.copy(alpha = 0.9f) else Color(0xFF38D325)
+        )
         if (txn.explanation.isNotBlank() && txn.status == "IRREGULAR") {
             Spacer(Modifier.height(4.dp))
             Text(txn.explanation, fontSize = 10.sp,
@@ -934,16 +1121,21 @@ fun TransactionCard(txn: ChatTransaction, isMe: Boolean) {
 
 @Composable
 fun PendingTransactionPreview(txn: ChatTransaction, onRemove: () -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth()
-        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-        .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Column(Modifier.weight(1f)) {
             Text("📊 ${txn.businessName}", fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
-            Text("₪${"%.2f".format(txn.amount)} • ${txn.status}", fontSize = 11.sp, color = Color.Gray)
+            Text("₪${"%.2f".format(txn.amount)} • ${txn.status}",
+                fontSize = 11.sp, color = Color.Gray)
         }
-        TextButton(onClick = onRemove) { Text("Remove", color = Color.Red, fontSize = 12.sp) }
+        TextButton(onClick = onRemove) {
+            Text("Remove", color = Color.Red, fontSize = 12.sp)
+        }
     }
 }
 
@@ -974,10 +1166,16 @@ fun extractDateLabel(timestamp: String): String {
 
 @Composable
 fun DateHeader(label: String) {
-    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        contentAlignment = Alignment.Center) {
-        Text(text = label, fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.background(Color(0xFFAAAAAA), RoundedCornerShape(10.dp))
-                .padding(horizontal = 12.dp, vertical = 3.dp))
+    Box(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label, fontSize = 11.sp,
+            color = Color.White, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .background(Color(0xFFAAAAAA), RoundedCornerShape(10.dp))
+                .padding(horizontal = 12.dp, vertical = 3.dp)
+        )
     }
 }

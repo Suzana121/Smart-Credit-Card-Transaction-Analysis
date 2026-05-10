@@ -29,41 +29,51 @@ import com.cardify.app.R
 import com.cardify.app.ui.chat.ChatViewModel
 
 sealed class NavigationItem(val route: String, val iconRes: Int, val label: String) {
-    object Home : NavigationItem("home", R.drawable.home, "Home")
-    object Chat : NavigationItem("chat", R.drawable.message, "Chat")
-    object Transactions : NavigationItem("transactions", R.drawable.transacions, "Transactions")
-    object Stats : NavigationItem("stats", R.drawable.stats, "Stats")
-    object Account : NavigationItem("account", R.drawable.account, "Account")
+    object Home         : NavigationItem("home",         R.drawable.home,        "Home")
+    object Chat         : NavigationItem("chat",         R.drawable.message,     "Chat")
+    // "Transactions" → "Payments" — קצר יותר, לא נחתך בסרגל הניווט
+    object Transactions : NavigationItem("transactions", R.drawable.transacions, "Transacions")
+    object Stats        : NavigationItem("stats",        R.drawable.stats,       "Stats")
+    object Account      : NavigationItem("account",      R.drawable.account,     "Account")
 }
 
 @Composable
 fun CleanTopBar(onAccountClick: () -> Unit = {}) {
     Surface(
-        color = MaterialTheme.colorScheme.primary,
+        color           = MaterialTheme.colorScheme.primary,
         shadowElevation = 4.dp,
-        modifier = Modifier.fillMaxWidth()
+        modifier        = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.statusBarsPadding().height(70.dp).padding(horizontal = 24.dp),
+            modifier              = Modifier.statusBarsPadding().height(70.dp).padding(horizontal = 24.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment     = Alignment.CenterVertically
         ) {
-            Text("Cardify", color = Color.White, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.kelly_slab)))
+            Text(
+                "Cardify",
+                color      = Color.White,
+                fontSize   = 32.sp,
+                fontFamily = FontFamily(Font(R.font.kelly_slab))
+            )
             IconButton(onClick = onAccountClick) {
-                Icon(Icons.Default.AccountCircle, contentDescription = "Account", tint = Color.White, modifier = Modifier.size(32.dp))
+                Icon(
+                    Icons.Default.AccountCircle,
+                    contentDescription = "Account",
+                    tint               = Color.White,
+                    modifier           = Modifier.size(32.dp)
+                )
             }
         }
     }
 }
 
-
 @Composable
 fun AppScaffold(
     navController: NavHostController,
-    onNavigate: (String) -> Unit,
+    onNavigate:    (String) -> Unit,
     topBarContent: (@Composable () -> Unit)? = null,
     chatViewModel: ChatViewModel = viewModel(),
-    content: @Composable (PaddingValues) -> Unit
+    content:       @Composable (PaddingValues) -> Unit
 ) {
     val items = listOf(
         NavigationItem.Home,
@@ -74,38 +84,42 @@ fun AppScaffold(
     )
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route ?: "home"
-    val unreadCount by chatViewModel.unreadCount.collectAsState()
+    val currentRoute      = navBackStackEntry?.destination?.route ?: "home"
+    val unreadCount       by chatViewModel.unreadCount.collectAsState()
 
     val configuration = LocalConfiguration.current
-    val tabWidth = configuration.screenWidthDp.dp / items.size
+    val tabWidth      = configuration.screenWidthDp.dp / items.size
 
-    val selectedIndex = remember(currentRoute) {
-        items.indexOfFirst { currentRoute.startsWith(it.route) }.coerceAtLeast(0)
+    val selectedIndex by remember(currentRoute) {
+        derivedStateOf {
+            items.indexOfFirst { currentRoute.startsWith(it.route) }.coerceAtLeast(0)
+        }
     }
 
     val indicatorOffset by animateDpAsState(
-        targetValue = tabWidth * selectedIndex,
+        targetValue   = tabWidth * selectedIndex,
         animationSpec = spring(stiffness = 500f, dampingRatio = 0.8f),
-        label = "IndicatorAnimation"
+        label         = "IndicatorAnimation"
     )
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Scaffold(
-            modifier = Modifier.fillMaxSize(),
+            modifier       = Modifier.fillMaxSize(),
             containerColor = Color(0xFFF5F5F5),
             topBar = {
                 Box(modifier = Modifier.fillMaxWidth().zIndex(10f)) {
-                    topBarContent?.invoke() ?: CleanTopBar(onAccountClick = { onNavigate("account") })
+                    topBarContent?.invoke()
+                        ?: CleanTopBar(onAccountClick = { onNavigate("account") })
                 }
             },
             bottomBar = {
                 Surface(
-                    color = Color.White,
+                    color           = Color.White,
                     shadowElevation = 20.dp,
-                    modifier = Modifier.fillMaxWidth().zIndex(10f)
+                    modifier        = Modifier.fillMaxWidth().zIndex(10f)
                 ) {
                     Box(modifier = Modifier.navigationBarsPadding().height(75.dp)) {
+                        // ─── Animated selected indicator ─────────────────────
                         Box(
                             modifier = Modifier
                                 .offset(x = indicatorOffset)
@@ -116,25 +130,47 @@ fun AppScaffold(
                                     shape = RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp)
                                 )
                         )
-                        NavigationBar(containerColor = Color.Transparent, tonalElevation = 0.dp) {
+                        NavigationBar(
+                            containerColor = Color.Transparent,
+                            tonalElevation = 0.dp
+                        ) {
                             items.forEach { item ->
                                 val isSelected = currentRoute.startsWith(item.route)
                                 NavigationBarItem(
                                     selected = isSelected,
-                                    onClick = { onNavigate(item.route) },
+                                    onClick  = { onNavigate(item.route) },
                                     icon = {
                                         BadgedBox(badge = {
                                             if (item.route == "chat" && unreadCount > 0) {
                                                 Badge(containerColor = Color(0xFFDB0000)) {
-                                                    Text(if (unreadCount > 9) "9+" else unreadCount.toString(), fontSize = 9.sp, color = Color.White)
+                                                    Text(
+                                                        if (unreadCount > 9) "9+" else unreadCount.toString(),
+                                                        fontSize = 9.sp,
+                                                        color    = Color.White
+                                                    )
                                                 }
                                             }
                                         }) {
-                                            Icon(painterResource(item.iconRes), contentDescription = item.label, modifier = Modifier.size(26.dp))
+                                            Icon(
+                                                painterResource(item.iconRes),
+                                                contentDescription = item.label,
+                                                modifier           = Modifier.size(26.dp)
+                                            )
                                         }
                                     },
-                                    label = { Text(item.label, fontSize = 12.sp, color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray) },
-                                    colors = NavigationBarItemDefaults.colors(indicatorColor = Color.Transparent)
+                                    label = {
+                                        Text(
+                                            item.label,
+                                            fontSize = 11.sp,  // קטן מ-12sp כדי שלא יחתך
+                                            maxLines = 1,
+                                            color    = if (isSelected)
+                                                MaterialTheme.colorScheme.primary
+                                            else Color.Gray
+                                        )
+                                    },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        indicatorColor = Color.Transparent
+                                    )
                                 )
                             }
                         }
@@ -142,7 +178,6 @@ fun AppScaffold(
                 }
             }
         ) { paddingValues ->
-            // קריטי: כאן קוראים ל-content ישירות בלי Box נוסף
             content(paddingValues)
         }
     }

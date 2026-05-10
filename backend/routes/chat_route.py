@@ -15,7 +15,7 @@ def get_user_info(user_id):
             'id':            user_id,
             'username':      d.get('username', 'Unknown'),
             'phone':         d.get('phone', ''),
-            'profile_image': d.get('profile_image', '')   # ← חדש
+            'profile_image': d.get('profile_image', '')
         }
     return None
 
@@ -82,7 +82,7 @@ def get_chats():
 
             participant_names  = d.get('participantNames', {})
             display_names      = {}
-            participant_photos = {}   # ← חדש: map של userId → profile_image URL
+            participant_photos = {}
 
             for pid in participants:
                 if pid == user_id:
@@ -92,7 +92,6 @@ def get_chats():
                 nickname    = get_contact_nickname(user_id, other_phone) if other_phone else ''
                 display_names[pid] = nickname if nickname else participant_names.get(pid, 'Unknown')
 
-                # שמירת תמונת הפרופיל
                 if other_info and other_info.get('profile_image'):
                     participant_photos[pid] = other_info['profile_image']
 
@@ -101,7 +100,7 @@ def get_chats():
                 'participants':      participants,
                 'participantNames':  participant_names,
                 'displayNames':      display_names,
-                'participantPhotos': participant_photos,   # ← חדש
+                'participantPhotos': participant_photos,
                 'isGroup':           d.get('isGroup', False),
                 'groupName':         d.get('groupName', ''),
                 'lastMessage':       d.get('lastMessage', ''),
@@ -383,4 +382,30 @@ def get_unread_count():
             doc.to_dict().get('unreadCount', {}).get(user_id, 0) for doc in docs)
         return jsonify({'unread': total_unread}), 200
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ─── PATCH /api/chats/<chat_id>/group-name ───────────────────
+@chat_bp.route('/chats/<chat_id>/group-name', methods=['PATCH'])
+@jwt_required()
+def update_group_name(chat_id):
+    try:
+        user_id  = get_jwt_identity()
+        data     = request.get_json()
+        new_name = data.get('groupName', '').strip()
+        if not new_name:
+            return jsonify({'error': 'Group name cannot be empty'}), 400
+        chat_ref = db.collection('chats').document(chat_id)
+        chat_doc = chat_ref.get()
+        if not chat_doc.exists:
+            return jsonify({'error': 'Chat not found'}), 404
+        d = chat_doc.to_dict()
+        if user_id not in d.get('participants', []):
+            return jsonify({'error': 'Unauthorized'}), 403
+        if not d.get('isGroup', False):
+            return jsonify({'error': 'Not a group chat'}), 400
+        chat_ref.update({'groupName': new_name})
+        return jsonify({'success': True, 'groupName': new_name}), 200
+    except Exception as e:
+        import traceback; print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500

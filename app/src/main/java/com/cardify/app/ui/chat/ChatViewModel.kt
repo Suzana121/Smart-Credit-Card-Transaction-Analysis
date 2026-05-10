@@ -66,21 +66,17 @@ class ChatViewModel : ViewModel() {
         chatId:       String,
         text:         String,
         transaction:  ChatTransaction? = null,
-        /** Map של phone → nickname — לשימוש בשם תצוגה ב-ReplySnapshot */
         nicknames:    Map<String, String> = emptyMap(),
-        /** Map של senderId → phone — כדי לאתר את הכינוי לפי userId */
         senderPhones: Map<String, String> = emptyMap()
     ) {
         viewModelScope.launch {
             try {
                 val reply    = _replyTo.value
                 val snapshot = reply?.let {
-                    // מחפש כינוי לשולח ההודעה שמגיבים עליה
                     val phone       = senderPhones[it.senderId] ?: ""
                     val displayName = if (phone.isNotBlank())
                         nicknames[phone]?.takeIf { n -> n.isNotBlank() } ?: it.senderName
                     else it.senderName
-
                     ReplySnapshot(
                         senderName   = displayName,
                         text         = it.text,
@@ -121,20 +117,14 @@ class ChatViewModel : ViewModel() {
 
     // ─── תגובת אימוג'י ──────────────────────────────────────────
 
-    /**
-     * emoji = "" → מסיר תגובה קיימת של המשתמש.
-     * אם המשתמש לוחץ על אותו אימוג'י שכבר בחר — מסיר אוטומטית.
-     */
     fun reactToMessage(chatId: String, messageId: String, emoji: String,
                        currentUserId: String) {
         viewModelScope.launch {
             try {
-                // אם המשתמש כבר הגיב באותו אימוג'י — toggle (הסר)
-                val currentMsg  = _messages.value.find { it.id == messageId }
+                val currentMsg    = _messages.value.find { it.id == messageId }
                 val existingEmoji = currentMsg?.reactions?.get(currentUserId)
-                val finalEmoji  = if (existingEmoji == emoji) "" else emoji
+                val finalEmoji    = if (existingEmoji == emoji) "" else emoji
 
-                // אופטימיסטי — עדכון מקומי מיידי
                 _messages.value = _messages.value.map { msg ->
                     if (msg.id != messageId) msg
                     else {
@@ -148,7 +138,7 @@ class ChatViewModel : ViewModel() {
                 val response = RetrofitClient.apiService.reactToMessage(
                     chatId, messageId, ReactRequest(emoji = finalEmoji)
                 )
-                if (!response.isSuccessful) loadMessages(chatId) // rollback
+                if (!response.isSuccessful) loadMessages(chatId)
             } catch (e: Exception) {
                 Log.e("ChatVM", "react error", e)
                 loadMessages(chatId)
@@ -166,9 +156,7 @@ class ChatViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             try {
-                val body = mutableMapOf<String, Any>(
-                    "forwarded" to true
-                )
+                val body = mutableMapOf<String, Any>("forwarded" to true)
                 if (message.text.isNotBlank()) body["text"] = message.text
                 if (message.transaction != null) body["transaction"] = message.transaction
 
@@ -178,6 +166,27 @@ class ChatViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.e("ChatVM", "forwardMessage error", e)
                 onError(e.message ?: "Error")
+            }
+        }
+    }
+
+    // ─── עדכון שם קבוצה ─────────────────────────────────────────
+
+    fun updateGroupName(chatId: String, newName: String, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.updateGroupName(
+                    chatId, mapOf("groupName" to newName)
+                )
+                if (response.isSuccessful) {
+                    // עדכון אופטימיסטי מקומי של רשימת הצ'אטים
+                    _chats.value = _chats.value.map { chat ->
+                        if (chat.id == chatId) chat.copy(groupName = newName) else chat
+                    }
+                    onSuccess()
+                }
+            } catch (e: Exception) {
+                Log.e("ChatVM", "updateGroupName error", e)
             }
         }
     }
