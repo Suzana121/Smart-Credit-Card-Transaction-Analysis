@@ -5,4 +5,10 @@
         <item name="colorPrimaryVariant">#004D4F</item>
         <item name="colorOnPrimary">#FFFFFF</item>
     </style>
+
+    <style name="Theme.Cardify.SplashScreen" parent="Theme.Cardify">
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:statusBarColor">#40C9A2</item>
+        <item name="android:navigationBarColor">#40C9A2</item>
+    </style>
 </resources>
