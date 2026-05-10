@@ -5,16 +5,12 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,14 +27,13 @@ import com.cardify.app.ui.chat.ChatViewModel
 sealed class NavigationItem(val route: String, val iconRes: Int, val label: String) {
     object Home         : NavigationItem("home",         R.drawable.home,        "Home")
     object Chat         : NavigationItem("chat",         R.drawable.message,     "Chat")
-    // "Transactions" → "Payments" — קצר יותר, לא נחתך בסרגל הניווט
     object Transactions : NavigationItem("transactions", R.drawable.transacions, "Transacions")
     object Stats        : NavigationItem("stats",        R.drawable.stats,       "Stats")
     object Account      : NavigationItem("account",      R.drawable.account,     "Account")
 }
 
 @Composable
-fun CleanTopBar(onAccountClick: () -> Unit = {}) {
+fun CleanTopBar() {
     Surface(
         color           = MaterialTheme.colorScheme.primary,
         shadowElevation = 4.dp,
@@ -46,23 +41,14 @@ fun CleanTopBar(onAccountClick: () -> Unit = {}) {
     ) {
         Row(
             modifier              = Modifier.statusBarsPadding().height(70.dp).padding(horizontal = 24.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.Start,
             verticalAlignment     = Alignment.CenterVertically
         ) {
-            Text(
-                "Cardify",
-                color      = Color.White,
-                fontSize   = 32.sp,
-                fontFamily = FontFamily(Font(R.font.kelly_slab))
+            androidx.compose.foundation.Image(
+                painter            = painterResource(R.drawable.logo),
+                contentDescription = "Cardify Logo",
+                modifier           = Modifier.height(40.dp).wrapContentWidth()
             )
-            IconButton(onClick = onAccountClick) {
-                Icon(
-                    Icons.Default.AccountCircle,
-                    contentDescription = "Account",
-                    tint               = Color.White,
-                    modifier           = Modifier.size(32.dp)
-                )
-            }
         }
     }
 }
@@ -108,8 +94,7 @@ fun AppScaffold(
             containerColor = Color(0xFFF5F5F5),
             topBar = {
                 Box(modifier = Modifier.fillMaxWidth().zIndex(10f)) {
-                    topBarContent?.invoke()
-                        ?: CleanTopBar(onAccountClick = { onNavigate("account") })
+                    topBarContent?.invoke() ?: CleanTopBar()
                 }
             },
             bottomBar = {
@@ -119,7 +104,6 @@ fun AppScaffold(
                     modifier        = Modifier.fillMaxWidth().zIndex(10f)
                 ) {
                     Box(modifier = Modifier.navigationBarsPadding().height(75.dp)) {
-                        // ─── Animated selected indicator ─────────────────────
                         Box(
                             modifier = Modifier
                                 .offset(x = indicatorOffset)
@@ -161,7 +145,7 @@ fun AppScaffold(
                                     label = {
                                         Text(
                                             item.label,
-                                            fontSize = 11.sp,  // קטן מ-12sp כדי שלא יחתך
+                                            fontSize = 11.sp,
                                             maxLines = 1,
                                             color    = if (isSelected)
                                                 MaterialTheme.colorScheme.primary
