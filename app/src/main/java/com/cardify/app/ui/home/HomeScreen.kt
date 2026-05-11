@@ -42,6 +42,7 @@ import com.cardify.app.ui.components.TransactionRowVariant
 import com.cardify.app.ui.components.toTransactionItem
 import com.cardify.app.ui.components.ProcessingOverlay
 import java.util.Calendar
+import com.cardify.app.ui.components.TransactionItem
 
 @Composable
 fun HomeScreen(
@@ -91,7 +92,6 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(colorScheme.background)
-                    .padding(padding)
             ) {
                 // באנר עדכון מודל AI
                 if (manualOverrides.isNotEmpty()) {
@@ -212,7 +212,7 @@ fun HomeScreen(
             }
         }
     }
-}
+
 fun getFileSize(context: android.content.Context, uri: Uri): String {
     return try {
         context.contentResolver.openFileDescriptor(uri, "r")?.use {
