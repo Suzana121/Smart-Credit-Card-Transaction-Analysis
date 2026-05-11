@@ -41,7 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import androidx.navigation.NavHostController // ייבוא חסר
+import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.cardify.app.R
 import java.io.File
@@ -49,7 +49,7 @@ import java.io.File
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditAccountScreen(
-    navController: NavHostController, // הוספת navController
+    navController: NavHostController,
     onNavigate: (String) -> Unit,
     onBack: () -> Unit,
     viewModel: EditAccountViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
@@ -158,116 +158,116 @@ fun EditAccountScreen(
         }
     }
 
-        if (viewModel.isLoading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+    if (viewModel.isLoading) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        }
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.White)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(Modifier.height(55.dp))
+
+            // ── תמונת פרופיל ──
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(120.dp)) {
+                when {
+                    viewModel.isUploading -> {
+                        Box(Modifier.size(108.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                    !viewModel.profileImage.isNullOrEmpty() -> {
+                        AsyncImage(
+                            model              = viewModel.profileImage,
+                            contentDescription = "Profile Picture",
+                            contentScale       = ContentScale.Crop,
+                            modifier           = Modifier.size(108.dp).clip(CircleShape)
+                                .clickable { showImagePicker = true },
+                            error = painterResource(id = R.drawable.user)
+                        )
+                    }
+                    else -> {
+                        Image(
+                            painter            = painterResource(id = R.drawable.user),
+                            contentDescription = "Profile Picture",
+                            contentScale       = ContentScale.Crop,
+                            modifier           = Modifier.size(108.dp).clip(CircleShape)
+                                .clickable { showImagePicker = true }
+                        )
+                    }
+                }
+                Box(
+                    modifier = Modifier.size(30.dp).align(Alignment.BottomEnd)
+                        .background(MaterialTheme.colorScheme.primary, CircleShape)
+                        .clickable(enabled = !viewModel.isUploading) { showImagePicker = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(painter = painterResource(id = R.drawable.camera),
+                        contentDescription = "Change photo", modifier = Modifier.size(18.dp))
+                }
             }
-        } else {
+
+            Spacer(Modifier.height(40.dp))
+
+            // ── שדות עריכה ──
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.White)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier            = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                Spacer(Modifier.height(55.dp))
+                EditField("Full Name", viewModel.name,  { viewModel.name = it })
+                EditField("Email",     viewModel.email, { viewModel.email = it })
+                EditField("Phone",     viewModel.phone, { viewModel.phone = it },
+                    placeholder = "e.g. 0521234567")
 
-                // ── תמונת פרופיל ──
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(120.dp)) {
-                    when {
-                        viewModel.isUploading -> {
-                            Box(Modifier.size(108.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                            }
-                        }
-                        !viewModel.profileImage.isNullOrEmpty() -> {
-                            AsyncImage(
-                                model              = viewModel.profileImage,
-                                contentDescription = "Profile Picture",
-                                contentScale       = ContentScale.Crop,
-                                modifier           = Modifier.size(108.dp).clip(CircleShape)
-                                    .clickable { showImagePicker = true },
-                                error = painterResource(id = R.drawable.user)
-                            )
-                        }
-                        else -> {
-                            Image(
-                                painter            = painterResource(id = R.drawable.user),
-                                contentDescription = "Profile Picture",
-                                contentScale       = ContentScale.Crop,
-                                modifier           = Modifier.size(108.dp).clip(CircleShape)
-                                    .clickable { showImagePicker = true }
-                            )
-                        }
-                    }
-                    Box(
-                        modifier = Modifier.size(30.dp).align(Alignment.BottomEnd)
-                            .background(MaterialTheme.colorScheme.primary, CircleShape)
-                            .clickable(enabled = !viewModel.isUploading) { showImagePicker = true },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Image(painter = painterResource(id = R.drawable.camera),
-                            contentDescription = "Change photo", modifier = Modifier.size(18.dp))
-                    }
-                }
-
-                Spacer(Modifier.height(40.dp))
-
-                // ── שדות עריכה ──
-                Column(
-                    modifier            = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
-                ) {
-                    EditField("Full Name", viewModel.name,  { viewModel.name = it })
-                    EditField("Email",     viewModel.email, { viewModel.email = it })
-                    EditField("Phone",     viewModel.phone, { viewModel.phone = it },
-                        placeholder = "e.g. 0521234567")
-
-                    // שדה סיסמה עם אייקון עין ודרישות חיות
-                    PasswordFieldWithRequirements(
-                        value         = viewModel.password,
-                        onValueChange = { viewModel.password = it }
-                    )
-                }
-
-                // הודעת שגיאה
-                viewModel.errorMessage?.let { error ->
-                    Text(text = error, color = Color.Red, fontSize = 12.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(top = 12.dp, start = 24.dp, end = 24.dp))
-                }
-
-                Spacer(Modifier.height(50.dp))
-
-                Button(
-                    onClick  = { viewModel.updateAccountDetails(onSuccess = { onBack() }) },
-                    modifier = Modifier.width(220.dp).height(38.dp),
-                    shape    = RoundedCornerShape(12.dp),
-                    enabled  = !viewModel.isUpdating && !viewModel.isUploading,
-                    colors   = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                ) {
-                    if (viewModel.isUpdating) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
-                    } else {
-                        Text("Update", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-
-                Spacer(Modifier.height(40.dp))
-
-                Text(
-                    text = buildAnnotatedString {
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("Please note ") }
-                        append("that changes will take effect the next time you sign in")
-                    },
-                    fontSize = 13.sp, color = Color.Black, textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 32.dp)
+                PasswordFieldWithRequirements(
+                    value         = viewModel.password,
+                    onValueChange = { viewModel.password = it }
                 )
-
-                Spacer(Modifier.height(40.dp))
             }
+
+            // הודעת שגיאה
+            viewModel.errorMessage?.let { error ->
+                Text(text = error, color = Color.Red, fontSize = 12.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 12.dp, start = 24.dp, end = 24.dp))
+            }
+
+            Spacer(Modifier.height(50.dp))
+
+            Button(
+                // ✅ העברת context לפונקציה
+                onClick  = { viewModel.updateAccountDetails(context = context, onSuccess = { onBack() }) },
+                modifier = Modifier.width(220.dp).height(38.dp),
+                shape    = RoundedCornerShape(12.dp),
+                enabled  = !viewModel.isUpdating && !viewModel.isUploading,
+                colors   = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                if (viewModel.isUpdating) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                } else {
+                    Text("Update", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(Modifier.height(40.dp))
+
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("Please note ") }
+                    append("that changes will take effect the next time you sign in")
+                },
+                fontSize = 13.sp, color = Color.Black, textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 32.dp)
+            )
+
+            Spacer(Modifier.height(40.dp))
         }
     }
+}
 
 
 // ── שדה סיסמה עם אייקון עין + דרישות חיות ────────────────────────────────────
@@ -279,7 +279,6 @@ fun PasswordFieldWithRequirements(
 ) {
     var passwordVisible by remember { mutableStateOf(false) }
 
-    // חישוב דרישות בזמן אמת
     val hasMinLength   = value.length >= 8
     val hasUppercase   = value.any { it.isUpperCase() }
     val hasLowercase   = value.any { it.isLowerCase() }
@@ -321,7 +320,6 @@ fun PasswordFieldWithRequirements(
             textStyle  = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = Color.Gray)
         )
 
-        // דרישות סיסמה — מופיעות רק כשמתחילים להקליד
         AnimatedVisibility(
             visible = showRequirements,
             enter   = expandVertically() + fadeIn(),

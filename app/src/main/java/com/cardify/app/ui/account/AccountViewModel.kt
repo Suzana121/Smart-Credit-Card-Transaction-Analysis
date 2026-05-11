@@ -235,10 +235,12 @@ class AccountViewModel(
                 )
                 if (response.isSuccessful) {
                     val matchedUsers = response.body() ?: emptyList()
+                    val myPhone = UserSession.phone ?: ""
                     _syncResults.value = matchedUsers.filter { matched ->
                         val isAlreadyFriend    = _friends.value.any  { it.phone == matched.phone }
                         val isAlreadyRequested = _requests.value.any { it.phone == matched.phone }
-                        !isAlreadyFriend && !isAlreadyRequested
+                        val isMyself           = matched.phone == myPhone // ✅ סינון עצמי
+                        !isAlreadyFriend && !isAlreadyRequested && !isMyself
                     }
                 }
             } catch (e: Exception) {

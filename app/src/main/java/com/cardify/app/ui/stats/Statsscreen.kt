@@ -29,12 +29,25 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.cardify.app.ui.components.AppScaffold
 import com.cardify.app.ui.components.TransactionItem
 import com.cardify.app.ui.components.TransactionRow
 import com.cardify.app.ui.components.TransactionRowVariant
 import androidx.navigation.NavHostController
 
+// ─── מפת קבוצות קטגוריות ───
+private val CATEGORY_GROUP_MAP = mapOf(
+    "Food & Grocery"      to "Food",
+    "Restaurants & Cafes" to "Food",
+    "Restaurants"         to "Food",
+    "Fashion"             to "Shopping",
+    "Electronics"         to "Shopping",
+    "Sports"              to "Shopping",
+    "Automotive"          to "Transport",
+    "Travel"              to "Transport",
+    "Insurance"           to "Finance",
+    "Government"          to "Other",
+    "General"             to "Other",
+)
 
 // ─── צבעים לקטגוריות ───
 private val categoryColors = listOf(
@@ -69,7 +82,7 @@ fun StatSection(content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 fun StatsScreen(
-    navController: NavHostController, // הוספת הפרמטר כאן
+    navController: NavHostController,
     onNavigate: (String) -> Unit,
     viewModel: StatsViewModel = viewModel()
 ) {
@@ -77,44 +90,42 @@ fun StatsScreen(
     val monthIndex = viewModel.selectedMonthIndex
     val monthName  = viewModel.allMonths[monthIndex]
 
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFFF5F5F5))
-        ) {
-            when (val state = uiState) {
-                is StatsUiState.Loading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center),
-                        color = MaterialTheme.colorScheme.primary
-                    )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF5F5F5))
+    ) {
+        when (val state = uiState) {
+            is StatsUiState.Loading -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            is StatsUiState.Error -> {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .clickable { viewModel.loadData() },
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(Icons.Default.Refresh, null, tint = Color.Gray)
+                    Spacer(Modifier.height(8.dp))
+                    Text(state.message, color = Color.Gray)
+                    Text("Tap to retry", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
                 }
-                is StatsUiState.Error -> {
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .clickable { viewModel.loadData() },
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(Icons.Default.Refresh, null, tint = Color.Gray)
-                        Spacer(Modifier.height(8.dp))
-                        Text(state.message, color = Color.Gray)
-                        Text("Tap to retry", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
-                    }
-                }
-                is StatsUiState.Success -> {
-                    StatsContent(
-                        data       = state.data,
-                        monthName  = monthName,
-                        monthIndex = monthIndex,
-                        viewModel  = viewModel
-                    )
-                }
+            }
+            is StatsUiState.Success -> {
+                StatsContent(
+                    data       = state.data,
+                    monthName  = monthName,
+                    monthIndex = monthIndex,
+                    viewModel  = viewModel
+                )
             }
         }
     }
-
+}
 
 @Composable
 fun StatsContent(
@@ -128,6 +139,32 @@ fun StatsContent(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(vertical = 16.dp)
     ) {
+        // ── שורת שנה ──
+        if (data.dataYear.isNotEmpty()) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.DateRange,
+                        contentDescription = null,
+                        tint = Color(0xFF878C90),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        "Showing data for ${data.dataYear}",
+                        fontSize = 12.sp,
+                        color = Color(0xFF878C90)
+                    )
+                }
+            }
+        }
+
         item {
             TotalSpendSection(
                 selectedMonth = monthName,
@@ -140,8 +177,8 @@ fun StatsContent(
         }
         item {
             DonutChartSection(
-                selectedMonth = monthName,
-                data          = data,
+                selectedMonth   = monthName,
+                data            = data,
                 onMonthSelected = { month ->
                     val idx = viewModel.allMonths.indexOf(month)
                     if (idx >= 0) viewModel.changeMonth(idx)
@@ -178,9 +215,9 @@ fun TotalSpendSection(
     val suspiciousTxs  = data.transactions.filter { it.isIrregular }
 
     val animatedAmount by animateFloatAsState(
-        targetValue    = data.totalSpend.toFloat(),
-        animationSpec  = tween(800, easing = EaseOutCubic),
-        label          = "totalSpend"
+        targetValue   = data.totalSpend.toFloat(),
+        animationSpec = tween(800, easing = EaseOutCubic),
+        label         = "totalSpend"
     )
 
     StatSection {
@@ -234,8 +271,10 @@ fun TotalSpendSection(
                 }
             }
 
-            VerticalDivider(modifier = Modifier.height(40.dp).padding(horizontal = 12.dp),
-                color = Color(0xFFE7E8E9))
+            VerticalDivider(
+                modifier = Modifier.height(40.dp).padding(horizontal = 12.dp),
+                color = Color(0xFFE7E8E9)
+            )
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -281,14 +320,23 @@ fun SuspiciousTransactionList(transactions: List<StatsTransaction>) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Warning, null, tint = Color(0xFFF44336), modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))
-            Text("Suspicious Transactions", fontSize = 14.sp,
-                fontWeight = FontWeight.Bold, color = Color(0xFFF44336))
+            Text(
+                "Suspicious Transactions",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFF44336)
+            )
+            Spacer(Modifier.weight(1f))
+            Text("${transactions.size}", fontSize = 12.sp, color = Color(0xFF878C90))
         }
         Spacer(Modifier.height(8.dp))
         if (transactions.isEmpty()) {
-            Text("No suspicious transactions this month 🎉",
-                fontSize = 13.sp, color = Color(0xFF878C90),
-                modifier = Modifier.padding(vertical = 8.dp))
+            Text(
+                "No suspicious transactions this month 🎉",
+                fontSize = 13.sp,
+                color = Color(0xFF878C90),
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
         } else {
             transactions.forEach { tx ->
                 TransactionRow(
@@ -312,14 +360,13 @@ fun DonutChartSection(
     data: StatsData,
     onMonthSelected: (String) -> Unit
 ) {
-    val screenWidth = LocalConfiguration.current.screenWidthDp
+    val screenWidth       = LocalConfiguration.current.screenWidthDp
     var selectedIndex     by remember { mutableStateOf(-1) }
     var lastSelectedIndex by remember { mutableStateOf(0) }
     var showMonthDropdown by remember { mutableStateOf(false) }
 
     LaunchedEffect(selectedMonth) { selectedIndex = -1 }
 
-    // המרת קטגוריות מה-ViewModel לפורמט התצוגה
     val categories = remember(data.categories) {
         data.categories.mapIndexed { i, cat ->
             Triple(cat.name, cat.amount, categoryColors[i % categoryColors.size])
@@ -363,7 +410,10 @@ fun DonutChartSection(
                             tint = Color(0xFF878C90), modifier = Modifier.size(14.dp))
                     }
                 }
-                DropdownMenu(expanded = showMonthDropdown, onDismissRequest = { showMonthDropdown = false }) {
+                DropdownMenu(
+                    expanded = showMonthDropdown,
+                    onDismissRequest = { showMonthDropdown = false }
+                ) {
                     availableMonths.forEach { month ->
                         DropdownMenuItem(
                             text = { Text(month, fontSize = 13.sp) },
@@ -377,40 +427,49 @@ fun DonutChartSection(
         Spacer(Modifier.height(24.dp))
 
         if (total == 0.0) {
-            Box(modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
-                contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Text("No data for $selectedMonth", color = Color(0xFF878C90), fontSize = 14.sp)
             }
         } else {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
                 Box(contentAlignment = Alignment.Center) {
                     Canvas(modifier = Modifier.size(if (screenWidth > 600) 220.dp else 160.dp)) {
                         val strokeWidth = 36f
-                        val inset = strokeWidth / 2
+                        val inset   = strokeWidth / 2
                         val arcSize = Size(size.width - strokeWidth, size.height - strokeWidth)
                         val topLeft = Offset(inset, inset)
-                        val gap = 3f
+                        val gap     = 3f
                         categories.forEachIndexed { i, (_, _, color) ->
-                            val sweep = if (i < animatedSweepAngles.size) animatedSweepAngles[i] else 0f
-                            val start = if (i < animatedStartAngles.size) animatedStartAngles[i] else -90f
+                            val sweep      = if (i < animatedSweepAngles.size) animatedSweepAngles[i] else 0f
+                            val start      = if (i < animatedStartAngles.size) animatedStartAngles[i] else -90f
                             val isSelected = i == selectedIndex
                             if (sweep > 0f) {
                                 drawArc(
-                                    color = if (isSelected) color.copy(alpha = 1f) else color.copy(alpha = 0.85f),
-                                    startAngle = start + gap / 2f,
-                                    sweepAngle = sweep - gap,
-                                    useCenter = false,
-                                    style = Stroke(width = if (isSelected) strokeWidth * 1.2f else strokeWidth),
-                                    size = arcSize, topLeft = topLeft
+                                    color       = if (isSelected) color.copy(alpha = 1f) else color.copy(alpha = 0.85f),
+                                    startAngle  = start + gap / 2f,
+                                    sweepAngle  = sweep - gap,
+                                    useCenter   = false,
+                                    style       = Stroke(width = if (isSelected) strokeWidth * 1.2f else strokeWidth),
+                                    size        = arcSize,
+                                    topLeft     = topLeft
                                 )
                             }
                         }
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(centerAmount,
-                            fontSize = if (screenWidth > 600) 24.sp else 18.sp,
-                            fontWeight = FontWeight.Bold, color = Color.Black)
+                        Text(
+                            centerAmount,
+                            fontSize     = if (screenWidth > 600) 24.sp else 18.sp,
+                            fontWeight   = FontWeight.Bold,
+                            color        = Color.Black
+                        )
                         Text(centerLabel, fontSize = 11.sp, color = Color(0xFF878C90))
                     }
                 }
@@ -443,10 +502,15 @@ fun DonutChartSection(
                 exit  = shrinkVertically(tween(300)) + fadeOut()
             ) {
                 if (lastSelectedIndex < categories.size) {
-                    val catName = categories[lastSelectedIndex].first
+                    val catName  = categories[lastSelectedIndex].first
+                    // ── סינון מורחב לפי קבוצת קטגוריה ──
+                    val filtered = data.transactions.filter { tx ->
+                        tx.category == catName ||
+                                CATEGORY_GROUP_MAP[tx.category] == catName
+                    }
                     CategoryTransactionList(
                         categoryName = catName,
-                        transactions = data.transactions.filter { it.category == catName }
+                        transactions = filtered
                     )
                 }
             }
@@ -458,15 +522,33 @@ fun DonutChartSection(
 fun CategoryTransactionList(categoryName: String, transactions: List<StatsTransaction>) {
     Column {
         HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Color(0xFFE7E8E9))
-        Text("$categoryName Transactions", fontSize = 14.sp,
-            fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "$categoryName Transactions",
+                fontSize     = 14.sp,
+                fontWeight   = FontWeight.Bold,
+                color        = MaterialTheme.colorScheme.primary,
+                modifier     = Modifier.weight(1f).padding(bottom = 10.dp)
+            )
+            Text(
+                "${transactions.size}",
+                fontSize = 12.sp,
+                color    = Color(0xFF878C90),
+                modifier = Modifier.padding(bottom = 10.dp)
+            )
+        }
         transactions.forEach { tx ->
             TransactionRow(
                 transaction = TransactionItem(
-                    id = tx.id, title = tx.title, date = tx.date,
-                    amount = tx.amount, isIrregular = tx.isIrregular,
-                    category = tx.category
+                    id          = tx.id,
+                    title       = tx.title,
+                    date        = tx.date,
+                    amount      = tx.amount,
+                    isIrregular = tx.isIrregular,
+                    category    = tx.category
                 ),
                 variant = TransactionRowVariant.COMPACT
             )
@@ -483,11 +565,17 @@ fun LegendItem(
         Box(modifier = Modifier.width(4.dp).height(32.dp).background(color, RoundedCornerShape(2.dp)))
         Spacer(Modifier.width(8.dp))
         Column {
-            Text(name, fontSize = 13.sp,
-                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Black,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
-            Text("${if (total > 0) (amount / total * 100).toInt() else 0}%",
-                fontSize = 11.sp, color = Color(0xFF878C90))
+            Text(
+                name,
+                fontSize   = 13.sp,
+                color      = if (isSelected) MaterialTheme.colorScheme.primary else Color.Black,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+            )
+            Text(
+                "${if (total > 0) (amount / total * 100).toInt() else 0}%",
+                fontSize = 11.sp,
+                color    = Color(0xFF878C90)
+            )
         }
     }
 }
@@ -503,7 +591,7 @@ fun BarChartSection(
     onMonthSelected: (String) -> Unit
 ) {
     val screenWidth = LocalConfiguration.current.screenWidthDp
-    val maxAmount = monthlyExpenses.maxOfOrNull { it.amount } ?: 1.0
+    val maxAmount   = monthlyExpenses.maxOfOrNull { it.amount } ?: 1.0
 
     var barsVisible by remember { mutableStateOf(false) }
     LaunchedEffect(monthlyExpenses) {
@@ -516,8 +604,10 @@ fun BarChartSection(
         Spacer(Modifier.height(20.dp))
 
         if (monthlyExpenses.isEmpty()) {
-            Box(modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
-                contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Text("No monthly data available", color = Color(0xFF878C90), fontSize = 14.sp)
             }
         } else {
@@ -528,9 +618,9 @@ fun BarChartSection(
                 items(monthlyExpenses) { monthData ->
                     val isSelected = monthData.month == selectedMonthName
                     val animatedHeight by animateFloatAsState(
-                        targetValue = if (barsVisible) (monthData.amount / maxAmount).toFloat() else 0f,
+                        targetValue   = if (barsVisible) (monthData.amount / maxAmount).toFloat() else 0f,
                         animationSpec = tween(800, easing = EaseOutCubic),
-                        label = "bar_${monthData.month}"
+                        label         = "bar_${monthData.month}"
                     )
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -538,62 +628,48 @@ fun BarChartSection(
                             .width(if (screenWidth > 600) 64.dp else 44.dp)
                             .clickable { onMonthSelected(monthData.month) }
                     ) {
-                        Box(modifier = Modifier.height(20.dp), contentAlignment = Alignment.BottomCenter) {
-                            // מציג סכום רק אם נבחר וגם יש נתונים בחודש הנוכחי
+                        Box(
+                            modifier = Modifier.height(20.dp),
+                            contentAlignment = Alignment.BottomCenter
+                        ) {
                             if (isSelected && selectedMonthTotal > 0) {
-                                Text("₪${"%,.0f".format(selectedMonthTotal)}",
-                                    fontSize = 9.sp, fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.Center)
+                                Text(
+                                    "₪${"%,.0f".format(selectedMonthTotal)}",
+                                    fontSize   = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color      = MaterialTheme.colorScheme.primary,
+                                    textAlign  = TextAlign.Center
+                                )
                             }
                         }
                         Spacer(Modifier.height(4.dp))
-                        Box(modifier = Modifier.fillMaxWidth().height(120.dp),
-                            contentAlignment = Alignment.BottomCenter) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(120.dp),
+                            contentAlignment = Alignment.BottomCenter
+                        ) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .fillMaxHeight(animatedHeight)
                                     .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                    .background(if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFFDADBDD))
+                                    .background(
+                                        if (isSelected) MaterialTheme.colorScheme.primary
+                                        else Color(0xFFDADBDD)
+                                    )
                             )
                         }
                         Spacer(Modifier.height(6.dp))
-                        Text(monthData.month, fontSize = 12.sp,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFF878C90),
+                        Text(
+                            monthData.month,
+                            fontSize   = 12.sp,
+                            color      = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFF878C90),
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            textAlign = TextAlign.Center)
+                            textAlign  = TextAlign.Center
+                        )
                     }
                 }
             }
-
-            // Insights — מוצג רק אם יש נתונים לחודש הנבחר (לפי totalSpend מהשרת)
-            AnimatedVisibility(
-                visible = selectedMonthTotal > 0,
-                enter   = expandVertically(tween(300)) + fadeIn(),
-                exit    = shrinkVertically(tween(300)) + fadeOut()
-            ) {
-                Column {
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp),
-                        color = Color(0xFFE7E8E9))
-                    Text("$selectedMonthName Overview", fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(bottom = 12.dp))
-                    Row(modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly) {
-                        InsightItem("Total Spend", "₪${"%,.0f".format(selectedMonthTotal)}")
-                    }
-                }
-            }
+            // ── Overview הוסר ──
         }
-    }
-}
-
-@Composable
-fun InsightItem(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, fontSize = 9.sp, color = Color(0xFF878C90), textAlign = TextAlign.Center)
-        Spacer(Modifier.height(4.dp))
-        Text(value, fontSize = 14.sp, fontWeight = FontWeight.Bold,
-            color = Color.Black, textAlign = TextAlign.Center)
     }
 }

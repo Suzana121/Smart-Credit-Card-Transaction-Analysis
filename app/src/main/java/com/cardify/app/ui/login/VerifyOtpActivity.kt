@@ -62,7 +62,7 @@ class VerifyOtpActivity : AppCompatActivity() {
             } else if (!isPasswordStrong(newPassword)) {
                 setFieldError(
                     etNewPassword, R.id.tvNewPasswordError,
-                    "Password needs 8+ chars, uppercase, number & special character (!@#\$%^&*)"
+                    "Password needs 8+ chars, uppercase, lowercase, number & special character (!@#\$%^&*)"
                 )
                 valid = false
             }
@@ -129,11 +129,13 @@ class VerifyOtpActivity : AppCompatActivity() {
         }
     }
 
+    // ✅ נוספה בדיקת אות קטנה (isLowerCase) לעקביות עם EditAccountViewModel
     private fun isPasswordStrong(password: String): Boolean =
         password.length >= 8 &&
-        password.any { it.isUpperCase() } &&
-        password.any { it.isDigit() } &&
-        password.any { it in "!@#\$%^&*" }
+                password.any { it.isUpperCase() } &&
+                password.any { it.isLowerCase() } &&
+                password.any { it.isDigit() } &&
+                password.any { it in "!@#\$%^&*" }
 
     private fun setFieldError(field: EditText, errorViewId: Int, message: String) {
         field.setBackgroundResource(R.drawable.input_field_error)

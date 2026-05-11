@@ -139,16 +139,31 @@ def update_account():
                 return jsonify({"error": "This phone number is already in use by another account"}), 409
 
         update_data = {}
-        if new_name:  update_data["username"]     = new_name
-        if new_email: update_data["email"]         = new_email
-        if new_phone: update_data["phone"]         = new_phone
-        if new_photo: update_data["profile_image"] = new_photo
-        if new_pass:  update_data["password"]      = bcrypt.generate_password_hash(new_pass).decode("utf-8")
+        if new_name:  update_data["username"]      = new_name
+        if new_email: update_data["email"]          = new_email
+        if new_phone: update_data["phone"]          = new_phone
+        if new_photo: update_data["profile_image"]  = new_photo
+        if new_pass:  update_data["password"]       = bcrypt.generate_password_hash(new_pass).decode("utf-8")
 
         if not update_data:
             return jsonify({"message": "Nothing to update"}), 200
 
+        # ✅ עדכון שם המשתמש
         users_ref.document(user_id).update(update_data)
+
+        # ✅ עדכון participantNames בכל הצ'אטים שהמשתמש משתתף בהם
+        if new_name and new_name != old_name:
+            chats = db.collection('chats') \
+                .where(filter=FieldFilter('participants', 'array_contains', user_id)) \
+                .stream()
+            for chat_doc in chats:
+                chat_data = chat_doc.to_dict()
+                participant_names = chat_data.get('participantNames', {})
+                if user_id in participant_names:
+                    chat_doc.reference.update({
+                        f'participantNames.{user_id}': new_name
+                    })
+
         return jsonify({"success": True, "message": "Account updated successfully"}), 200
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -338,3 +353,25 @@ def reset_password():
 @jwt_required() # הדקורטור הזה מחזיר 401 אוטומטית אם הטוקן פג
 def validate():
     return jsonify({"success": True}), 200
+@auth_bp.route('/admin/dashboard', methods=['GET'])
+@jwt_required()
+def admin_dashboard():
+    try:
+        user_id  = get_jwt_identity()
+        user_doc = users_ref.document(user_id).get()
+        if not user_doc.exists:
+            return jsonify({"error": "User not found"}), 403
+        user_data = user_doc.to_dict()
+        if not user_data.get("is_admin", False):
+            return jsonify({"error": "Unauthorized"}), 403
+        total_users        = len(list(users_ref.stream()))
+        total_transactions = 0
+        for user in users_ref.stream():
+            for file_doc in db.collection('users').document(user.id).collection('files').stream():
+                total_transactions += file_doc.to_dict().get('transaction_count', 0)
+        return jsonify({
+            "totalUsers":        total_users,
+            "totalTransactions": total_transactions,
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
