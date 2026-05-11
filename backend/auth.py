@@ -331,4 +331,11 @@ def reset_password():
         return jsonify({"error": "Failed to reset password"}), 500
 
 
+@auth_bp.route('/validate_session', methods=['GET'])
+@jwt_required() # הדקורטור הזה מחזיר 401 אוטומטית אם הטוקן פג
+def validate():
+    return jsonify({"success": True}), 200
+
+
+
     

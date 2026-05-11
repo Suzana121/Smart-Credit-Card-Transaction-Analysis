@@ -16,6 +16,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.cardify.app.MainActivity
 import com.cardify.app.R
 import com.cardify.app.data.UserSession
+import com.cardify.app.data.api.RetrofitClient
 import com.cardify.app.databinding.ActivityLoginBinding
 import com.google.android.material.snackbar.Snackbar
 
@@ -31,10 +32,15 @@ class LoginActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        RetrofitClient.init(applicationContext)
         // בדיקה אם המשתמש כבר מחובר
         val prefs      = getSharedPreferences("auth_prefs", MODE_PRIVATE)
         val savedToken = prefs.getString("token", null)
-
+        val reason = intent.getStringExtra("logout_reason")
+        if (reason == "session_expired") {
+            // הודעה חמודה וברורה
+            Toast.makeText(this, "Session timeout. Please log in again.", Toast.LENGTH_LONG).show()
+        }
         if (savedToken != null) {
             UserSession.token    = savedToken
             UserSession.username = prefs.getString("username", "User") ?: "User"
@@ -70,13 +76,9 @@ class LoginActivity : AppCompatActivity() {
 
             clearFieldErrors()
             if (email.isEmpty() && password.isEmpty()) {
-                setFieldError(etEmail, binding.tvEmailError, "Please enter user name")
+                setFieldError(etEmail, binding.tvEmailError, "Please Enter User Name")
                 setFieldError(etPassword, binding.tvPasswordError, "Please enter password")
-            } else if (email.isEmpty()) {
-                setFieldError(etEmail, binding.tvEmailError, "Please enter user name")
-            } else if (password.isEmpty()) {
-                setFieldError(etPassword, binding.tvPasswordError, "Please enter password")
-            } else {
+            }  else {
                 viewModel.login(email, password)
             }
         }

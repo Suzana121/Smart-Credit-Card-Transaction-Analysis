@@ -17,24 +17,25 @@
         <ImageView
             android:id="@+id/imgHeader"
             android:layout_width="match_parent"
-            android:layout_height="320dp"
-            android:src="@drawable/login_header"
+            android:layout_height="250dp"
             android:scaleType="fitXY"
-            app:layout_constraintTop_toTopOf="parent"
+            android:src="@drawable/login_header"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.0"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
             android:id="@+id/tvWelcome"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:fontFamily="@font/ibm_plex_sans_bold"
-            android:text="welcome back!"
+            android:layout_marginTop="88dp"
+            android:fontFamily="@font/kelly_slab"
+            android:text="Welcome Back!"
             android:textColor="#FFFFFF"
             android:textSize="45sp"
-            android:layout_marginTop="100dp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.496"
+            app:layout_constraintHorizontal_bias="0.495"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
@@ -42,35 +43,35 @@
             android:id="@+id/tvSubtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="sign in to continue"
+            android:layout_marginTop="4dp"
+            android:text="Sign In To Continue"
             android:textColor="#FFFFFF"
             android:textSize="18sp"
-            android:layout_marginTop="8dp"
-            app:layout_constraintTop_toBottomOf="@id/tvWelcome"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintTop_toBottomOf="@id/tvWelcome" />
 
         <ImageView
             android:id="@+id/ivLogo"
             android:layout_width="120dp"
             android:layout_height="50dp"
-            android:src="@drawable/logo"
+            android:layout_marginLeft="144dp"
+            android:layout_marginTop="48dp"
             android:scaleType="fitStart"
-            android:layout_marginLeft="17dp"
-            android:layout_marginTop="32dp"
+            android:src="@drawable/logo"
             app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintTop_toTopOf="parent"/>
+            app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
             android:id="@+id/tvUsernameLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="User name"
+            android:layout_marginLeft="36dp"
+            android:layout_marginTop="36dp"
+            android:fontFamily="@font/ibm_plex_sans_semibold"
+            android:text="User Name"
             android:textColor="#006769"
             android:textSize="18sp"
-            android:fontFamily="@font/ibm_plex_sans_semibold"
-            android:layout_marginLeft="31dp"
-            android:layout_marginTop="24dp"
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintTop_toBottomOf="@id/imgHeader" />
 
@@ -82,9 +83,9 @@
             android:layout_marginRight="31dp"
             android:layout_marginTop="8dp"
             android:background="@drawable/input_field_rounded"
-            android:hint="user name"
+            android:hint="Joan Doe"
             android:inputType="text"
-            android:paddingLeft="15dp"
+            android:paddingLeft="10dp"
             android:layoutDirection="ltr"
             android:gravity="center_vertical"
             android:textAlignment="viewStart"
@@ -128,10 +129,10 @@
             android:layout_marginRight="31dp"
             android:layout_marginTop="8dp"
             android:background="@drawable/input_field_rounded"
-            android:hint="your password"
+            android:hint="Enter Your Password"
             android:inputType="textPassword"
             android:paddingLeft="15dp"
-            android:paddingStart="8dp"
+            android:paddingStart="10dp"
             android:paddingRight="48dp"
             android:layoutDirection="ltr"
             android:gravity="center_vertical"
@@ -172,7 +173,7 @@
             android:id="@+id/tvForgotPassword"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="forgot password?"
+            android:text="Forgot Password?"
             android:textColor="#006769"
             android:layout_marginTop="12dp"
             app:layout_constraintLeft_toLeftOf="parent"
@@ -187,7 +188,7 @@
             android:layout_marginRight="31dp"
             android:layout_marginTop="20dp"
             android:background="@drawable/btn_rounded"
-            android:text="login to Cardify"
+            android:text="Login To Cardify"
             android:textColor="#FFFFFF"
             android:textAllCaps="false"
             android:fontFamily="@font/ibm_plex_sans_semibold"
@@ -203,7 +204,7 @@
             android:layout_marginRight="31dp"
             android:layout_marginTop="12dp"
             android:background="@drawable/btn_rounded"
-            android:text="sign up"
+            android:text="Sign Up"
             android:textColor="#FFFFFF"
             android:textAllCaps="false"
             app:layout_constraintLeft_toLeftOf="parent"
@@ -219,6 +220,9 @@
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
+
+        <androidx.constraintlayout.widget.Guideline android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>

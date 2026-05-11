@@ -10,12 +10,14 @@ from routes.chat_route import chat_bp
 from auth import auth_bp
 from services.ml_service import MLService
 import logging
+from datetime import timedelta
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = "YOUR_SUPER_SECRET_KEY"
+# app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
 jwt = JWTManager(app)
 
 try:
