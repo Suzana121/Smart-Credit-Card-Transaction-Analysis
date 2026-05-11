@@ -25,7 +25,7 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
     private lateinit var viewModel: LoginViewModel
 
-    private lateinit var etEmail: EditText
+    private lateinit var etUsername: EditText
     private lateinit var etPassword: EditText
     private var isPasswordVisible = false
 
@@ -33,12 +33,10 @@ class LoginActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         RetrofitClient.init(applicationContext)
-        // בדיקה אם המשתמש כבר מחובר
         val prefs      = getSharedPreferences("auth_prefs", MODE_PRIVATE)
         val savedToken = prefs.getString("token", null)
         val reason = intent.getStringExtra("logout_reason")
         if (reason == "session_expired") {
-            // הודעה חמודה וברורה
             Toast.makeText(this, "Session timeout. Please log in again.", Toast.LENGTH_LONG).show()
         }
         if (savedToken != null) {
@@ -51,7 +49,7 @@ class LoginActivity : AppCompatActivity() {
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        etEmail    = binding.root.findViewById(R.id.etEmail)
+        etUsername = binding.root.findViewById(R.id.etUsername)
         etPassword = binding.root.findViewById(R.id.etPassword)
 
         viewModel = ViewModelProvider(this)[LoginViewModel::class.java]
@@ -59,7 +57,6 @@ class LoginActivity : AppCompatActivity() {
         setupUI()
         observeViewModel()
 
-        // הצגת הודעת הצלחה אם הגענו מאיפוס סיסמה
         if (intent.getBooleanExtra("password_reset_success", false)) {
             Snackbar.make(
                 binding.root,
@@ -71,32 +68,24 @@ class LoginActivity : AppCompatActivity() {
 
     private fun setupUI() {
         binding.btnLogin?.setOnClickListener {
-            val email    = etEmail.text.toString().trim()
+            val username = etUsername.text.toString().trim()
             val password = etPassword.text.toString()
-
-            clearFieldErrors()
-            if (email.isEmpty() && password.isEmpty()) {
-                setFieldError(etEmail, binding.tvEmailError, "Please Enter User Name")
-                setFieldError(etPassword, binding.tvPasswordError, "Please enter password")
-            }  else {
-                viewModel.login(email, password)
-            }
+            clearFieldStyles()
+            viewModel.login(username, password)
         }
 
-        // Clear errors when user starts typing
-        etEmail.addTextChangedListener(object : TextWatcher {
+        etUsername.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable?) { clearFieldError(etEmail, binding.tvEmailError) }
+            override fun afterTextChanged(s: Editable?) { resetFieldStyle(etUsername, binding.tvUsernameError) }
         })
 
         etPassword.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable?) { clearFieldError(etPassword, binding.tvPasswordError) }
+            override fun afterTextChanged(s: Editable?) { resetFieldStyle(etPassword, binding.tvPasswordError) }
         })
 
-        // Password visibility toggle
         val ivPasswordToggle = binding.root.findViewById<ImageView>(R.id.ivPasswordToggle)
         ivPasswordToggle.setOnClickListener {
             isPasswordVisible = !isPasswordVisible
@@ -114,7 +103,6 @@ class LoginActivity : AppCompatActivity() {
             startActivity(Intent(this, RegisterActivity::class.java))
         }
 
-        // כפתור "שכחתי סיסמה"
         binding.tvForgotPassword?.setOnClickListener {
             startActivity(Intent(this, ForgotPasswordActivity::class.java))
         }
@@ -125,10 +113,43 @@ class LoginActivity : AppCompatActivity() {
             when (state) {
                 is LoginState.Loading -> showLoading()
                 is LoginState.Success -> handleLoginSuccess(state)
-                is LoginState.Error   -> {
+
+                is LoginState.BothEmpty -> {
                     hideLoading()
-                    showError(state.message)
+                    setFieldError(etUsername, binding.tvUsernameError, "Please Enter User Name")
+                    setFieldError(etPassword, binding.tvPasswordError, "Please Enter Password")
                 }
+                is LoginState.UsernameEmpty -> {
+                    hideLoading()
+                    setFieldError(etUsername, binding.tvUsernameError, "Please Enter User Name")
+                    // לא מסמנים ירוק על סיסמא - לא אומתה עדיין
+                }
+                is LoginState.PasswordEmpty -> {
+                    hideLoading()
+                    setFieldError(etPassword, binding.tvPasswordError, "Please Enter Password")
+                    // לא מסמנים ירוק על שם - לא אומת עדיין
+                }
+                is LoginState.PasswordTooShort -> {
+                    hideLoading()
+                    setFieldError(etPassword, binding.tvPasswordError, "Password Must Be At Least 6 Characters")
+                    // לא מסמנים ירוק על שם - לא אומת עדיין
+                }
+                is LoginState.UserNotFound -> {
+                    hideLoading()
+                    setFieldError(etUsername, binding.tvUsernameError, "No Account Found With This User Name")
+                    // לא מסמנים כלום על סיסמא - לא יודעים אם היא נכונה
+                }
+                is LoginState.WrongPassword -> {
+                    hideLoading()
+                    // רק כאן אנחנו יודעים בוודאות שהשם נכון
+                    setFieldSuccess(etUsername, binding.tvUsernameError)
+                    setFieldError(etPassword, binding.tvPasswordError, "Incorrect Password")
+                }
+                is LoginState.Error -> {
+                    hideLoading()
+                    setFieldError(etPassword, binding.tvPasswordError, state.message)
+                }
+
                 else -> hideLoading()
             }
         }
@@ -167,21 +188,9 @@ class LoginActivity : AppCompatActivity() {
         binding.btnLogin?.isEnabled = true
     }
 
-    private fun showError(message: String) {
-        val emailEmpty    = etEmail.text.isNullOrEmpty()
-        val passwordEmpty = etPassword.text.isNullOrEmpty()
-
-        clearFieldErrors()
-
-        when {
-            emailEmpty && passwordEmpty -> {
-                setFieldError(etEmail, binding.tvEmailError, message)
-                setFieldError(etPassword, binding.tvPasswordError, message)
-            }
-            emailEmpty    -> setFieldError(etEmail, binding.tvEmailError, message)
-            passwordEmpty -> setFieldError(etPassword, binding.tvPasswordError, message)
-            else          -> setFieldError(etEmail, binding.tvEmailError, message) // API error
-        }
+    private fun setFieldSuccess(field: EditText, errorView: TextView?) {
+        field.setBackgroundResource(R.drawable.input_field_success)
+        errorView?.visibility = View.GONE
     }
 
     private fun setFieldError(field: EditText, errorView: TextView?, message: String) {
@@ -190,13 +199,13 @@ class LoginActivity : AppCompatActivity() {
         errorView?.visibility = View.VISIBLE
     }
 
-    private fun clearFieldError(field: EditText, errorView: TextView?) {
+    private fun resetFieldStyle(field: EditText, errorView: TextView?) {
         field.setBackgroundResource(R.drawable.input_field_rounded)
         errorView?.visibility = View.GONE
     }
 
-    private fun clearFieldErrors() {
-        clearFieldError(etEmail, binding.tvEmailError)
-        clearFieldError(etPassword, binding.tvPasswordError)
+    private fun clearFieldStyles() {
+        resetFieldStyle(etUsername, binding.tvUsernameError)
+        resetFieldStyle(etPassword, binding.tvPasswordError)
     }
 }

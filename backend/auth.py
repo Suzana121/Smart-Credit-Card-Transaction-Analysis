@@ -81,8 +81,11 @@ def login():
     elif email:    user = find_user_in_db(email, 'email')
     else:          return jsonify({"error": "Must provide username or email"}), 400
 
-    if not user or not bcrypt.check_password_hash(user["password"], password):
-        return jsonify({"error": "Invalid credentials"}), 401
+    if not user:
+        return jsonify({"error": "user_not_found"}), 404
+
+    if not bcrypt.check_password_hash(user["password"], password):
+        return jsonify({"error": "wrong_password"}), 401
 
     access_token = create_access_token(identity=user["id"])
     return jsonify({
@@ -335,7 +338,3 @@ def reset_password():
 @jwt_required() # הדקורטור הזה מחזיר 401 אוטומטית אם הטוקן פג
 def validate():
     return jsonify({"success": True}), 200
-
-
-
-    

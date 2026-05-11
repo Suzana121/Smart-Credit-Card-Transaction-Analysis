@@ -48,7 +48,8 @@ object RetrofitClient {
         val response = chain.proceed(request)
 
         // בתוך sessionInterceptor ב-RetrofitClient.kt
-        if (response.code == 401) {
+        val isLoginRequest = request.url.encodedPath.contains("/login")
+        if (response.code == 401 && !isLoginRequest) {
             UserSession.clear()
 
             appContext?.let { context ->

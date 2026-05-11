@@ -20,10 +20,9 @@
             android:layout_height="250dp"
             android:scaleType="fitXY"
             android:src="@drawable/login_header"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.0"
+            app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent" />
 
         <TextView
             android:id="@+id/tvWelcome"
@@ -34,10 +33,9 @@
             android:text="Welcome Back!"
             android:textColor="#FFFFFF"
             android:textSize="45sp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.495"
+            app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent" />
 
         <TextView
             android:id="@+id/tvSubtitle"
@@ -47,182 +45,190 @@
             android:text="Sign In To Continue"
             android:textColor="#FFFFFF"
             android:textSize="18sp"
-            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvWelcome"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvWelcome" />
+            app:layout_constraintEnd_toEndOf="parent" />
 
         <ImageView
             android:id="@+id/ivLogo"
             android:layout_width="120dp"
             android:layout_height="50dp"
-            android:layout_marginLeft="144dp"
+            android:layout_marginStart="144dp"
             android:layout_marginTop="48dp"
             android:scaleType="fitStart"
             android:src="@drawable/logo"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
 
+        <!-- Label שם משתמש -->
         <TextView
             android:id="@+id/tvUsernameLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="36dp"
+            android:layout_marginStart="36dp"
             android:layout_marginTop="36dp"
             android:fontFamily="@font/ibm_plex_sans_semibold"
             android:text="User Name"
             android:textColor="#006769"
             android:textSize="18sp"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/imgHeader" />
+            app:layout_constraintTop_toBottomOf="@id/imgHeader"
+            app:layout_constraintStart_toStartOf="parent" />
 
+        <!-- שדה שם משתמש -->
         <EditText
-            android:id="@+id/etEmail"
+            android:id="@+id/etUsername"
             android:layout_width="0dp"
             android:layout_height="55dp"
-            android:layout_marginLeft="31dp"
-            android:layout_marginRight="31dp"
+            android:layout_marginStart="31dp"
+            android:layout_marginEnd="31dp"
             android:layout_marginTop="8dp"
             android:background="@drawable/input_field_rounded"
             android:hint="Joan Doe"
             android:inputType="text"
-            android:paddingLeft="10dp"
             android:layoutDirection="ltr"
             android:gravity="center_vertical"
+            android:paddingStart="15dp"
+            android:paddingLeft="15dp"
             android:textAlignment="viewStart"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvUsernameLabel" />
+            app:layout_constraintTop_toBottomOf="@id/tvUsernameLabel"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
+        <!-- הודעת שגיאה שם משתמש -->
         <TextView
-            android:id="@+id/tvEmailError"
+            android:id="@+id/tvUsernameError"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="31dp"
-            android:layout_marginRight="31dp"
+            android:layout_marginStart="31dp"
+            android:layout_marginEnd="31dp"
             android:layout_marginTop="4dp"
             android:textColor="#DA0000"
             android:textSize="12sp"
             android:textStyle="bold"
             android:visibility="gone"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/etEmail" />
+            app:layout_constraintTop_toBottomOf="@id/etUsername"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
+        <!-- Label סיסמא -->
         <TextView
             android:id="@+id/tvPasswordLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="31dp"
+            android:layout_marginTop="20dp"
+            android:fontFamily="@font/ibm_plex_sans_semibold"
             android:text="Password"
             android:textColor="#006769"
             android:textSize="18sp"
-            android:fontFamily="@font/ibm_plex_sans_semibold"
-            android:layout_marginLeft="31dp"
-            android:layout_marginTop="20dp"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvEmailError" />
+            app:layout_constraintTop_toBottomOf="@id/tvUsernameError"
+            app:layout_constraintStart_toStartOf="parent" />
 
+        <!-- שדה סיסמא -->
         <EditText
             android:id="@+id/etPassword"
             android:layout_width="0dp"
             android:layout_height="55dp"
-            android:layout_marginLeft="31dp"
-            android:layout_marginRight="31dp"
-            android:layout_marginTop="8dp"
+            android:layout_marginStart="31dp"
+            android:layout_marginEnd="31dp"
+            android:layout_marginTop="4dp"
             android:background="@drawable/input_field_rounded"
+            android:gravity="center_vertical"
             android:hint="Enter Your Password"
             android:inputType="textPassword"
-            android:paddingLeft="15dp"
-            android:paddingStart="10dp"
-            android:paddingRight="48dp"
             android:layoutDirection="ltr"
-            android:gravity="center_vertical"
+            android:paddingStart="15dp"
+            android:paddingLeft="15dp"
+            android:paddingRight="48dp"
             android:textAlignment="viewStart"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvPasswordLabel" />
+            app:layout_constraintTop_toBottomOf="@id/tvPasswordLabel"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
+        <!-- כפתור הצגת סיסמא -->
         <ImageView
             android:id="@+id/ivPasswordToggle"
             android:layout_width="24dp"
             android:layout_height="24dp"
-            android:layout_marginRight="15dp"
-            android:src="@drawable/ic_eye_closed"
-            android:contentDescription="Toggle password visibility"
+            android:layout_marginEnd="15dp"
             android:clickable="true"
+            android:contentDescription="Toggle password visibility"
             android:focusable="true"
-            app:layout_constraintRight_toRightOf="@id/etPassword"
+            android:src="@drawable/ic_eye_closed"
+            app:layout_constraintEnd_toEndOf="@id/etPassword"
             app:layout_constraintTop_toTopOf="@id/etPassword"
             app:layout_constraintBottom_toBottomOf="@id/etPassword" />
 
+        <!-- הודעת שגיאה סיסמא -->
         <TextView
             android:id="@+id/tvPasswordError"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="31dp"
-            android:layout_marginRight="31dp"
+            android:layout_marginStart="31dp"
+            android:layout_marginEnd="31dp"
             android:layout_marginTop="4dp"
             android:textColor="#DA0000"
             android:textSize="12sp"
             android:textStyle="bold"
             android:visibility="gone"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/etPassword" />
+            app:layout_constraintTop_toBottomOf="@id/etPassword"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
+        <!-- שכחתי סיסמא -->
         <TextView
             android:id="@+id/tvForgotPassword"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
             android:text="Forgot Password?"
             android:textColor="#006769"
-            android:layout_marginTop="12dp"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvPasswordError" />
+            app:layout_constraintTop_toBottomOf="@id/tvPasswordError"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
+        <!-- כפתור התחברות -->
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btnLogin"
             android:layout_width="0dp"
             android:layout_height="55dp"
-            android:layout_marginLeft="31dp"
-            android:layout_marginRight="31dp"
+            android:layout_marginStart="31dp"
+            android:layout_marginEnd="31dp"
             android:layout_marginTop="20dp"
             android:background="@drawable/btn_rounded"
-            android:text="Login To Cardify"
-            android:textColor="#FFFFFF"
-            android:textAllCaps="false"
             android:fontFamily="@font/ibm_plex_sans_semibold"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvForgotPassword" />
+            android:text="Login To Cardify"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            app:layout_constraintTop_toBottomOf="@id/tvForgotPassword"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
+        <!-- כפתור הרשמה -->
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btnRegister"
             android:layout_width="0dp"
             android:layout_height="55dp"
-            android:layout_marginLeft="31dp"
-            android:layout_marginRight="31dp"
+            android:layout_marginStart="31dp"
+            android:layout_marginEnd="31dp"
             android:layout_marginTop="12dp"
             android:background="@drawable/btn_rounded"
             android:text="Sign Up"
-            android:textColor="#FFFFFF"
             android:textAllCaps="false"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/btnLogin" />
+            android:textColor="#FFFFFF"
+            app:layout_constraintTop_toBottomOf="@id/btnLogin"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
         <ProgressBar
             android:id="@+id/progressBar"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <androidx.constraintlayout.widget.Guideline android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>
