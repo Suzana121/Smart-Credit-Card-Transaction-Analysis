@@ -77,7 +77,6 @@ class HomeViewModel : ViewModel() {
     val isSuccess: StateFlow<Boolean> = _isSuccess.asStateFlow()
     fun uploadFile(uri: Uri, context: Context) {
         viewModelScope.launch {
-            // שלב 1: תחילת העלאה (ספינר בכפתור)
             _isUploading.value = true
             _isSuccess.value = false
             _uploadMessage.value = "Uploading..."
@@ -85,15 +84,25 @@ class HomeViewModel : ViewModel() {
             try {
                 val originalName = getOriginalFileName(context, uri) ?: "upload.xlsx"
 
-                // בדיקת כפילות לפי שם קובץ לפני שליחה לשרת
+                // 1. בדיקת סיומת קובץ בצד הלקוח (לפני השליחה)
+                val lowerName = originalName.lowercase()
+                if (!(lowerName.endsWith(".csv") || lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls"))) {
+                    _isUploading.value = false
+                    _uploadMessage.value = "Invalid file type. Please select Excel or CSV only."
+                    return@launch
+                }
+
+                // בדיקת כפילות לפי שם
                 if (_uploads.value.any { it.fileName == originalName }) {
                     _isUploading.value = false
-                    _uploadMessage.value = "Error: You have already uploaded this file before"
+                    val msg = "This file already exists"
+                    _uploadMessage.value = msg
+                    // הוספת השורה הזו תציג את ההודעה למשתמש
+                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
                     return@launch
                 }
 
                 val file = getFileFromUri(context, uri, originalName)
-
                 if (file != null) {
                     val mimeType = when {
                         originalName.endsWith(".csv") -> "text/csv"
@@ -103,18 +112,12 @@ class HomeViewModel : ViewModel() {
                     val requestFile = file.asRequestBody(mimeType.toMediaTypeOrNull())
                     val body = MultipartBody.Part.createFormData("file", originalName, requestFile)
 
-                    // שליחה לשרת
                     val response = RetrofitClient.apiService.uploadFile(body)
 
                     if (response.isSuccessful) {
-                        // שלב 2: הקובץ הגיע לשרת, עכשיו מציגים את ה-Overlay עם ה-ProgressBar
                         _isUploading.value = false
                         _isProcessing.value = true
-
-                        // השהיה בזמן שהבר מתמלא (האנימציה ב-UI נמשכת 3 שניות)
                         delay(3000)
-
-                        // שלב 3: העיבוד הסתיים, מציגים את מסך ה-"All Done" (ה-V הירוק)
                         _isSuccess.value = true
 
                         val warnings = response.body()?.warnings
@@ -124,21 +127,21 @@ class HomeViewModel : ViewModel() {
                             "Success! Data processed."
                         }
 
-                        // רענון הנתונים ברקע בזמן שהמשתמש רואה את מסך ההצלחה
                         fetchTransactions()
-
-                        // השהיה נוספת כדי שהמשתמש יספיק לראות את ה-V וההודעה "All Done"
                         delay(2500)
-
-                        // סגירת ה-Overlay וחזרה למסך הבית הרגיל
                         _isProcessing.value = false
                         _isSuccess.value = false
-                    } else if (response.code() == 409) {
-                        _isUploading.value = false
-                        _uploadMessage.value = "Error: You have already uploaded this file before"
                     } else {
                         _isUploading.value = false
-                        _uploadMessage.value = "Failed: ${response.code()}"
+                        val errorBody = response.errorBody()?.string()
+                        val errorMessage = try {
+                            val json = org.json.JSONObject(errorBody ?: "{}")
+                            json.optString("message", "Upload failed: ${response.code()}")
+                        } catch (e: Exception) {
+                            "Upload failed: ${response.code()}"
+                        }
+                        _uploadMessage.value = errorMessage
+                        android.widget.Toast.makeText(context, errorMessage, android.widget.Toast.LENGTH_LONG).show()
                     }
                 }
             } catch (e: Exception) {
