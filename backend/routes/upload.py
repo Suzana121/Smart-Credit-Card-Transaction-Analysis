@@ -27,33 +27,114 @@ CATEGORY_TRANSLATION = {
     'תיירות ונסיעות': 'Travel', 'קניות': 'Shopping',
 }
 
+BUSINESS_CATEGORY_KEYWORDS = {
+    'Food': [
+        'מסעדה', 'מקדונלד', 'mcdonalds', "mcdonald's", 'קפה', 'cafe', 'coffee',
+        'פיצה', 'pizza', 'סופר', 'super', 'ארומה', 'aroma', 'וולט', 'wolt',
+        'תן ביס', 'tenbishvil', '10bis', 'שופרסל', 'shufersal', 'יוחננוף',
+        'רמי לוי', 'rami levy', 'קונדיטוריה', 'המבורגר', 'burger', 'בורגר',
+        'שווארמה', 'פלאפל', 'סושי', 'sushi', 'סטייק', 'steak', 'מאפייה',
+        'bakery', 'אסם', 'תנובה', 'osher ad', 'אושר עד', 'victory', 'ויקטורי',
+        'mega', 'מגא', 'co-op', 'cofix', 'קופיקס', 'kfc', 'burger king',
+        'subway', 'dominos', 'דומינוס', 'pasta', 'פסטה',
+    ],
+    'Health': [
+        'פארם', 'pharm', 'מרפאה', 'clinic', 'כללית', 'מכבי', 'doctor',
+        'בי פארם', 'be pharm', 'bepharm', 'בית מרקחת', 'גוד פארם', 'goodpharm',
+        'pharmacy', 'רופא', 'שיניים', 'dental', 'אופטיקה', 'optica',
+        'לאומית', 'הדסה', 'איכילוב', 'רמב"ם', 'סורוקה', 'בית חולים',
+        'hospital', 'super-pharm', 'superpharm',
+    ],
+    'Shopping': [
+        'זארה', 'zara', 'h&m', 'hm', 'אמזון', 'amazon', 'ksp',
+        'אייבורי', 'ivory', 'עזריאלי', 'azrieli', 'shein', 'שיין',
+        'הלבשה', 'ביגוד', 'נעליים', 'shoes', 'adidas', 'nike', 'reebok',
+        'castro', 'קסטרו', 'renuar', 'רנואר', 'golf', 'גולף', 'terminal x',
+        'terminalx', 'fox', 'פוקס', 'pull&bear', 'mango', 'מנגו',
+        'bershka', 'next', 'קינג סטור', 'king store', 'toys', 'צעצועים',
+        'ikea', 'איקאה', 'ace', 'home center', 'homecenter',
+    ],
+    'Transport': [
+        'דלק', 'fuel', 'פז', 'paz', 'סונול', 'sonol', 'דור אלון', 'doralon',
+        'רכבת', 'train', 'אוטובוס', 'bus', 'מונית', 'taxi', 'gett', 'gettaxi',
+        'פנגו', 'pango', 'רב-קו', 'ravkav', 'אל על', 'elal', 'el al',
+        'ישראייר', 'israir', 'arkia', 'ארקיע', 'parking', 'חניה',
+        'electric', 'אופניים', 'bird', 'lime', 'לאנטו', 'transit',
+    ],
+    'Education': [
+        'אוניברסיטה', 'university', 'college', 'טכניון', 'technion',
+        'לימודים', 'המכללה', 'קורס', 'course', 'udemy', 'coursera',
+        'מכון', 'בית ספר', 'school', 'גן ילדים', 'kindergarten',
+        'תלמוד תורה', 'ישיבה', 'seminar', 'סמינר',
+    ],
+    'Entertainment': [
+        'סינמה', 'cinema', 'yes', 'hot', 'netflix', 'spotify', 'apple',
+        'google play', 'steam', 'playstation', 'xbox', 'בילוי', 'פנאי',
+        'bowling', 'escape', 'קולנוע', 'תיאטרון', 'theater', 'concert',
+        'הופעה', 'מוזיאון', 'museum', 'zoo', 'גן חיות',
+    ],
+    'Finance': [
+        'ביטוח', 'insurance', 'בנק', 'bank', 'פנסיה', 'pension',
+        'קרן השתלמות', 'הלוואה', 'loan', 'ריבית', 'interest',
+        'ויזה', 'visa', 'mastercard', 'paypal', 'bit', 'ביט', 'pepper',
+    ],
+    'Telecommunications': [
+        'סלקום', 'cellcom', 'פרטנר', 'partner', 'הוט מובייל', 'hot mobile',
+        'רמי', '012', '013', 'bezeq', 'בזק', 'יס', 'internet',
+        'אינטרנט', 'סלולר', 'cellular', 'mobile',
+    ],
+}
+
 STATS_CATEGORY_TRANSLATION = {
     'Food & Grocery': 'Food', 'Restaurants & Cafes': 'Food', 'Restaurants': 'Food',
     'Fashion': 'Shopping', 'Shopping': 'Shopping',
     'Health': 'Health', 'Transport': 'Transport', 'Education': 'Education',
+    'Entertainment': 'Entertainment', 'Finance': 'Finance',
+    'Telecommunications': 'Telecommunications', 'Automotive': 'Transport',
+    'Travel': 'Transport', 'Electronics': 'Shopping', 'Sports': 'Shopping',
+    'Insurance': 'Finance', 'Government': 'Other', 'General': 'Other',
 }
+
 
 def translate_category(cat):
     if not cat: return 'General'
     return CATEGORY_TRANSLATION.get(cat,
                                     cat if not any(ord(c) > 127 for c in str(cat)) else 'General')
 
-def normalize_stats_category(cat):
-    """קטגוריה מנורמלת לסטטיסטיקה."""
-    if not cat: return 'Other'
-    return STATS_CATEGORY_TRANSLATION.get(cat, 'Other')
+
+def classify_by_business_name(business_name: str):
+    if not business_name:
+        return None
+    name_lower = business_name.lower()
+    for category, keywords in BUSINESS_CATEGORY_KEYWORDS.items():
+        for kw in keywords:
+            if kw.lower() in name_lower:
+                return category
+    return None
+
+
+def normalize_stats_category(cat: str, business_name: str = '') -> str:
+    if not cat:
+        return classify_by_business_name(business_name) or 'Other'
+    if cat in ('Other', 'General', 'other', 'general'):
+        return classify_by_business_name(business_name) or 'Other'
+    return STATS_CATEGORY_TRANSLATION.get(cat, cat)
+
 
 def user_files_ref(user_id):
     return db.collection('users').document(user_id).collection('files')
 
+
 def txn_col(user_id, file_id):
     return user_files_ref(user_id).document(file_id).collection('transactions')
+
 
 def parse_date(date_str):
     parts = date_str.replace('/', '-').split('-')
     if len(parts) != 3: return None, None
     if len(parts[0]) == 4: return parts[1], parts[0]
     return parts[1], parts[2]
+
 
 def _serialize_share(doc, direction):
     data = doc.to_dict()
@@ -92,7 +173,7 @@ def get_transactions():
         limit   = int(request.args.get('limit', 20))
         cursor  = request.args.get('cursor', None)
         file_id = request.args.get('file_id', None)
-        status  = request.args.get('status', None)  # 'REGULAR' / 'IRREGULAR' / None
+        status  = request.args.get('status', None)
 
         if not file_id:
             profile_doc = db.collection('user_profiles').document(user_id).get()
@@ -105,8 +186,6 @@ def get_transactions():
         col = txn_col(user_id, file_id)
 
         if status:
-            # סינון לפי סטטוס — שליפת כל הרלוונטיות ומיון בצד השרת
-            from google.cloud.firestore_v1.base_query import FieldFilter
             docs = col.where(filter=FieldFilter('status', '==', status)).stream()
             all_transactions = []
             for doc in docs:
@@ -128,7 +207,6 @@ def get_transactions():
                 "hasMore":      len(all_transactions) > limit
             }), 200
         else:
-            # ללא סינון — order_by עם pagination תקין
             query = col.order_by('date', direction=firestore.Query.DESCENDING)
             if cursor:
                 last_doc = col.document(cursor).get()
@@ -255,7 +333,7 @@ def update_transaction_status(transaction_id):
             return jsonify({"error": "Transaction not found"}), 404
 
         doc_ref.update({"status": new_status})
-        updated      = doc_ref.get().to_dict()
+        updated       = doc_ref.get().to_dict()
         updated['id'] = transaction_id
         return jsonify(updated), 200
     except Exception as e:
@@ -319,15 +397,16 @@ def post_share():
         return jsonify({"error": str(e)}), 500
 
 
-
+# ─────────────────────────────────────────────
+# POST /api/sync-contacts
+# ─────────────────────────────────────────────
 @upload_bp.route('/sync-contacts', methods=['POST'])
 @jwt_required()
 def sync_contacts():
-    data = request.get_json()
+    data       = request.get_json()
     raw_phones = data.get('phones', [])
 
-    # נרמול מספרי הטלפון שמגיעים מהמכשיר
-    normalized_phones = set() # שימוש ב-set לחיפוש מהיר יותר
+    normalized_phones = set()
     for p in raw_phones:
         clean_p = re.sub(r'\D', '', p)
         if clean_p.startswith('972'):
@@ -336,31 +415,25 @@ def sync_contacts():
             normalized_phones.add(clean_p)
 
     matches = []
-
     try:
-        users_ref = db.collection('users')
-        all_users = users_ref.stream()
-
-        for user_doc in all_users:
-            user_data = user_doc.to_dict()
-            user_phone = str(user_data.get('phone', ''))
+        for user_doc in db.collection('users').stream():
+            user_data      = user_doc.to_dict()
+            user_phone     = str(user_data.get('phone', ''))
             clean_db_phone = re.sub(r'\D', '', user_phone)
-
-            # בדיקה אם המשתמש קיים באנשי הקשר של השולח
             if clean_db_phone in normalized_phones:
                 matches.append({
-                    "id": user_doc.id,
-                    "name": user_data.get('username', 'Unknown'),
-                    "phone": user_phone,
-                    "photo_url": user_data.get('photo_url'),
+                    "id":              user_doc.id,
+                    "name":            user_data.get('username', 'Unknown'),
+                    "phone":           user_phone,
+                    "photo_url":       user_data.get('photo_url'),
                     "is_from_contacts": True
                 })
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-    # החזרת המשתמשים שנמצאו בלבד
     return jsonify(matches), 200
+
+
 # ─────────────────────────────────────────────
 # POST /api/upload
 # ─────────────────────────────────────────────
@@ -376,7 +449,6 @@ def upload_file():
     try:
         original_filename = file.filename or 'unknown'
 
-        # ── בדיקת כפילות לפי hash של תוכן הקובץ ──
         file_content = file.read()
         file_hash    = hashlib.md5(file_content).hexdigest()
         file.seek(0)
@@ -412,7 +484,6 @@ def upload_file():
         file_id = str(uuid.uuid4())
         col     = txn_col(user_id, file_id)
 
-        # ── שמירת טרנזקציות + חישוב monthly_summary בו-זמנית ──
         batch           = db.batch()
         count           = 0
         irregular_count = 0
@@ -422,8 +493,8 @@ def upload_file():
         })
 
         for txn in classified:
-            doc_ref      = col.document()
-            is_irregular = txn['status'] == 'IRREGULAR'
+            doc_ref        = col.document()
+            is_irregular   = txn['status'] == 'IRREGULAR'
             if is_irregular: irregular_count += 1
 
             translated_cat = translate_category(txn['category'])
@@ -443,16 +514,16 @@ def upload_file():
                 "uploaded_at":       firestore.SERVER_TIMESTAMP,
             })
 
-            # חישוב monthly_summary
             date_str = txn.get('date', '')
             parts    = date_str.replace('/', '-').split('-')
             if len(parts) == 3:
                 if len(parts[0]) == 4:
-                    month_key = f"{parts[0]}-{parts[1]}"  # YYYY-MM
+                    month_key = f"{parts[0]}-{parts[1]}"
                 else:
-                    month_key = f"{parts[2]}-{parts[1]}"  # YYYY-MM
-                stats_cat = normalize_stats_category(translated_cat)
-                monthly_summary[month_key]['total']               += txn['amount']
+                    month_key = f"{parts[2]}-{parts[1]}"
+                # ← שינוי: מעביר גם את שם העסק לזיהוי קטגוריה
+                stats_cat = normalize_stats_category(translated_cat, txn.get('businessName', ''))
+                monthly_summary[month_key]['total']                += txn['amount']
                 monthly_summary[month_key]['categories'][stats_cat] += txn['amount']
                 if is_irregular:
                     monthly_summary[month_key]['irregular'] += 1
@@ -465,7 +536,6 @@ def upload_file():
                 batch = db.batch()
         batch.commit()
 
-        # המרת monthly_summary ל-dict סריאלי
         summary_serializable = {}
         for month_key, data in monthly_summary.items():
             summary_serializable[month_key] = {
@@ -475,17 +545,15 @@ def upload_file():
                 'categories': {k: round(v, 2) for k, v in data['categories'].items()}
             }
 
-        # שמירת מטאדטה הקובץ עם monthly_summary
         user_files_ref(user_id).document(file_id).set({
             "file_name":         original_filename,
             "transaction_count": count,
             "irregular_count":   irregular_count,
             "uploaded_at":       firestore.SERVER_TIMESTAMP,
-            "monthly_summary":   summary_serializable,  # ← pre-aggregated
+            "monthly_summary":   summary_serializable,
             "file_hash":         file_hash,
         })
 
-        # עדכון פרופיל + latest_file_id
         new_profile_data = {
             "new_amounts":    df['amount'].tolist(),
             "new_merchants":  df['businessName'].tolist(),

@@ -28,7 +28,8 @@ data class StatsData(
     val irregularCount: Int,
     val transactions: List<StatsTransaction>,
     val categories: List<CategoryData>,
-    val monthlyExpenses: List<MonthlyExpense>
+    val monthlyExpenses: List<MonthlyExpense>,
+    val dataYear: String = ""
 )
 
 sealed class StatsUiState {
@@ -75,7 +76,8 @@ class StatsViewModel : ViewModel() {
                         irregularCount = (body["irregularTransactionsCount"] as? Double)?.toInt() ?: 0,
                         transactions  = parseTransactions(body["transactions"]),
                         categories    = parseCategories(body["expensesByCategory"]),
-                        monthlyExpenses = parseMonthlyExpenses(body["monthlyExpenses"])
+                        monthlyExpenses = parseMonthlyExpenses(body["monthlyExpenses"]),
+                        dataYear       = body["dataYear"] as? String ?: year
                     )
                     // עדכון רשימת החודשים הזמינים
                     availableMonths = data.monthlyExpenses.map { it.month }

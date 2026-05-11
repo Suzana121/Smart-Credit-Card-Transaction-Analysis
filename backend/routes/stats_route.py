@@ -20,7 +20,7 @@ def get_stats():
         month     = request.args.get('month', 'Jan')
         year      = request.args.get('year', '2026')
         month_num = month_abbr_to_num(month)
-        month_key = f"{year}-{month_num}"  # e.g. "2026-01"
+        month_key = f"{year}-{month_num}"
 
         files_ref = db.collection('users').document(user_id).collection('files')
         file_docs = list(files_ref.stream())
@@ -29,72 +29,59 @@ def get_stats():
             return jsonify({
                 'totalSpend': 0, 'regularTransactionsCount': 0,
                 'irregularTransactionsCount': 0, 'transactions': [],
-                'expensesByCategory': [], 'monthlyExpenses': []
+                'expensesByCategory': [], 'monthlyExpenses': [],
+                'dataYear': year
             }), 200
 
-        # ── 1. קריאת monthly_summary מכל הקבצים (קריאות קלות — רק metadata) ──
-        monthly_totals  = defaultdict(float)
-        selected_total  = 0.0
-        selected_regular   = 0
-        selected_irregular = 0
+        monthly_totals      = defaultdict(float)
+        selected_total      = 0.0
         selected_categories = defaultdict(float)
+        relevant_file_ids   = []
 
         for file_doc in file_docs:
             summary = file_doc.to_dict().get('monthly_summary', {})
-
             for mk, data in summary.items():
-                # mk = "YYYY-MM"
                 mk_year  = mk[:4]
                 mk_month = mk[5:7]
                 mk_abbr  = MONTH_ABBRS.get(mk_month, '')
                 if not mk_abbr: continue
 
-                # בר-צ'ארט — כל הקבצים לשנה המבוקשת
                 if mk_year == year:
                     monthly_totals[mk_abbr] += data.get('total', 0)
 
-                # חודש נבחר — מכל הקבצים
                 if mk == month_key:
-                    selected_total      += data.get('total', 0)
-                    selected_regular    += data.get('regular', 0)
-                    selected_irregular  += data.get('irregular', 0)
+                    selected_total += data.get('total', 0)
                     for cat, amt in data.get('categories', {}).items():
                         selected_categories[cat] += amt
+                    relevant_file_ids.append(file_doc.id)
 
-        # ── 2. שליפת טרנזקציות לחודש הנבחר — רק מהקובץ האחרון ──
-        profile_doc    = db.collection('user_profiles').document(user_id).get()
-        latest_file_id = profile_doc.to_dict().get('latest_file_id') if profile_doc.exists else None
-
+        # ── שליפת טרנזקציות מכל הקבצים הרלוונטיים ──
         transactions = []
-        if latest_file_id:
-            # בדיקה אם הקובץ האחרון מכיל נתונים לחודש הנבחר
-            latest_file_doc = files_ref.document(latest_file_id).get()
-            if latest_file_doc.exists:
-                summary = latest_file_doc.to_dict().get('monthly_summary', {})
-                if month_key in summary:
-                    docs = (files_ref.document(latest_file_id)
-                            .collection('transactions')
-                            .stream())
-                    for doc in docs:
-                        t        = doc.to_dict()
-                        date_str = t.get('date', '')
-                        parts    = date_str.replace('/', '-').split('-')
-                        if len(parts) != 3: continue
-                        if len(parts[0]) == 4:
-                            t_year, t_month = parts[0], parts[1]
-                        else:
-                            t_month, t_year = parts[1], parts[2]
-                        if t_month == month_num and t_year == year:
-                            transactions.append({
-                                'id':          doc.id,
-                                'title':       t.get('businessName', 'Unknown'),
-                                'date':        date_str,
-                                'amount':      float(t.get('amount', 0)),
-                                'category':    t.get('category', 'Other'),
-                                'isIrregular': t.get('status') == 'IRREGULAR',
-                            })
+        for file_id in relevant_file_ids:
+            docs = files_ref.document(file_id).collection('transactions').stream()
+            for doc in docs:
+                t        = doc.to_dict()
+                date_str = t.get('date', '')
+                parts    = date_str.replace('/', '-').split('-')
+                if len(parts) != 3: continue
+                if len(parts[0]) == 4:
+                    t_year, t_month = parts[0], parts[1]
+                else:
+                    t_month, t_year = parts[1], parts[2]
+                if t_month == month_num and t_year == year:
+                    transactions.append({
+                        'id':          doc.id,
+                        'title':       t.get('businessName', 'Unknown'),
+                        'date':        date_str,
+                        'amount':      float(t.get('amount', 0)),
+                        'category':    t.get('category', 'Other'),
+                        'isIrregular': t.get('status') == 'IRREGULAR',
+                    })
 
-        # ── 3. בניית התשובה ──
+        # ── חישוב הספירות מהטרנזקציות האמיתיות (לא מה-summary) ──
+        actual_irregular = sum(1 for t in transactions if t['isIrregular'])
+        actual_regular   = len(transactions) - actual_irregular
+
         categories = [
             {'category': cat, 'amount': round(amt, 2)}
             for cat, amt in sorted(selected_categories.items(), key=lambda x: -x[1])
@@ -112,11 +99,12 @@ def get_stats():
 
         return jsonify({
             'totalSpend':                 round(selected_total, 2),
-            'regularTransactionsCount':   selected_regular,
-            'irregularTransactionsCount': selected_irregular,
+            'regularTransactionsCount':   actual_regular,
+            'irregularTransactionsCount': actual_irregular,
             'transactions':               transactions,
             'expensesByCategory':         categories,
             'monthlyExpenses':            monthly_expenses,
+            'dataYear':                   year,
         }), 200
 
     except Exception as e:
