@@ -215,7 +215,48 @@ fun HomeScreen(
         }
     }
 }
+fun getFileSize(context: android.content.Context, uri: Uri): String {
+    return try {
+        context.contentResolver.openFileDescriptor(uri, "r")?.use {
+            val size = it.statSize
+            when {
+                size < 1024 -> "$size B"
+                size < 1024 * 1024 -> "${size / 1024} KB"
+                else -> String.format("%.2f MB", size.toDouble() / (1024 * 1024))
+            }
+        } ?: "Unknown size"
+    } catch (e: Exception) {
+        "Unknown size"
+    }
+}
+// פונקציית עזר לבדיקת סיומת הקובץ
+fun isFileExtensionValid(context: android.content.Context, uri: Uri): Boolean {
+    val contentResolver = context.contentResolver
+    val type = contentResolver.getType(uri)
+    // בדיקה לפי MIME Type
+    if (type != null) {
+        if (type == "text/csv" ||
+            type == "application/vnd.ms-excel" ||
+            type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
+            return true
+        }
+    }
+    // בדיקה נוספת לפי שם הקובץ ליתר ביטחון
+    val name = getFileName(context, uri).lowercase()
+    return name.endsWith(".csv") || name.endsWith(".xlsx") || name.endsWith(".xls")
+}
 
+// פונקציית עזר לקבלת שם הקובץ (לצורך הבדיקה למעלה)
+fun getFileName(context: android.content.Context, uri: Uri): String {
+    var name = ""
+    context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) {
+            val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            if (nameIndex != -1) name = cursor.getString(nameIndex)
+        }
+    }
+    return name
+}
 @Composable
 fun UploadSection(
     selectedFile: Uri?,
@@ -224,6 +265,7 @@ fun UploadSection(
     onFileSelected: (Uri?) -> Unit,
     onUploadClicked: () -> Unit
 ) {
+    val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { onFileSelected(it) }
 
@@ -253,18 +295,32 @@ fun UploadSection(
                         tint = colorScheme.primary, modifier = Modifier.size(30.dp))
                     Text(if (selectedFile != null) "Ready to Process" else "Tap to Select File",
                         fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = colorScheme.primary)
-                    Text(selectedFile?.lastPathSegment ?: "CSV or Excel file",
-                        fontSize = 11.sp, color = Color.Gray)
+                    Text(
+                        text = if (selectedFile != null) "File Size: ${getFileSize(context, selectedFile)}"
+                        else "CSV or Excel file up to 5MB",
+                        fontSize = 11.sp, color = Color.Gray
+                    )
                 }
             }
         }
 
         Button(
-            onClick = onUploadClicked,
+            onClick = {
+                if (selectedFile == null) {
+                    Toast.makeText(context, "Please select a file first", Toast.LENGTH_SHORT).show()
+                } else if (!isFileExtensionValid(context, selectedFile)) {
+                    // כאן אנחנו עוצרים את זה לפני שזה מגיע לשרת!
+                    Toast.makeText(context, "Invalid file type. Please select CSV or Excel only.", Toast.LENGTH_LONG).show()
+                } else {
+                    onUploadClicked()
+                }
+            },
+
             modifier = Modifier.fillMaxWidth().height(48.dp),
             shape = RoundedCornerShape(12.dp),
+            enabled = !isUploading,
             colors = ButtonDefaults.buttonColors(
-                containerColor = colorScheme.primary,
+                containerColor = if (selectedFile != null) colorScheme.primary else Color.Gray,
                 contentColor = Color.White
             )
         ) {

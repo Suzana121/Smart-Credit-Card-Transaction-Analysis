@@ -329,3 +329,6 @@ def reset_password():
         return jsonify({"success": True, "message": "Password updated successfully"}), 200
     except Exception as e:
         return jsonify({"error": "Failed to reset password"}), 500
+
+
+    
