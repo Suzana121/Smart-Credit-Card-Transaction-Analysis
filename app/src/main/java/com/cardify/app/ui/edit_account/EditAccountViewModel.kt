@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cardify.app.data.UserSession
 import com.cardify.app.data.repository.AuthRepository
 import kotlinx.coroutines.launch
 
@@ -57,7 +58,7 @@ class EditAccountViewModel(
         }
     }
 
-    fun updateAccountDetails(onSuccess: () -> Unit) {
+    fun updateAccountDetails(context: Context, onSuccess: () -> Unit) {
         if (!validateFields()) return
         viewModelScope.launch {
             isUpdating   = true
@@ -68,6 +69,18 @@ class EditAccountViewModel(
                 phone = phone,
                 pass  = password
             ).onSuccess {
+                // ✅ עדכון UserSession בזיכרון
+                UserSession.username = name
+                UserSession.email    = email
+                UserSession.phone    = phone.ifBlank { null }
+
+                // ✅ עדכון SharedPreferences בדיסק
+                val prefs = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
+                prefs.edit().apply {
+                    putString("username", name)
+                    apply()
+                }
+
                 onSuccess()
             }.onFailure { e ->
                 errorMessage = when {
@@ -83,22 +96,18 @@ class EditAccountViewModel(
     }
 
     private fun validateFields(): Boolean {
-        // שם ומייל לא ריקים
         if (name.isBlank() || email.isBlank()) {
             errorMessage = "Name and Email cannot be empty"
             return false
         }
 
-        // פורמט מייל
         if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             errorMessage = "Invalid email format"
             return false
         }
 
-        // ולידציית מספר טלפון ישראלי
         if (phone.isNotBlank()) {
             val cleanPhone = phone.trim()
-            // מספר ישראלי: 10 ספרות המתחיל ב-05, או 9 ספרות המתחיל ב-5
             val isValidIsraeliPhone = when {
                 cleanPhone.startsWith("05") && cleanPhone.length == 10 &&
                         cleanPhone.all { it.isDigit() } -> true
@@ -112,7 +121,6 @@ class EditAccountViewModel(
             }
         }
 
-        // ולידציית סיסמה חזקה (רק אם הוזנה)
         if (password.isNotEmpty()) {
             if (password.length < 8) {
                 errorMessage = "Password must be at least 8 characters"

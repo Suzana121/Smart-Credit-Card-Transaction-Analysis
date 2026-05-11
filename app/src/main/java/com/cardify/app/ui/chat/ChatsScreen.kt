@@ -34,6 +34,7 @@ import com.cardify.app.data.model.Chat
 import com.cardify.app.data.model.ChatTransaction
 import com.cardify.app.data.model.Friend
 
+
 // ─── Data class לניווט — מכיל גם את ה-otherPhone ────────────────────────────
 data class ChatOpenRequest(
     val chat:       Chat,
@@ -64,6 +65,8 @@ fun ChatsScreen(
         val otherId      = chat.participants.firstOrNull { it != currentUserId } ?: return ""
         val otherName    = chat.participantNames[otherId] ?: ""
         val otherDisplay = chat.displayNames[otherId] ?: ""
+
+
         // חיפוש בחברים — לפי שם או לפי id שנראה כמו טלפון
         return friends.firstOrNull { f ->
             f.phone == otherId ||
