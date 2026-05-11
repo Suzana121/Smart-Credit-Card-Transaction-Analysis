@@ -17,6 +17,13 @@ import re
 logger = logging.getLogger(__name__)
 upload_bp = Blueprint('upload', __name__)
 
+MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5MB
+ALLOWED_EXTENSIONS  = {'csv', 'xlsx', 'xls'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# ─── Dictionaries ───
 CATEGORY_TRANSLATION = {
     'מזון וצריכה': 'Food & Grocery', 'מסעדות, קפה וברים': 'Restaurants & Cafes',
     'מסעדות': 'Restaurants', 'אופנה': 'Fashion', 'בריאות': 'Health',
@@ -96,6 +103,7 @@ STATS_CATEGORY_TRANSLATION = {
 }
 
 
+# ─── Helper functions ───
 def translate_category(cat):
     if not cat: return 'General'
     return CATEGORY_TRANSLATION.get(cat,
@@ -422,10 +430,10 @@ def sync_contacts():
             clean_db_phone = re.sub(r'\D', '', user_phone)
             if clean_db_phone in normalized_phones:
                 matches.append({
-                    "id":              user_doc.id,
-                    "name":            user_data.get('username', 'Unknown'),
-                    "phone":           user_phone,
-                    "photo_url":       user_data.get('photo_url'),
+                    "id":               user_doc.id,
+                    "name":             user_data.get('username', 'Unknown'),
+                    "phone":            user_phone,
+                    "photo_url":        user_data.get('photo_url'),
                     "is_from_contacts": True
                 })
     except Exception as e:
@@ -441,16 +449,29 @@ def sync_contacts():
 @jwt_required()
 def upload_file():
     if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
+        return jsonify({"error": "no_file", "message": "No file was uploaded."}), 400
 
-    file    = request.files['file']
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "empty_filename", "message": "Selected file has no name."}), 400
+
+    if not allowed_file(file.filename):
+        return jsonify({
+            "error":   "invalid_file_type",
+            "message": "Unsupported file type. Please upload Excel or CSV files only."
+        }), 400
+
     user_id = get_jwt_identity()
 
     try:
         original_filename = file.filename or 'unknown'
 
+        # ── בדיקת גודל וכפילות ──
         file_content = file.read()
-        file_hash    = hashlib.md5(file_content).hexdigest()
+        if len(file_content) > MAX_FILE_SIZE_BYTES:
+            return jsonify({"error": "file_too_large", "message": "File is too large (Max 5MB)."}), 413
+
+        file_hash = hashlib.md5(file_content).hexdigest()
         file.seek(0)
 
         existing = list(
@@ -466,6 +487,25 @@ def upload_file():
             }), 409
 
         df = FileService.validate_and_process_file(file)
+        if df is None or df.empty:
+            return jsonify({"error": "empty_data", "message": "The file is empty or contains no valid data."}), 400
+
+        df.columns = [col.strip() for col in df.columns]
+
+        required_columns = ['businessName', 'amount', 'date', 'category']
+        missing = [col for col in required_columns if col not in df.columns.tolist()]
+        if missing:
+            return jsonify({
+                "error":   "invalid_structure",
+                "message": f"Missing required columns: {', '.join(missing)}"
+            }), 400
+
+        for col in required_columns:
+            if df[col].isnull().all() or (df[col].astype(str).str.strip() == '').all():
+                return jsonify({
+                    "error":   "empty_column",
+                    "message": f"The column '{col}' is missing data."
+                }), 400
 
         df, report = DataValidator.validate(df)
         if not report.is_valid():
@@ -493,8 +533,8 @@ def upload_file():
         })
 
         for txn in classified:
-            doc_ref        = col.document()
-            is_irregular   = txn['status'] == 'IRREGULAR'
+            doc_ref      = col.document()
+            is_irregular = txn['status'] == 'IRREGULAR'
             if is_irregular: irregular_count += 1
 
             translated_cat = translate_category(txn['category'])
@@ -521,7 +561,6 @@ def upload_file():
                     month_key = f"{parts[0]}-{parts[1]}"
                 else:
                     month_key = f"{parts[2]}-{parts[1]}"
-                # ← שינוי: מעביר גם את שם העסק לזיהוי קטגוריה
                 stats_cat = normalize_stats_category(translated_cat, txn.get('businessName', ''))
                 monthly_summary[month_key]['total']                += txn['amount']
                 monthly_summary[month_key]['categories'][stats_cat] += txn['amount']
