@@ -2,7 +2,6 @@ from flask import Blueprint, request, jsonify
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from google.cloud import firestore
-from google.cloud.firestore_v1.base_query import FieldFilter
 import cloudinary
 import cloudinary.uploader
 import smtplib
@@ -82,8 +81,11 @@ def login():
     elif email:    user = find_user_in_db(email, 'email')
     else:          return jsonify({"error": "Must provide username or email"}), 400
 
-    if not user or not bcrypt.check_password_hash(user["password"], password):
-        return jsonify({"error": "Invalid credentials"}), 401
+    if not user:
+        return jsonify({"error": "user_not_found"}), 404
+
+    if not bcrypt.check_password_hash(user["password"], password):
+        return jsonify({"error": "wrong_password"}), 401
 
     access_token = create_access_token(identity=user["id"])
     return jsonify({
@@ -127,7 +129,6 @@ def update_account():
         if not current_doc.exists:
             return jsonify({"error": "User not found"}), 404
         current_data = current_doc.to_dict()
-        old_name     = current_data.get("username", "")
 
         if new_email and new_email != current_data.get("email", ""):
             if users_ref.where("email", "==", new_email).limit(1).get():
@@ -347,6 +348,11 @@ def reset_password():
     except Exception as e:
         return jsonify({"error": "Failed to reset password"}), 500
 
+
+@auth_bp.route('/validate_session', methods=['GET'])
+@jwt_required() # הדקורטור הזה מחזיר 401 אוטומטית אם הטוקן פג
+def validate():
+    return jsonify({"success": True}), 200
 @auth_bp.route('/admin/dashboard', methods=['GET'])
 @jwt_required()
 def admin_dashboard():

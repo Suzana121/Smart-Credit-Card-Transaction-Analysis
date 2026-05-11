@@ -6,9 +6,8 @@ object UserSession {
     var username:     String? = null
     var email:        String? = null
     var phone:        String? = null
-    var profileImage: String? = null  // ← חדש: URL תמונת פרופיל
+    var profileImage: String? = null
 
-    // alias נוח לשימוש ב-ChatScreen
     val userId: String? get() = id
 
     fun isLoggedIn(): Boolean = !token.isNullOrEmpty()
