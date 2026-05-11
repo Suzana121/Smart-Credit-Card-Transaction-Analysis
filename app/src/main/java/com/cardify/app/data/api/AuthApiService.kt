@@ -17,11 +17,9 @@ interface AuthApiService {
     @GET("auth/user_details")
     suspend fun getUserDetails(): Response<User>
 
-    // תוקן: היה /auth/update, עכשיו /auth/update_account
     @POST("auth/update_account")
     suspend fun updateUserDetails(@Body request: UpdateUserRequest): Response<UpdateResponse>
 
-    // חדש: העלאת תמונת פרופיל
     @Multipart
     @POST("auth/upload_profile_image")
     suspend fun uploadProfileImage(
@@ -58,8 +56,6 @@ interface AuthApiService {
         @Query("file_id") fileId: String? = null,
         @Query("status")  status: String? = null
     ): Response<TransactionPage>
-
-
 
     @POST("api/sync-contacts")
     suspend fun syncContacts(
@@ -119,6 +115,11 @@ interface AuthApiService {
         @Body request: com.cardify.app.data.model.SendMessageRequest
     ): Response<Map<String, @JvmSuppressWildcards Any>>
 
+    @POST("api/chats/{chatId}/read")
+    suspend fun markChatAsRead(
+        @Path("chatId") chatId: String
+    ): Response<Map<String, @JvmSuppressWildcards Any>>
+
     @DELETE("api/chats/{chatId}/messages/{messageId}")
     suspend fun deleteMessage(
         @Path("chatId")    chatId:    String,
@@ -152,9 +153,16 @@ interface AuthApiService {
     @GET("api/contacts/nicknames")
     suspend fun getAllNicknames(): Response<Map<String, String>>
 
+    // ─── Group name ──────────────────────────────────────────────────────────
+
+    @PATCH("api/chats/{chatId}/group-name")
+    suspend fun updateGroupName(
+        @Path("chatId") chatId: String,
+        @Body body: Map<String, @JvmSuppressWildcards Any>
+    ): Response<Map<String, @JvmSuppressWildcards Any>>
+
     // ─── Admin ───────────────────────────────────────────────────────────────
 
     @GET("auth/admin/dashboard")
     suspend fun getAdminDashboard(): Response<Map<String, Any>>
 }
-

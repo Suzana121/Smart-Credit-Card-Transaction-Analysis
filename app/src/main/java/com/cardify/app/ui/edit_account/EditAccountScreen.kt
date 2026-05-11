@@ -44,8 +44,6 @@ import androidx.core.content.FileProvider
 import androidx.navigation.NavHostController // ייבוא חסר
 import coil.compose.AsyncImage
 import com.cardify.app.R
-import com.cardify.app.ui.components.AppScaffold
-import com.cardify.app.ui.components.AppTeal
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -160,11 +158,6 @@ fun EditAccountScreen(
         }
     }
 
-    // תיקון ה-AppScaffold (הסרת currentRoute והוספת navController)
-    AppScaffold(
-        navController = navController,
-        onNavigate    = onNavigate
-    ) { padding ->
         if (viewModel.isLoading) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -174,7 +167,6 @@ fun EditAccountScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.White)
-                    .padding(padding)
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -276,7 +268,7 @@ fun EditAccountScreen(
             }
         }
     }
-}
+
 
 // ── שדה סיסמה עם אייקון עין + דרישות חיות ────────────────────────────────────
 
@@ -297,7 +289,7 @@ fun PasswordFieldWithRequirements(
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(text = "Password", fontSize = 16.sp, fontWeight = FontWeight.Bold,
-            color = AppTeal, modifier = Modifier.padding(start = 4.dp, bottom = 6.dp))
+            color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 4.dp, bottom = 6.dp))
 
         OutlinedTextField(
             value         = value,
@@ -320,8 +312,8 @@ fun PasswordFieldWithRequirements(
                 }
             },
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor      = AppTeal,
-                unfocusedBorderColor    = AppTeal,
+                focusedBorderColor      = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor    = MaterialTheme.colorScheme.primary,
                 focusedContainerColor   = Color.White,
                 unfocusedContainerColor = Color.White,
             ),
@@ -386,7 +378,7 @@ fun EditField(
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(text = label, fontSize = 16.sp, fontWeight = FontWeight.Bold,
-            color = AppTeal, modifier = Modifier.padding(start = 4.dp, bottom = 6.dp))
+            color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 4.dp, bottom = 6.dp))
         OutlinedTextField(
             value         = value,
             onValueChange = onValueChange,
@@ -394,8 +386,8 @@ fun EditField(
             modifier      = Modifier.fillMaxWidth().height(56.dp),
             shape         = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor      = AppTeal,
-                unfocusedBorderColor    = AppTeal,
+                focusedBorderColor      = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor    = MaterialTheme.colorScheme.primary,
                 focusedContainerColor   = Color.White,
                 unfocusedContainerColor = Color.White,
             ),

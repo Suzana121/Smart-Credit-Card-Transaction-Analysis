@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cardify.app.data.api.RetrofitClient
 import com.cardify.app.data.model.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,6 +36,16 @@ class ChatViewModel : ViewModel() {
 
     private var currentChatId: String = ""
 
+    // ─── Polling אוטומטי של unread count כל 30 שניות ────────────
+    init {
+        viewModelScope.launch {
+            while (true) {
+                fetchUnreadCount()
+                delay(30_000L)
+            }
+        }
+    }
+
     // ─── טעינה ──────────────────────────────────────────────────
 
     fun loadChats() {
@@ -42,7 +53,11 @@ class ChatViewModel : ViewModel() {
             _isLoading.value = true
             try {
                 val response = RetrofitClient.apiService.getChats()
-                if (response.isSuccessful) _chats.value = response.body() ?: emptyList()
+                if (response.isSuccessful) {
+                    _chats.value = response.body() ?: emptyList()
+                    // עדכון unread אחרי טעינת צ'אטים
+                    fetchUnreadCount()
+                }
             } catch (e: Exception) {
                 Log.e("ChatVM", "loadChats error", e)
             } finally { _isLoading.value = false }
@@ -54,8 +69,19 @@ class ChatViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
+                // ─── אפס מיד את ה-unread מקומית ────────────────────
+                _unreadCount.value = (_unreadCount.value -
+                        (_chats.value.firstOrNull { it.id == chatId }?.unreadCount ?: 0))
+                    .coerceAtLeast(0)
+
                 val response = RetrofitClient.apiService.getMessages(chatId)
-                if (response.isSuccessful) _messages.value = response.body() ?: emptyList()
+                if (response.isSuccessful) {
+                    _messages.value = response.body() ?: emptyList()
+                    // סנכרון עם השרת אחרי שה-GET /messages אפס את unread
+                    try { RetrofitClient.apiService.markChatAsRead(chatId) } catch (_: Exception) { }
+                    delay(300L)
+                    fetchUnreadCount()
+                }
             } catch (e: Exception) {
                 Log.e("ChatVM", "loadMessages error", e)
             } finally { _isLoading.value = false }
@@ -66,21 +92,17 @@ class ChatViewModel : ViewModel() {
         chatId:       String,
         text:         String,
         transaction:  ChatTransaction? = null,
-        /** Map של phone → nickname — לשימוש בשם תצוגה ב-ReplySnapshot */
         nicknames:    Map<String, String> = emptyMap(),
-        /** Map של senderId → phone — כדי לאתר את הכינוי לפי userId */
         senderPhones: Map<String, String> = emptyMap()
     ) {
         viewModelScope.launch {
             try {
                 val reply    = _replyTo.value
                 val snapshot = reply?.let {
-                    // מחפש כינוי לשולח ההודעה שמגיבים עליה
                     val phone       = senderPhones[it.senderId] ?: ""
                     val displayName = if (phone.isNotBlank())
                         nicknames[phone]?.takeIf { n -> n.isNotBlank() } ?: it.senderName
                     else it.senderName
-
                     ReplySnapshot(
                         senderName   = displayName,
                         text         = it.text,
@@ -121,20 +143,14 @@ class ChatViewModel : ViewModel() {
 
     // ─── תגובת אימוג'י ──────────────────────────────────────────
 
-    /**
-     * emoji = "" → מסיר תגובה קיימת של המשתמש.
-     * אם המשתמש לוחץ על אותו אימוג'י שכבר בחר — מסיר אוטומטית.
-     */
     fun reactToMessage(chatId: String, messageId: String, emoji: String,
                        currentUserId: String) {
         viewModelScope.launch {
             try {
-                // אם המשתמש כבר הגיב באותו אימוג'י — toggle (הסר)
-                val currentMsg  = _messages.value.find { it.id == messageId }
+                val currentMsg    = _messages.value.find { it.id == messageId }
                 val existingEmoji = currentMsg?.reactions?.get(currentUserId)
-                val finalEmoji  = if (existingEmoji == emoji) "" else emoji
+                val finalEmoji    = if (existingEmoji == emoji) "" else emoji
 
-                // אופטימיסטי — עדכון מקומי מיידי
                 _messages.value = _messages.value.map { msg ->
                     if (msg.id != messageId) msg
                     else {
@@ -148,7 +164,7 @@ class ChatViewModel : ViewModel() {
                 val response = RetrofitClient.apiService.reactToMessage(
                     chatId, messageId, ReactRequest(emoji = finalEmoji)
                 )
-                if (!response.isSuccessful) loadMessages(chatId) // rollback
+                if (!response.isSuccessful) loadMessages(chatId)
             } catch (e: Exception) {
                 Log.e("ChatVM", "react error", e)
                 loadMessages(chatId)
@@ -160,15 +176,13 @@ class ChatViewModel : ViewModel() {
 
     fun forwardMessage(
         targetChatId: String,
-        message: ChatMessage,
-        onSuccess: () -> Unit = {},
-        onError: (String) -> Unit = {}
+        message:      ChatMessage,
+        onSuccess:    () -> Unit = {},
+        onError:      (String) -> Unit = {}
     ) {
         viewModelScope.launch {
             try {
-                val body = mutableMapOf<String, Any>(
-                    "forwarded" to true
-                )
+                val body = mutableMapOf<String, Any>("forwarded" to true)
                 if (message.text.isNotBlank()) body["text"] = message.text
                 if (message.transaction != null) body["transaction"] = message.transaction
 
@@ -178,6 +192,26 @@ class ChatViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.e("ChatVM", "forwardMessage error", e)
                 onError(e.message ?: "Error")
+            }
+        }
+    }
+
+    // ─── עדכון שם קבוצה ─────────────────────────────────────────
+
+    fun updateGroupName(chatId: String, newName: String, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.updateGroupName(
+                    chatId, mapOf("groupName" to newName)
+                )
+                if (response.isSuccessful) {
+                    _chats.value = _chats.value.map { chat ->
+                        if (chat.id == chatId) chat.copy(groupName = newName) else chat
+                    }
+                    onSuccess()
+                }
+            } catch (e: Exception) {
+                Log.e("ChatVM", "updateGroupName error", e)
             }
         }
     }

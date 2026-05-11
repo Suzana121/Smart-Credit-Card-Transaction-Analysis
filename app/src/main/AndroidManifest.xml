@@ -18,16 +18,17 @@
 
     <application
         android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.Cardify"
         android:usesCleartextTraffic="true">
 
-        <!-- Main Activity -->
+        <!-- Main Activity — ללא adjustResize כי Edge-to-Edge + imePadding מטפלים בזה -->
         <activity
             android:name=".MainActivity"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize">
+            android:exported="false">
         </activity>
 
         <!-- Login & Onboarding - Launcher -->

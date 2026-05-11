@@ -77,15 +77,11 @@ fun StatsScreen(
     val monthIndex = viewModel.selectedMonthIndex
     val monthName  = viewModel.allMonths[monthIndex]
 
-    // עכשיו navController מוכר וניתן להעביר אותו ל-AppScaffold
-    AppScaffold(
-        navController = navController,onNavigate = onNavigate
-    ) { padding ->
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFFF5F5F5))
-                .padding(padding)
         ) {
             when (val state = uiState) {
                 is StatsUiState.Loading -> {
@@ -118,7 +114,7 @@ fun StatsScreen(
             }
         }
     }
-}
+
 
 @Composable
 fun StatsContent(

@@ -70,6 +70,8 @@ fun HomeScreen(
         Font(R.font.ibm_plex_sans_semibold, FontWeight.SemiBold)
     )
 
+
+
     // לוגיקת ברכה לפי שעה
     val greeting = remember {
         val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
@@ -84,10 +86,6 @@ fun HomeScreen(
     LaunchedEffect(Unit) { viewModel.fetchTransactions(limit = selectedLimit.toIntOrNull() ?: 5) }
     LaunchedEffect(manualOverrides) { if (manualOverrides.isNotEmpty()) bannerDismissed = false }
 
-    AppScaffold(
-        navController = navController,
-        onNavigate = onNavigate
-    ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
@@ -133,7 +131,7 @@ fun HomeScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     item {
-                        Spacer(Modifier.height(10.dp))
+                        Spacer(Modifier.height(15.dp))
                         Column(Modifier.fillMaxWidth()) {
                             Text(
                                 text = greeting,
