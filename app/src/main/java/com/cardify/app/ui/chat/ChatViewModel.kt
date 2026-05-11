@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cardify.app.data.api.RetrofitClient
 import com.cardify.app.data.model.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,6 +36,16 @@ class ChatViewModel : ViewModel() {
 
     private var currentChatId: String = ""
 
+    // ─── Polling אוטומטי של unread count כל 30 שניות ────────────
+    init {
+        viewModelScope.launch {
+            while (true) {
+                fetchUnreadCount()
+                delay(30_000L)
+            }
+        }
+    }
+
     // ─── טעינה ──────────────────────────────────────────────────
 
     fun loadChats() {
@@ -42,7 +53,11 @@ class ChatViewModel : ViewModel() {
             _isLoading.value = true
             try {
                 val response = RetrofitClient.apiService.getChats()
-                if (response.isSuccessful) _chats.value = response.body() ?: emptyList()
+                if (response.isSuccessful) {
+                    _chats.value = response.body() ?: emptyList()
+                    // עדכון unread אחרי טעינת צ'אטים
+                    fetchUnreadCount()
+                }
             } catch (e: Exception) {
                 Log.e("ChatVM", "loadChats error", e)
             } finally { _isLoading.value = false }
@@ -54,8 +69,19 @@ class ChatViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
+                // ─── אפס מיד את ה-unread מקומית ────────────────────
+                _unreadCount.value = (_unreadCount.value -
+                        (_chats.value.firstOrNull { it.id == chatId }?.unreadCount ?: 0))
+                    .coerceAtLeast(0)
+
                 val response = RetrofitClient.apiService.getMessages(chatId)
-                if (response.isSuccessful) _messages.value = response.body() ?: emptyList()
+                if (response.isSuccessful) {
+                    _messages.value = response.body() ?: emptyList()
+                    // סנכרון עם השרת אחרי שה-GET /messages אפס את unread
+                    try { RetrofitClient.apiService.markChatAsRead(chatId) } catch (_: Exception) { }
+                    delay(300L)
+                    fetchUnreadCount()
+                }
             } catch (e: Exception) {
                 Log.e("ChatVM", "loadMessages error", e)
             } finally { _isLoading.value = false }
@@ -150,9 +176,9 @@ class ChatViewModel : ViewModel() {
 
     fun forwardMessage(
         targetChatId: String,
-        message: ChatMessage,
-        onSuccess: () -> Unit = {},
-        onError: (String) -> Unit = {}
+        message:      ChatMessage,
+        onSuccess:    () -> Unit = {},
+        onError:      (String) -> Unit = {}
     ) {
         viewModelScope.launch {
             try {
@@ -179,7 +205,6 @@ class ChatViewModel : ViewModel() {
                     chatId, mapOf("groupName" to newName)
                 )
                 if (response.isSuccessful) {
-                    // עדכון אופטימיסטי מקומי של רשימת הצ'אטים
                     _chats.value = _chats.value.map { chat ->
                         if (chat.id == chatId) chat.copy(groupName = newName) else chat
                     }

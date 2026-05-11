@@ -115,6 +115,11 @@ interface AuthApiService {
         @Body request: com.cardify.app.data.model.SendMessageRequest
     ): Response<Map<String, @JvmSuppressWildcards Any>>
 
+    @POST("api/chats/{chatId}/read")
+    suspend fun markChatAsRead(
+        @Path("chatId") chatId: String
+    ): Response<Map<String, @JvmSuppressWildcards Any>>
+
     @DELETE("api/chats/{chatId}/messages/{messageId}")
     suspend fun deleteMessage(
         @Path("chatId")    chatId:    String,

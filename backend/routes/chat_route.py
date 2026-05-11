@@ -182,7 +182,26 @@ def get_messages(chat_id):
         import traceback; print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
+# ─── הוסיפי את זה לקובץ chat_routes.py שלך ───────────────────
+# אחרי ה-route של get_messages
 
+# ─── POST /api/chats/<chat_id>/read ──────────────────────────
+@chat_bp.route('/chats/<chat_id>/read', methods=['POST'])
+@jwt_required()
+def mark_chat_as_read(chat_id):
+    try:
+        user_id  = get_jwt_identity()
+        chat_ref = db.collection('chats').document(chat_id)
+        chat_doc = chat_ref.get()
+        if not chat_doc.exists:
+            return jsonify({'error': 'Chat not found'}), 404
+        if user_id not in chat_doc.to_dict().get('participants', []):
+            return jsonify({'error': 'Unauthorized'}), 403
+        chat_ref.update({f'unreadCount.{user_id}': 0})
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        import traceback; print(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
 # ─── POST /api/chats/<id>/messages ───────────────────────────
 @chat_bp.route('/chats/<chat_id>/messages', methods=['POST'])
 @jwt_required()

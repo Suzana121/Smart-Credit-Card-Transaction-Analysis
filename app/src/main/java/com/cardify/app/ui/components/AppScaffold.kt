@@ -55,11 +55,12 @@ fun CleanTopBar() {
 
 @Composable
 fun AppScaffold(
-    navController: NavHostController,
-    onNavigate:    (String) -> Unit,
-    topBarContent: (@Composable () -> Unit)? = null,
-    chatViewModel: ChatViewModel = viewModel(),
-    content:       @Composable (PaddingValues) -> Unit
+    navController:  NavHostController,
+    onNavigate:     (String) -> Unit,
+    topBarContent:  (@Composable () -> Unit)? = null,
+    hideBottomBar:  Boolean = false,           // ← חדש: מסתיר את הסרגל התחתון
+    chatViewModel:  ChatViewModel = viewModel(),
+    content:        @Composable (PaddingValues) -> Unit
 ) {
     val items = listOf(
         NavigationItem.Home,
@@ -98,64 +99,67 @@ fun AppScaffold(
                 }
             },
             bottomBar = {
-                Surface(
-                    color           = Color.White,
-                    shadowElevation = 20.dp,
-                    modifier        = Modifier.fillMaxWidth().zIndex(10f)
-                ) {
-                    Box(modifier = Modifier.navigationBarsPadding().height(75.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .offset(x = indicatorOffset)
-                                .width(tabWidth)
-                                .height(6.dp)
-                                .background(
-                                    color = MaterialTheme.colorScheme.primary,
-                                    shape = RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp)
-                                )
-                        )
-                        NavigationBar(
-                            containerColor = Color.Transparent,
-                            tonalElevation = 0.dp
-                        ) {
-                            items.forEach { item ->
-                                val isSelected = currentRoute.startsWith(item.route)
-                                NavigationBarItem(
-                                    selected = isSelected,
-                                    onClick  = { onNavigate(item.route) },
-                                    icon = {
-                                        BadgedBox(badge = {
-                                            if (item.route == "chat" && unreadCount > 0) {
-                                                Badge(containerColor = Color(0xFFDB0000)) {
-                                                    Text(
-                                                        if (unreadCount > 9) "9+" else unreadCount.toString(),
-                                                        fontSize = 9.sp,
-                                                        color    = Color.White
-                                                    )
-                                                }
-                                            }
-                                        }) {
-                                            Icon(
-                                                painterResource(item.iconRes),
-                                                contentDescription = item.label,
-                                                modifier           = Modifier.size(26.dp)
-                                            )
-                                        }
-                                    },
-                                    label = {
-                                        Text(
-                                            item.label,
-                                            fontSize = 11.sp,
-                                            maxLines = 1,
-                                            color    = if (isSelected)
-                                                MaterialTheme.colorScheme.primary
-                                            else Color.Gray
-                                        )
-                                    },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        indicatorColor = Color.Transparent
+                // ─── מוצג רק כשלא בתוך צ'ט ──────────────────────────
+                if (!hideBottomBar) {
+                    Surface(
+                        color           = Color.White,
+                        shadowElevation = 20.dp,
+                        modifier        = Modifier.fillMaxWidth().zIndex(10f)
+                    ) {
+                        Box(modifier = Modifier.navigationBarsPadding().height(75.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = indicatorOffset)
+                                    .width(tabWidth)
+                                    .height(6.dp)
+                                    .background(
+                                        color = MaterialTheme.colorScheme.primary,
+                                        shape = RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp)
                                     )
-                                )
+                            )
+                            NavigationBar(
+                                containerColor = Color.Transparent,
+                                tonalElevation = 0.dp
+                            ) {
+                                items.forEach { item ->
+                                    val isSelected = currentRoute.startsWith(item.route)
+                                    NavigationBarItem(
+                                        selected = isSelected,
+                                        onClick  = { onNavigate(item.route) },
+                                        icon = {
+                                            BadgedBox(badge = {
+                                                if (item.route == "chat" && unreadCount > 0) {
+                                                    Badge(containerColor = Color(0xFFDB0000)) {
+                                                        Text(
+                                                            if (unreadCount > 9) "9+" else unreadCount.toString(),
+                                                            fontSize = 9.sp,
+                                                            color    = Color.White
+                                                        )
+                                                    }
+                                                }
+                                            }) {
+                                                Icon(
+                                                    painterResource(item.iconRes),
+                                                    contentDescription = item.label,
+                                                    modifier           = Modifier.size(26.dp)
+                                                )
+                                            }
+                                        },
+                                        label = {
+                                            Text(
+                                                item.label,
+                                                fontSize = 11.sp,
+                                                maxLines = 1,
+                                                color    = if (isSelected)
+                                                    MaterialTheme.colorScheme.primary
+                                                else Color.Gray
+                                            )
+                                        },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            indicatorColor = Color.Transparent
+                                        )
+                                    )
+                                }
                             }
                         }
                     }

@@ -1,9 +1,7 @@
 package com.cardify.app.ui.chat
 
-
 import android.os.Build
 import androidx.annotation.RequiresApi
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -35,16 +33,21 @@ import com.cardify.app.data.UserSession
 import com.cardify.app.data.model.Chat
 import com.cardify.app.data.model.ChatTransaction
 import com.cardify.app.data.model.Friend
-import com.cardify.app.ui.components.AppScaffold
+
+// ─── Data class לניווט — מכיל גם את ה-otherPhone ────────────────────────────
+data class ChatOpenRequest(
+    val chat:       Chat,
+    val otherPhone: String   // ריק לקבוצות
+)
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ChatsScreen(
-    navController: androidx.navigation.NavHostController, // הגדרה נכונה של הטיפוס
-    onNavigate: (String) -> Unit,
-    onOpenChat: (Chat) -> Unit,
+    navController:      androidx.navigation.NavHostController,
+    onNavigate:         (String) -> Unit,
+    onOpenChat:         (ChatOpenRequest) -> Unit,
     pendingTransaction: ChatTransaction? = null,
-    viewModel: ChatViewModel = viewModel()
+    viewModel:          ChatViewModel = viewModel()
 ) {
     val chats       by viewModel.chats.collectAsState()
     val friends     by viewModel.friends.collectAsState()
@@ -54,6 +57,21 @@ fun ChatsScreen(
 
     val currentUserId   = UserSession.userId ?: ""
     val approvedFriends = remember(friends) { friends.filter { it.status == "approved" } }
+
+    // ─── פונקציה שמוצאת את הטלפון של הצד השני ───────────────────
+    fun resolveOtherPhone(chat: Chat): String {
+        if (chat.isGroup) return ""
+        val otherId      = chat.participants.firstOrNull { it != currentUserId } ?: return ""
+        val otherName    = chat.participantNames[otherId] ?: ""
+        val otherDisplay = chat.displayNames[otherId] ?: ""
+        // חיפוש בחברים — לפי שם או לפי id שנראה כמו טלפון
+        return friends.firstOrNull { f ->
+            f.phone == otherId ||
+                    f.name  == otherName ||
+                    f.name  == otherDisplay
+        }?.phone
+            ?: if (otherId.all { c -> c.isDigit() || c == '+' || c == '-' }) otherId else ""
+    }
 
     val filteredChats = remember(chats, searchQuery) {
         if (searchQuery.isBlank()) chats
@@ -66,15 +84,13 @@ fun ChatsScreen(
 
     val matchingFriends = remember(approvedFriends, searchQuery, chats) {
         if (searchQuery.isBlank()) emptyList()
-        else {
-            approvedFriends.filter { friend ->
-                friend.name.contains(searchQuery, ignoreCase = true) &&
-                        chats.none { chat ->
-                            !chat.isGroup &&
-                                    chat.participants.any { it != currentUserId &&
-                                            chat.participantNames[it] == friend.name }
-                        }
-            }
+        else approvedFriends.filter { friend ->
+            friend.name.contains(searchQuery, ignoreCase = true) &&
+                    chats.none { chat ->
+                        !chat.isGroup &&
+                                chat.participants.any { it != currentUserId &&
+                                        chat.participantNames[it] == friend.name }
+                    }
         }
     }
 
@@ -94,152 +110,142 @@ fun ChatsScreen(
                 showNewChat = false
                 viewModel.loadChats()
                 val newChat = chats.find { it.id == chatId }
-                newChat?.let { onOpenChat(it) }
+                newChat?.let { onOpenChat(ChatOpenRequest(it, resolveOtherPhone(it))) }
             }
         )
     }
 
+    Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
+        Column(Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text("Chats", fontSize = 22.sp, fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary)
+                    if (pendingTransaction != null) {
+                        Text(
+                            "Select a chat to share: ${pendingTransaction.businessName}",
+                            fontSize = 11.sp,
+                            color = Color(0xFFDB0000),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+                IconButton(onClick = { showNewChat = true }) {
+                    Icon(Icons.Default.Add, null, tint = MaterialTheme.colorScheme.primary)
+                }
+            }
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.White)
-        ) {
-            Column(Modifier.fillMaxSize()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text("Chats", fontSize = 22.sp, fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary)
-                        if (pendingTransaction != null) {
-                            Text(
-                                "Select a chat to share: ${pendingTransaction.businessName}",
-                                fontSize = 11.sp,
-                                color = Color(0xFFDB0000),
-                                fontWeight = FontWeight.SemiBold
+            HorizontalDivider(color = Color(0xFFEEEEEE))
+
+            OutlinedTextField(
+                value         = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier      = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                placeholder   = { Text("Search chats or friends...", fontSize = 14.sp) },
+                leadingIcon   = {
+                    Icon(Icons.Default.Search, null,
+                        tint = Color.Gray, modifier = Modifier.size(20.dp))
+                },
+                trailingIcon  = {
+                    if (searchQuery.isNotBlank()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.Default.Close, null,
+                                tint = Color.Gray, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                },
+                shape      = RoundedCornerShape(24.dp),
+                singleLine = true,
+                colors     = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor   = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = Color(0xFFDDDDDD)
+                )
+            )
+
+            if (isLoading) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                }
+            } else {
+                LazyColumn(Modifier.fillMaxSize()) {
+                    if (filteredChats.isNotEmpty()) {
+                        items(filteredChats, key = { it.id }) { chat ->
+                            ChatItem(
+                                chat          = chat,
+                                currentUserId = currentUserId,
+                                hasPending    = pendingTransaction != null,
+                                onClick       = {
+                                    onOpenChat(ChatOpenRequest(chat, resolveOtherPhone(chat)))
+                                }
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(start = 72.dp),
+                                color    = Color(0xFFEEEEEE)
                             )
                         }
                     }
-                    IconButton(onClick = { showNewChat = true }) {
-                        Icon(Icons.Default.Add, null, tint = MaterialTheme.colorScheme.primary)
-                    }
-                }
 
-                HorizontalDivider(color = Color(0xFFEEEEEE))
-
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    placeholder = { Text("Search chats or friends...", fontSize = 14.sp) },
-                    leadingIcon = {
-                        Icon(Icons.Default.Search, null,
-                            tint = Color.Gray, modifier = Modifier.size(20.dp))
-                    },
-                    trailingIcon = {
-                        if (searchQuery.isNotBlank()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Default.Close, null,
-                                    tint = Color.Gray, modifier = Modifier.size(18.dp))
-                            }
+                    if (matchingFriends.isNotEmpty()) {
+                        item {
+                            Text("Start a chat with",
+                                fontSize = 12.sp, color = Color.Gray,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp))
                         }
-                    },
-                    shape = RoundedCornerShape(24.dp),
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor   = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = Color(0xFFDDDDDD)
-                    )
-                )
-
-                if (isLoading) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                    }
-                } else {
-                    LazyColumn(Modifier.fillMaxSize()) {
-                        if (filteredChats.isNotEmpty()) {
-                            items(filteredChats, key = { it.id }) { chat ->
-                                ChatItem(
-                                    chat          = chat,
-                                    currentUserId = currentUserId,
-                                    hasPending    = pendingTransaction != null,
-                                    onClick       = { onOpenChat(chat) }
-                                )
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(start = 72.dp),
-                                    color = Color(0xFFEEEEEE)
-                                )
-                            }
-                        }
-
-                        if (matchingFriends.isNotEmpty()) {
-                            item {
-                                Text(
-                                    "Start a chat with",
-                                    fontSize = 12.sp, color = Color.Gray,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.padding(
-                                        start = 16.dp, top = 12.dp, bottom = 4.dp)
-                                )
-                            }
-                            items(matchingFriends, key = { "friend_${it.phone}" }) { friend ->
-                                FriendChatItem(
-                                    friend  = friend,
-                                    onClick = {
-                                        viewModel.createChat(
-                                            participantPhones = listOf(friend.phone),
-                                            groupName         = "",
-                                            onSuccess         = { chatId ->
-                                                viewModel.loadChats()
-                                                val newChat = chats.find { it.id == chatId }
-                                                if (newChat != null) {
-                                                    onOpenChat(newChat)
-                                                } else {
-                                                    onOpenChat(Chat(
-                                                        id               = chatId,
-                                                        participants     = listOf(currentUserId, friend.phone),
-                                                        participantNames = mapOf(),
-                                                        isGroup          = false,
-                                                        groupName        = ""
-                                                    ))
-                                                }
-                                                searchQuery = ""
-                                            }
-                                        )
-                                    }
-                                )
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(start = 72.dp),
-                                    color = Color(0xFFEEEEEE)
-                                )
-                            }
-                        }
-
-                        if (filteredChats.isEmpty() && matchingFriends.isEmpty()) {
-                            item {
-                                Box(
-                                    Modifier.fillMaxWidth().padding(vertical = 48.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(
-                                            if (searchQuery.isBlank()) "No chats yet"
-                                            else "No results for \"$searchQuery\"",
-                                            color = Color.Gray, fontSize = 16.sp
-                                        )
-                                        if (searchQuery.isBlank()) {
-                                            Spacer(Modifier.height(8.dp))
-                                            Text("Tap + to start a conversation",
-                                                color = Color.LightGray, fontSize = 13.sp)
+                        items(matchingFriends, key = { "friend_${it.phone}" }) { friend ->
+                            FriendChatItem(
+                                friend  = friend,
+                                onClick = {
+                                    viewModel.createChat(
+                                        participantPhones = listOf(friend.phone),
+                                        groupName         = "",
+                                        onSuccess         = { chatId ->
+                                            viewModel.loadChats()
+                                            val newChat = chats.find { it.id == chatId }
+                                            onOpenChat(ChatOpenRequest(
+                                                chat       = newChat ?: Chat(
+                                                    id               = chatId,
+                                                    participants     = listOf(currentUserId, friend.phone),
+                                                    participantNames = mapOf(),
+                                                    isGroup          = false,
+                                                    groupName        = ""
+                                                ),
+                                                otherPhone = friend.phone  // ← ידוע בוודאות
+                                            ))
+                                            searchQuery = ""
                                         }
+                                    )
+                                }
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(start = 72.dp),
+                                color    = Color(0xFFEEEEEE)
+                            )
+                        }
+                    }
+
+                    if (filteredChats.isEmpty() && matchingFriends.isEmpty()) {
+                        item {
+                            Box(
+                                Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        if (searchQuery.isBlank()) "No chats yet"
+                                        else "No results for \"$searchQuery\"",
+                                        color = Color.Gray, fontSize = 16.sp
+                                    )
+                                    if (searchQuery.isBlank()) {
+                                        Spacer(Modifier.height(8.dp))
+                                        Text("Tap + to start a conversation",
+                                            color = Color.LightGray, fontSize = 13.sp)
                                     }
                                 }
                             }
@@ -249,7 +255,7 @@ fun ChatsScreen(
             }
         }
     }
-
+}
 
 // ─── helper ──────────────────────────────────────────────────────────────────
 
@@ -277,10 +283,8 @@ fun ChatItem(
     val context     = LocalContext.current
     val displayName = chatDisplayName(chat, currentUserId)
     val initials    = displayName.take(1).uppercase()
-
-    // תמונת הצד השני בצ'ט 1:1
-    val otherId  = if (!chat.isGroup) chat.participants.firstOrNull { it != currentUserId } ?: "" else ""
-    val photoUrl = if (!chat.isGroup) chat.participantPhotos[otherId] else null
+    val otherId     = if (!chat.isGroup) chat.participants.firstOrNull { it != currentUserId } ?: "" else ""
+    val photoUrl    = if (!chat.isGroup) chat.participantPhotos[otherId] else null
 
     Row(
         modifier = Modifier
@@ -294,9 +298,7 @@ fun ChatItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier
-                .size(50.dp)
-                .clip(CircleShape)
+            modifier = Modifier.size(50.dp).clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
@@ -318,9 +320,9 @@ fun ChatItem(
 
         Column(Modifier.weight(1f)) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier              = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment     = Alignment.CenterVertically
             ) {
                 Text(displayName, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                 if (hasPending) {
@@ -332,9 +334,9 @@ fun ChatItem(
             }
             Spacer(Modifier.height(2.dp))
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier              = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment     = Alignment.CenterVertically
             ) {
                 Text(
                     chat.lastMessage.ifBlank { "No messages yet" },
@@ -345,15 +347,12 @@ fun ChatItem(
                 if (chat.unreadCount > 0 && !hasPending) {
                     Spacer(Modifier.width(8.dp))
                     Box(
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clip(CircleShape)
+                        modifier = Modifier.size(20.dp).clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primary),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(chat.unreadCount.toString(),
-                            fontSize = 11.sp, color = Color.White,
-                            fontWeight = FontWeight.Bold)
+                            fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -377,9 +376,7 @@ fun FriendChatItem(friend: Friend, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier
-                .size(50.dp)
-                .clip(CircleShape)
+            modifier = Modifier.size(50.dp).clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center
         ) {
@@ -404,9 +401,7 @@ fun FriendChatItem(friend: Friend, onClick: () -> Unit) {
         Icon(
             Icons.Default.Add, contentDescription = null,
             tint     = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .size(20.dp)
-                .clip(CircleShape)
+            modifier = Modifier.size(20.dp).clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
                 .padding(3.dp)
         )
@@ -417,12 +412,12 @@ fun FriendChatItem(friend: Friend, onClick: () -> Unit) {
 
 @Composable
 fun NewChatDialog(
-    viewModel: ChatViewModel,
-    onDismiss: () -> Unit,
+    viewModel:     ChatViewModel,
+    onDismiss:     () -> Unit,
     onChatCreated: (String) -> Unit
 ) {
-    val friends   by viewModel.friends.collectAsState()
-    val selected  = remember { mutableStateListOf<String>() }
+    val friends  by viewModel.friends.collectAsState()
+    val selected = remember { mutableStateListOf<String>() }
     var groupName by remember { mutableStateOf("") }
     val isGroup   = selected.size > 1
 
@@ -435,9 +430,11 @@ fun NewChatDialog(
             Column {
                 if (isGroup) {
                     OutlinedTextField(
-                        value = groupName, onValueChange = { groupName = it },
-                        label = { Text("Group name") },
-                        modifier = Modifier.fillMaxWidth(), singleLine = true
+                        value         = groupName,
+                        onValueChange = { groupName = it },
+                        label         = { Text("Group name") },
+                        modifier      = Modifier.fillMaxWidth(),
+                        singleLine    = true
                     )
                     Spacer(Modifier.height(8.dp))
                 }
@@ -457,7 +454,7 @@ fun NewChatDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Checkbox(
-                                checked = isChecked,
+                                checked        = isChecked,
                                 onCheckedChange = {
                                     if (it) selected.add(friend.phone)
                                     else selected.remove(friend.phone)
@@ -467,9 +464,13 @@ fun NewChatDialog(
                             )
                             Spacer(Modifier.width(8.dp))
                             Icon(Icons.Default.Person, null,
-                                tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text(friend.name, fontSize = 14.sp)
+                            Column {
+                                Text(friend.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                Text(friend.phone, fontSize = 11.sp, color = Color.Gray)
+                            }
                         }
                     }
                 }
@@ -481,13 +482,14 @@ fun NewChatDialog(
                     if (selected.isNotEmpty()) {
                         viewModel.createChat(
                             participantPhones = selected.toList(),
-                            groupName = if (isGroup) groupName else "",
-                            onSuccess = { chatId -> onChatCreated(chatId) }
+                            groupName         = if (isGroup) groupName else "",
+                            onSuccess         = { chatId -> onChatCreated(chatId) }
                         )
                     }
                 },
                 enabled = selected.isNotEmpty(),
-                colors  = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                colors  = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary)
             ) { Text("Start Chat") }
         },
         dismissButton = {
@@ -507,12 +509,10 @@ fun formatChatTime(timestamp: String): String {
             timestamp.contains('T') && (timestamp.contains('+') || timestamp.endsWith('Z')) ->
                 java.time.OffsetDateTime.parse(timestamp).toInstant()
             timestamp.contains('T') ->
-                java.time.LocalDateTime.parse(timestamp)
-                    .toInstant(java.time.ZoneOffset.UTC)
+                java.time.LocalDateTime.parse(timestamp).toInstant(java.time.ZoneOffset.UTC)
             timestamp.contains(' ') ->
-                java.time.LocalDateTime.parse(
-                    timestamp.replace(' ', 'T')
-                ).toInstant(java.time.ZoneOffset.UTC)
+                java.time.LocalDateTime.parse(timestamp.replace(' ', 'T'))
+                    .toInstant(java.time.ZoneOffset.UTC)
             else -> return ""
         }
         val zoneId  = java.time.ZoneId.systemDefault()
@@ -523,7 +523,5 @@ fun formatChatTime(timestamp: String): String {
             today.minusDays(1) -> "Yesterday"
             else               -> "%02d/%02d".format(localDt.dayOfMonth, localDt.monthValue)
         }
-    } catch (e: Exception) {
-        ""
-    }
+    } catch (e: Exception) { "" }
 }

@@ -7,7 +7,6 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
@@ -27,6 +26,7 @@ import com.cardify.app.ui.account.AccountScreen
 import com.cardify.app.ui.account.AccountViewModel
 import com.cardify.app.ui.chat.ChatScreen
 import com.cardify.app.ui.chat.ChatViewModel
+import com.cardify.app.ui.chat.ChatOpenRequest
 import com.cardify.app.ui.chat.ChatsScreen
 import com.cardify.app.ui.components.ShareToChatSheet
 import com.cardify.app.ui.edit_account.EditAccountScreen
@@ -41,12 +41,12 @@ import com.cardify.app.ui.components.AppScaffold
 fun AppNavigation(startDestination: String = "home") {
 
     val navController = rememberNavController()
-    val gson = remember { Gson() }
+    val gson          = remember { Gson() }
 
     val pendingShareTxn = remember { mutableStateOf<ChatTransaction?>(null) }
     var showFriendPicker by remember { mutableStateOf(false) }
 
-    val chatViewModelGlobal: ChatViewModel = viewModel()
+    val chatViewModelGlobal:    ChatViewModel    = viewModel()
     val accountViewModelGlobal: AccountViewModel = viewModel()
 
     val globalNicknames by accountViewModelGlobal.nicknames.collectAsState()
@@ -54,8 +54,9 @@ fun AppNavigation(startDestination: String = "home") {
     val navigationOrder = listOf("home", "chat", "transactions", "stats", "account")
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route ?: "home"
-    val isTopLevelTab = navigationOrder.any { currentRoute == it }
+    val currentRoute      = navBackStackEntry?.destination?.route ?: "home"
+    val isTopLevelTab     = navigationOrder.any { currentRoute == it }
+    val isNestedChatScreen = currentRoute.startsWith("chat/")
 
     fun getTransitionSpec(initialRoute: String?, targetRoute: String?): EnterTransition {
         val i = navigationOrder.indexOfFirst { initialRoute?.startsWith(it) == true }.coerceAtLeast(0)
@@ -87,9 +88,28 @@ fun AppNavigation(startDestination: String = "home") {
 
     fun clearPendingEverywhere() {
         pendingShareTxn.value = null
-        showFriendPicker = false
+        showFriendPicker      = false
         try { navController.getBackStackEntry("chat")
             .savedStateHandle.remove<String>("pendingTransaction") } catch (_: Exception) { }
+    }
+
+    // ─── פותח צ'ט ספציפי — כעת מקבל ChatOpenRequest עם phone מובטח ──
+    fun openChatRequest(request: ChatOpenRequest, pendingJson: String?) {
+        val chat      = request.chat
+        val chatName  = if (chat.isGroup) chat.groupName.ifBlank { "Group" }
+        else {
+            val me      = UserSession.userId ?: ""
+            val otherId = chat.participants.firstOrNull { it != me } ?: ""
+            chat.displayNames[otherId] ?: chat.participantNames[otherId] ?: "Chat"
+        }
+        navController.navigate("chat/${chat.id}") { launchSingleTop = true }
+        navController.getBackStackEntry("chat/${chat.id}").savedStateHandle.apply {
+            set("pendingTransaction", pendingJson)
+            set("chatName",           chatName)
+            set("isGroup",            chat.isGroup)
+            set("displayNamesJson",   gson.toJson(chat.displayNames))
+            set("otherPhone",         request.otherPhone)   // ← phone בטוח
+        }
     }
 
     fun navigateToChatWithFriend(friend: Friend, txn: ChatTransaction) {
@@ -114,10 +134,10 @@ fun AppNavigation(startDestination: String = "home") {
             navController.navigate("chat/$chatId") { launchSingleTop = true }
             navController.getBackStackEntry("chat/$chatId").savedStateHandle.apply {
                 set("pendingTransaction", txnJson)
-                set("chatName", friend.name)
-                set("isGroup", false)
-                set("displayNamesJson", "{}")
-                set("otherPhone", friend.phone)
+                set("chatName",           friend.name)
+                set("isGroup",            false)
+                set("displayNamesJson",   "{}")
+                set("otherPhone",         friend.phone)   // ← phone ידוע בוודאות
             }
         }
         if (existingChat != null) { openChat(existingChat.id); clearPendingEverywhere() }
@@ -139,10 +159,10 @@ fun AppNavigation(startDestination: String = "home") {
         navController.navigate("chat/${chat.id}") { launchSingleTop = true }
         navController.getBackStackEntry("chat/${chat.id}").savedStateHandle.apply {
             set("pendingTransaction", txnJson)
-            set("chatName", groupName)
-            set("isGroup", true)
-            set("displayNamesJson", gson.toJson(chat.displayNames))
-            set("otherPhone", "")
+            set("chatName",           groupName)
+            set("isGroup",            true)
+            set("displayNamesJson",   gson.toJson(chat.displayNames))
+            set("otherPhone",         "")
         }
         clearPendingEverywhere()
     }
@@ -165,10 +185,6 @@ fun AppNavigation(startDestination: String = "home") {
         )
     }
 
-    // When inside a nested chat screen, suppress AppScaffold's TopBar entirely
-    // so ChatScreen can render its own TopAppBar with correct status bar padding.
-    val isNestedChatScreen = currentRoute.startsWith("chat/")
-
     AppScaffold(
         navController  = navController,
         onNavigate     = { route ->
@@ -179,7 +195,8 @@ fun AppNavigation(startDestination: String = "home") {
                 }
             }
         },
-        topBarContent  = if (isNestedChatScreen) ({ }) else null
+        topBarContent  = if (isNestedChatScreen) ({ }) else null,
+        hideBottomBar  = isNestedChatScreen
     ) { paddingValues ->
 
         Box(
@@ -204,12 +221,12 @@ fun AppNavigation(startDestination: String = "home") {
                 )
         ) {
             NavHost(
-                navController       = navController,
-                startDestination    = startDestination,
-                enterTransition     = { getTransitionSpec(initialState.destination.route, targetState.destination.route) },
-                exitTransition      = { getExitSpec(initialState.destination.route, targetState.destination.route) },
-                popEnterTransition  = { getTransitionSpec(initialState.destination.route, targetState.destination.route) },
-                popExitTransition   = { getExitSpec(initialState.destination.route, targetState.destination.route) }
+                navController      = navController,
+                startDestination   = startDestination,
+                enterTransition    = { getTransitionSpec(initialState.destination.route, targetState.destination.route) },
+                exitTransition     = { getExitSpec(initialState.destination.route, targetState.destination.route) },
+                popEnterTransition = { getTransitionSpec(initialState.destination.route, targetState.destination.route) },
+                popExitTransition  = { getExitSpec(initialState.destination.route, targetState.destination.route) }
             ) {
                 composable("home") {
                     HomeScreen(
@@ -234,41 +251,13 @@ fun AppNavigation(startDestination: String = "home") {
                 composable("chat") {
                     val entry       = navController.currentBackStackEntry
                     val pendingJson = entry?.savedStateHandle?.get<String>("pendingTransaction")
-                    val pendingTxn  = pendingJson?.let {
-                        gson.fromJson(it, ChatTransaction::class.java) }
+                    val pendingTxn  = pendingJson?.let { gson.fromJson(it, ChatTransaction::class.java) }
                     ChatsScreen(
                         navController = navController,
                         onNavigate    = { route -> navController.navigate(route) },
-                        onOpenChat    = { chat ->
-                            val me = UserSession.userId ?: ""
-                            val chatName = if (chat.isGroup) chat.groupName.ifBlank { "Group" }
-                            else {
-                                val otherId = chat.participants.first { it != me }
-                                chat.displayNames[otherId] ?: chat.participantNames[otherId] ?: "Chat"
-                            }
-                            val otherPhone = if (!chat.isGroup) {
-                                val otherId = chat.participants.first { it != me }
-                                val otherName = chat.participantNames[otherId] ?: ""
-                                val otherDisplay = chat.displayNames[otherId] ?: ""
-                                chatViewModelGlobal.friends.value
-                                    .firstOrNull { f ->
-                                        f.name == otherName ||
-                                                f.name == otherDisplay ||
-                                                // also try if userId happens to equal phone format
-                                                f.phone == otherId
-                                    }?.phone
-                                // last resort: if otherId looks like a phone number use it
-                                    ?: if (otherId.all { c -> c.isDigit() || c == '+' }) otherId else ""
-                            } else ""
+                        onOpenChat    = { request ->
                             entry?.savedStateHandle?.remove<String>("pendingTransaction")
-                            navController.navigate("chat/${chat.id}") { launchSingleTop = true }
-                            navController.getBackStackEntry("chat/${chat.id}").savedStateHandle.apply {
-                                set("pendingTransaction", pendingJson)
-                                set("chatName", chatName)
-                                set("isGroup", chat.isGroup)
-                                set("displayNamesJson", gson.toJson(chat.displayNames))
-                                set("otherPhone", otherPhone)
-                            }
+                            openChatRequest(request, pendingJson)
                         },
                         pendingTransaction = pendingTxn
                     )
@@ -285,12 +274,10 @@ fun AppNavigation(startDestination: String = "home") {
                         chatId            = backStackEntry.arguments?.getString("chatId") ?: "",
                         chatName          = handle.get<String>("chatName") ?: "Chat",
                         isGroup           = handle.get<Boolean>("isGroup") ?: false,
-                        displayNames      = gson.fromJson(displayNamesJson, Map::class.java)
-                                as Map<String, String>,
+                        displayNames      = gson.fromJson(displayNamesJson, Map::class.java) as Map<String, String>,
                         otherPhone        = handle.get<String>("otherPhone") ?: "",
                         externalNicknames = globalNicknames,
-                        onSetNickname     = { phone, nick ->
-                            accountViewModelGlobal.setNickname(phone, nick) },
+                        onSetNickname     = { phone, nick -> accountViewModelGlobal.setNickname(phone, nick) },
                         onTransactionSent = {
                             handle.remove<String>("pendingTransaction")
                             try { navController.getBackStackEntry("chat")
@@ -300,8 +287,8 @@ fun AppNavigation(startDestination: String = "home") {
                         onNavigateToChat  = { target ->
                             navController.navigate("chat/${target.id}") { launchSingleTop = true } },
                         onBack            = { navController.popBackStack() },
-                        initialPendingTxn = pendingJson?.let {
-                            gson.fromJson(it, ChatTransaction::class.java) }
+                        initialPendingTxn = pendingJson?.let { gson.fromJson(it, ChatTransaction::class.java) },
+                        viewModel         = chatViewModelGlobal  // ← אותו instance כמו AppScaffold
                     )
                 }
 
