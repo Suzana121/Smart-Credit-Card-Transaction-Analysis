@@ -79,13 +79,16 @@ fun StatSection(content: @Composable ColumnScope.() -> Unit) {
     }
 }
 
-// ─── Static Transaction Row (ללא הרחבה, ללא כפתורים) ───
+
 @Composable
 fun StaticTransactionRow(transaction: StatsTransaction) {
+    var isExpanded by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 4.dp)
+            .clickable { isExpanded = !isExpanded },  // ← הוסף clickable
         shape  = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(
@@ -93,41 +96,74 @@ fun StaticTransactionRow(transaction: StatsTransaction) {
             if (transaction.isIrregular) Color(0xFFE23125) else Color(0xFFEEEEEE)
         )
     ) {
-        Row(
-            modifier          = Modifier
-                .padding(horizontal = 12.dp, vertical = 10.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            androidx.compose.foundation.Image(
-                painter            = painterResource(id = getCategoryIcon(transaction.category)),
-                contentDescription = transaction.category,
-                modifier           = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text       = transaction.title,
-                fontSize   = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color      = Color.Black,
-                modifier   = Modifier.weight(1f)
-            )
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(-9.dp)
+        Column {
+            // ── שורה ראשית (זהה לקיים) ──
+            Row(
+                modifier          = Modifier
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text       = "₪${transaction.amount.toInt()}",
-                    fontSize   = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color      = Color.Black
+                Image(
+                    painter            = painterResource(id = getCategoryIcon(transaction.category)),
+                    contentDescription = transaction.category,
+                    modifier           = Modifier.size(18.dp)
                 )
+                Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text       = if (transaction.isIrregular) "Irregular" else "Regular",
-                    fontSize   = 10.sp,
+                    text       = transaction.title,
+                    fontSize   = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color      = if (transaction.isIrregular) Color(0xFFE23125) else Color(0xFF38D325)
+                    color      = Color.Black,
+                    modifier   = Modifier.weight(1f)
                 )
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(-9.dp)
+                ) {
+                    Text(
+                        text       = "₪${transaction.amount.toInt()}",
+                        fontSize   = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color      = Color.Black
+                    )
+                    Text(
+                        text       = if (transaction.isIrregular) "Irregular" else "Regular",
+                        fontSize   = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color      = if (transaction.isIrregular) Color(0xFFE23125) else Color(0xFF38D325)
+                    )
+                }
+            }
+
+            // ── פרטים מורחבים (רק שם, מחיר, תאריך) ──
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter   = expandVertically(tween(250)) + fadeIn(),
+                exit    = shrinkVertically(tween(250)) + fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp)
+                        .padding(bottom = 12.dp)
+                ) {
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
+                    Spacer(Modifier.height(10.dp))
+
+
+                    Text(
+                        text      = "Date:",
+                        fontSize  = 10.sp,
+                        color     = Color(0xFF878C90)
+                    )
+                    Text(
+                        text       = transaction.date,
+                        fontSize   = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color      = Color.Black
+                    )
+                }
             }
         }
     }
