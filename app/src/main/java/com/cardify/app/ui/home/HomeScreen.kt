@@ -51,7 +51,7 @@ fun HomeScreen(
     onShareClick: (Transaction) -> Unit = {},
     viewModel: HomeViewModel = viewModel()
 ) {
-    val context = LocalContext.current
+    val context     = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
 
     var expanded        by remember { mutableStateOf(false) }
@@ -71,167 +71,171 @@ fun HomeScreen(
         Font(R.font.ibm_plex_sans_semibold, FontWeight.SemiBold)
     )
 
-
-
-    // לוגיקת ברכה לפי שעה
     val greeting = remember {
         val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
         when (hour) {
-            in 5..11 -> "Good morning,"
+            in 5..11  -> "Good morning,"
             in 12..17 -> "Good afternoon,"
             in 18..21 -> "Good evening,"
-            else -> "Good night,"
+            else      -> "Good night,"
         }
     }
 
     LaunchedEffect(Unit) { viewModel.fetchTransactions(limit = selectedLimit.toIntOrNull() ?: 5) }
     LaunchedEffect(manualOverrides) { if (manualOverrides.isNotEmpty()) bannerDismissed = false }
 
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(colorScheme.background)
-            ) {
-                // באנר עדכון מודל AI
-                if (manualOverrides.isNotEmpty()) {
-                    if (!bannerDismissed) {
-                        UpdateProfileBannerHome(
-                            count     = manualOverrides.size,
-                            onUpdate  = {
-                                viewModel.updateProfile {
-                                    Toast.makeText(context, "Profile updated!", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            onDismiss = { bannerDismissed = true },
-                            modifier  = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
-                    } else {
-                        Row(
-                            modifier = Modifier
-                                .padding(horizontal = 16.dp, vertical = 4.dp)
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(colorScheme.primary.copy(alpha = 0.1f))
-                                .clickable { bannerDismissed = false }
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.AutoFixHigh, null,
-                                tint = colorScheme.primary, modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("${manualOverrides.size} pending update",
-                                fontSize = 12.sp, color = colorScheme.primary,
-                                fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                }
-
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    item {
-                        Spacer(Modifier.height(15.dp))
-                        Column(Modifier.fillMaxWidth()) {
-                            Text(
-                                text = greeting,
-                                color = colorScheme.onBackground.copy(alpha = 0.6f),
-                                fontSize = 18.sp,
-                                fontFamily = ibmPlexSans
-                            )
-                            Text(
-                                text       = UserSession.username ?: "Guest",
-                                modifier   = Modifier.offset(y = (-8).dp),
-                                color      = colorScheme.primary,
-                                fontSize   = 34.sp,
-                                fontFamily = ibmPlexSans,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-
-                    item {
-                        UploadSection(
-                            selectedFile    = selectedFile,
-                            isUploading     = isUploading,
-                            ibmPlexSans     = ibmPlexSans,
-                            onFileSelected  = { selectedFile = it },
-                            onUploadClicked = { selectedFile?.let { viewModel.uploadFile(it, context) } }
-                        )
-                    }
-
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Transactions",
-                                fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
-                                fontFamily = ibmPlexSans, color = colorScheme.onBackground)
-                            FilterDropdown(
-                                selectedLimit  = selectedLimit,
-                                expanded       = expanded,
-                                onExpandChange = { expanded = it },
-                                onLimitSelect  = {
-                                    selectedLimit = it
-                                    expanded = false
-                                    viewModel.fetchTransactions(limit = it.toInt())
-                                },
-                                ibmPlexSans = ibmPlexSans
-                            )
-                        }
-                    }
-
-                    if (isLoading) {
-                        item {
-                            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(color = colorScheme.primary)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(colorScheme.background)
+        ) {
+            // ── באנר עדכון מודל AI ──
+            if (manualOverrides.isNotEmpty()) {
+                if (!bannerDismissed) {
+                    UpdateProfileBannerHome(
+                        count     = manualOverrides.size,
+                        onUpdate  = {
+                            viewModel.updateProfile {
+                                Toast.makeText(context, "Profile updated!", Toast.LENGTH_SHORT).show()
                             }
-                        }
-                    } else {
-                        items(transactions) { transaction ->
-                            val currentStatus = manualOverrides[transaction.id] ?: transaction.status
-                            val txItem = transaction.copy(status = currentStatus).toTransactionItem()
-                            TransactionRowWithConfirm(
-                                transaction = txItem,
-                                onShareClick = { onShareClick(transaction) },
-                                onStatusConfirmed = { markIrregular ->
-                                    val newStatus = if (markIrregular) "IRREGULAR" else "REGULAR"
-                                    viewModel.updateTransactionStatus(transaction.id, newStatus)
-                                }
-                            )
-                        }
+                        },
+                        onDismiss = { bannerDismissed = true },
+                        modifier  = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(colorScheme.primary.copy(alpha = 0.1f))
+                            .clickable { bannerDismissed = false }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.AutoFixHigh, null,
+                            tint = colorScheme.primary, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            "${manualOverrides.size} pending update",
+                            fontSize   = 12.sp,
+                            color      = colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
-                    item { Spacer(Modifier.height(16.dp)) }
                 }
             }
 
-            if (isProcessing) {
-                ProcessingOverlay(isSuccess = isSuccess)
+            LazyColumn(
+                modifier            = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                item {
+                    Spacer(Modifier.height(15.dp))
+                    Column(Modifier.fillMaxWidth()) {
+                        Text(
+                            text       = greeting,
+                            color      = colorScheme.onBackground.copy(alpha = 0.6f),
+                            fontSize   = 18.sp,
+                            fontFamily = ibmPlexSans
+                        )
+                        Text(
+                            text       = UserSession.username ?: "Guest",
+                            modifier   = Modifier.offset(y = (-8).dp),
+                            color      = colorScheme.primary,
+                            fontSize   = 34.sp,
+                            fontFamily = ibmPlexSans,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                item {
+                    UploadSection(
+                        selectedFile    = selectedFile,
+                        isUploading     = isUploading,
+                        ibmPlexSans     = ibmPlexSans,
+                        onFileSelected  = { selectedFile = it },
+                        onUploadClicked = { selectedFile?.let { viewModel.uploadFile(it, context) } }
+                    )
+                }
+
+                item {
+                    Row(
+                        modifier              = Modifier.fillMaxWidth(),
+                        verticalAlignment     = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "Transactions",
+                            fontSize   = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = ibmPlexSans,
+                            color      = colorScheme.onBackground
+                        )
+                        FilterDropdown(
+                            selectedLimit  = selectedLimit,
+                            expanded       = expanded,
+                            onExpandChange = { expanded = it },
+                            onLimitSelect  = {
+                                selectedLimit = it
+                                expanded      = false
+                                viewModel.fetchTransactions(limit = it.toInt())
+                            },
+                            ibmPlexSans = ibmPlexSans
+                        )
+                    }
+                }
+
+                if (isLoading) {
+                    item {
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = colorScheme.primary)
+                        }
+                    }
+                } else {
+                    items(transactions) { transaction ->
+                        val currentStatus = manualOverrides[transaction.id] ?: transaction.status
+                        val txItem        = transaction.copy(status = currentStatus).toTransactionItem()
+                        TransactionRowWithConfirm(
+                            transaction       = txItem,
+                            originalCategory  = transaction.category,
+                            onShareClick      = { onShareClick(transaction) },
+                            onStatusConfirmed = { markIrregular ->
+                                val newStatus = if (markIrregular) "IRREGULAR" else "REGULAR"
+                                viewModel.updateTransactionStatus(transaction.id, newStatus)
+                            }
+                        )
+                    }
+                }
+                item { Spacer(Modifier.height(16.dp)) }
             }
         }
+
+        if (isProcessing) {
+            ProcessingOverlay(isSuccess = isSuccess)
+        }
     }
+}
 
 fun getFileSize(context: android.content.Context, uri: Uri): String {
     return try {
         context.contentResolver.openFileDescriptor(uri, "r")?.use {
             val size = it.statSize
             when {
-                size < 1024 -> "$size B"
-                size < 1024 * 1024 -> "${size / 1024} KB"
-                else -> String.format("%.2f MB", size.toDouble() / (1024 * 1024))
+                size < 1024             -> "$size B"
+                size < 1024 * 1024      -> "${size / 1024} KB"
+                else                    -> String.format("%.2f MB", size.toDouble() / (1024 * 1024))
             }
         } ?: "Unknown size"
     } catch (e: Exception) {
         "Unknown size"
     }
 }
-// פונקציית עזר לבדיקת סיומת הקובץ
+
 fun isFileExtensionValid(context: android.content.Context, uri: Uri): Boolean {
     val contentResolver = context.contentResolver
     val type = contentResolver.getType(uri)
-    // בדיקה לפי MIME Type
     if (type != null) {
         if (type == "text/csv" ||
             type == "application/vnd.ms-excel" ||
@@ -239,12 +243,10 @@ fun isFileExtensionValid(context: android.content.Context, uri: Uri): Boolean {
             return true
         }
     }
-    // בדיקה נוספת לפי שם הקובץ ליתר ביטחון
     val name = getFileName(context, uri).lowercase()
     return name.endsWith(".csv") || name.endsWith(".xlsx") || name.endsWith(".xls")
 }
 
-// פונקציית עזר לקבלת שם הקובץ (לצורך הבדיקה למעלה)
 fun getFileName(context: android.content.Context, uri: Uri): String {
     var name = ""
     context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
@@ -255,20 +257,26 @@ fun getFileName(context: android.content.Context, uri: Uri): String {
     }
     return name
 }
+
 @Composable
 fun UploadSection(
-    selectedFile: Uri?,
-    isUploading: Boolean,
-    ibmPlexSans: FontFamily,
-    onFileSelected: (Uri?) -> Unit,
+    selectedFile:    Uri?,
+    isUploading:     Boolean,
+    ibmPlexSans:     FontFamily,
+    onFileSelected:  (Uri?) -> Unit,
     onUploadClicked: () -> Unit
 ) {
-    val context = LocalContext.current
+    val context     = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { onFileSelected(it) }
+    val launcher    = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { onFileSelected(it) }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Upload Transactions", fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = ibmPlexSans)
+        Text(
+            "Upload Transactions",
+            fontSize   = 15.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = ibmPlexSans
+        )
 
         Box(
             modifier = Modifier
@@ -277,8 +285,8 @@ fun UploadSection(
                 .background(colorScheme.primaryContainer.copy(alpha = 0.1f))
                 .drawBehind {
                     drawRoundRect(
-                        color = colorScheme.primary.copy(alpha = 0.3f),
-                        style = Stroke(width = 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)),
+                        color        = colorScheme.primary.copy(alpha = 0.3f),
+                        style        = Stroke(width = 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)),
                         cornerRadius = CornerRadius(12.dp.toPx())
                     )
                 }
@@ -289,12 +297,17 @@ fun UploadSection(
                 CircularProgressIndicator(color = colorScheme.primary)
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(painterResource(R.drawable.ic_upload_custom), null,
-                        tint = colorScheme.primary, modifier = Modifier.size(30.dp))
-                    Text(if (selectedFile != null) "Ready to Process" else "Tap to Select File",
-                        fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = colorScheme.primary)
+                    Icon(
+                        painterResource(R.drawable.ic_upload_custom), null,
+                        tint     = colorScheme.primary,
+                        modifier = Modifier.size(30.dp)
+                    )
                     Text(
-                        text = if (selectedFile != null) "File Size: ${getFileSize(context, selectedFile)}"
+                        if (selectedFile != null) "Ready to Process" else "Tap to Select File",
+                        fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = colorScheme.primary
+                    )
+                    Text(
+                        text     = if (selectedFile != null) "File Size: ${getFileSize(context, selectedFile)}"
                         else "CSV or Excel file up to 5MB",
                         fontSize = 11.sp, color = Color.Gray
                     )
@@ -307,19 +320,17 @@ fun UploadSection(
                 if (selectedFile == null) {
                     Toast.makeText(context, "Please select a file first", Toast.LENGTH_SHORT).show()
                 } else if (!isFileExtensionValid(context, selectedFile)) {
-                    // כאן אנחנו עוצרים את זה לפני שזה מגיע לשרת!
                     Toast.makeText(context, "Invalid file type. Please select CSV or Excel only.", Toast.LENGTH_LONG).show()
                 } else {
                     onUploadClicked()
                 }
             },
-
             modifier = Modifier.fillMaxWidth().height(48.dp),
-            shape = RoundedCornerShape(12.dp),
-            enabled = !isUploading,
-            colors = ButtonDefaults.buttonColors(
+            shape    = RoundedCornerShape(12.dp),
+            enabled  = !isUploading,
+            colors   = ButtonDefaults.buttonColors(
                 containerColor = if (selectedFile != null) colorScheme.primary else Color.Gray,
-                contentColor = Color.White
+                contentColor   = Color.White
             )
         ) {
             Text("Process File", fontSize = 15.sp, fontWeight = FontWeight.Bold)
@@ -329,11 +340,11 @@ fun UploadSection(
 
 @Composable
 fun FilterDropdown(
-    selectedLimit: String,
-    expanded: Boolean,
+    selectedLimit:  String,
+    expanded:       Boolean,
     onExpandChange: (Boolean) -> Unit,
-    onLimitSelect: (String) -> Unit,
-    ibmPlexSans: FontFamily
+    onLimitSelect:  (String) -> Unit,
+    ibmPlexSans:    FontFamily
 ) {
     val colorScheme = MaterialTheme.colorScheme
 
@@ -348,31 +359,31 @@ fun FilterDropdown(
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "Limit: $selectedLimit",
-                    fontSize = 11.sp,
+                    text       = "Limit: $selectedLimit",
+                    fontSize   = 11.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = ibmPlexSans,
-                    color = colorScheme.primary
+                    color      = colorScheme.primary
                 )
                 Spacer(Modifier.weight(1f))
                 Icon(
-                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    imageVector        = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                    tint = colorScheme.primary
+                    modifier           = Modifier.size(14.dp),
+                    tint               = colorScheme.primary
                 )
             }
             AnimatedVisibility(visible = expanded) {
                 Column {
                     listOf("5", "10", "15").forEach { limit ->
                         Text(
-                            text = limit,
+                            text     = limit,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onLimitSelect(limit) }
                                 .padding(vertical = 4.dp),
                             fontSize = 12.sp,
-                            color = colorScheme.onSurface
+                            color    = colorScheme.onSurface
                         )
                     }
                 }
@@ -383,11 +394,12 @@ fun FilterDropdown(
 
 @Composable
 fun TransactionRowWithConfirm(
-    transaction: com.cardify.app.ui.components.TransactionItem,
-    onShareClick: () -> Unit,
-    onStatusConfirmed: (Boolean) -> Unit
+    transaction:      TransactionItem,
+    originalCategory: String = "",
+    onShareClick:     () -> Unit,
+    onStatusConfirmed:(Boolean) -> Unit
 ) {
-    val colorScheme = MaterialTheme.colorScheme
+    val colorScheme      = MaterialTheme.colorScheme
     var showConfirm      by remember { mutableStateOf(false) }
     var pendingIrregular by remember { mutableStateOf(false) }
 
@@ -395,11 +407,11 @@ fun TransactionRowWithConfirm(
         AlertDialog(
             onDismissRequest = { showConfirm = false },
             title = { Text("Are you sure?", fontWeight = FontWeight.Bold) },
-            text = {
+            text  = {
                 Text(
                     if (transaction.isIrregular) "Mark this transaction as Regular?"
                     else "Mark this transaction as Suspicious (Irregular)?",
-                    color = colorScheme.onSurface.copy(alpha = 0.7f),
+                    color    = colorScheme.onSurface.copy(alpha = 0.7f),
                     fontSize = 14.sp
                 )
             },
@@ -415,12 +427,29 @@ fun TransactionRowWithConfirm(
             dismissButton = {
                 OutlinedButton(
                     onClick = { showConfirm = false },
-                    shape = RoundedCornerShape(10.dp)
+                    shape   = RoundedCornerShape(10.dp)
                 ) { Text("Cancel") }
             },
             shape = RoundedCornerShape(16.dp)
         )
     }
+
+    // ── תרגום קטגוריה לאנגלית ──
+    val catDisplay = mapOf(
+        "מזון וצריכה"       to "Food & Grocery",
+        "מסעדות, קפה וברים" to "Restaurants & Cafes",
+        "מסעדות"            to "Restaurants",
+        "אופנה"             to "Fashion",
+        "בריאות"            to "Health",
+        "תחבורה"            to "Transport",
+        "חינוך"             to "Education",
+        "שירותי תקשורת"     to "Telecommunications",
+        "עירייה וממשלה"     to "Government",
+        "שונות"             to "Other",
+        "כללי"              to "General",
+        "בידור"             to "Entertainment",
+        "קניות"             to "Shopping"
+    ).getOrDefault(originalCategory, originalCategory)
 
     TransactionRow(
         transaction    = transaction,
@@ -428,16 +457,24 @@ fun TransactionRowWithConfirm(
         onShareClick   = onShareClick,
         onStatusChange = { markIrregular ->
             pendingIrregular = markIrregular
-            showConfirm = true
+            showConfirm      = true
+        },
+        extraExpandedContent = {
+            if (catDisplay.isNotBlank()) {
+                Row {
+                    Text("Category: ", fontSize = 12.sp, color = Color.Gray)
+                    Text(catDisplay, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
         }
     )
 }
 
 @Composable
 fun UpdateProfileBannerHome(
-    count: Int,
+    count:    Int,
     onUpdate: () -> Unit,
-    onDismiss: () -> Unit = {},
+    onDismiss:() -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -457,11 +494,11 @@ fun UpdateProfileBannerHome(
             Text("Based on $count corrections", fontSize = 11.sp, color = colorScheme.onBackground.copy(alpha = 0.7f))
         }
         Button(
-            onClick = onUpdate,
-            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
-            shape = RoundedCornerShape(8.dp),
+            onClick        = onUpdate,
+            colors         = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
+            shape          = RoundedCornerShape(8.dp),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-            modifier = Modifier.height(32.dp)
+            modifier       = Modifier.height(32.dp)
         ) { Text("Update", fontSize = 12.sp) }
         IconButton(onClick = onDismiss) {
             Icon(Icons.Default.Close, null, tint = colorScheme.primary, modifier = Modifier.size(16.dp))

@@ -141,6 +141,11 @@ interface AuthApiService {
 
     @GET("api/chats/unread")
     suspend fun getUnreadCount(): Response<com.cardify.app.data.model.UnreadResponse>
+    // ב-ApiService.kt הוסף:
+    @GET("api/transactions/filter-options")
+    suspend fun getFilterOptions(
+        @Query("file_id") fileId: String? = null
+    ): Response<FilterOptions>
 
     // ─── Global nickname ─────────────────────────────────────────────────────
 

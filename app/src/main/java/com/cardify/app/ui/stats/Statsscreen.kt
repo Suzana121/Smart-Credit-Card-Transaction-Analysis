@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,14 +25,16 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.cardify.app.ui.components.TransactionItem
-import com.cardify.app.ui.components.TransactionRow
-import com.cardify.app.ui.components.TransactionRowVariant
+import com.cardify.app.R
+import com.cardify.app.ui.components.getCategoryIcon
 import androidx.navigation.NavHostController
 
 // ─── מפת קבוצות קטגוריות ───
@@ -73,6 +76,60 @@ fun StatSection(content: @Composable ColumnScope.() -> Unit) {
         border = BorderStroke(1.dp, Color(0xFFDADBDD))
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(20.dp), content = content)
+    }
+}
+
+// ─── Static Transaction Row (ללא הרחבה, ללא כפתורים) ───
+@Composable
+fun StaticTransactionRow(transaction: StatsTransaction) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        shape  = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(
+            1.dp,
+            if (transaction.isIrregular) Color(0xFFE23125) else Color(0xFFEEEEEE)
+        )
+    ) {
+        Row(
+            modifier          = Modifier
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            androidx.compose.foundation.Image(
+                painter            = painterResource(id = getCategoryIcon(transaction.category)),
+                contentDescription = transaction.category,
+                modifier           = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text       = transaction.title,
+                fontSize   = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color      = Color.Black,
+                modifier   = Modifier.weight(1f)
+            )
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(-9.dp)
+            ) {
+                Text(
+                    text       = "₪${transaction.amount.toInt()}",
+                    fontSize   = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color      = Color.Black
+                )
+                Text(
+                    text       = if (transaction.isIrregular) "Irregular" else "Regular",
+                    fontSize   = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color      = if (transaction.isIrregular) Color(0xFFE23125) else Color(0xFF38D325)
+                )
+            }
+        }
     }
 }
 
@@ -339,13 +396,7 @@ fun SuspiciousTransactionList(transactions: List<StatsTransaction>) {
             )
         } else {
             transactions.forEach { tx ->
-                TransactionRow(
-                    transaction = TransactionItem(
-                        id = tx.id, title = tx.title, date = tx.date,
-                        amount = tx.amount, isIrregular = true, category = tx.category
-                    ),
-                    variant = TransactionRowVariant.COMPACT
-                )
+                StaticTransactionRow(transaction = tx)
             }
         }
     }
@@ -503,7 +554,6 @@ fun DonutChartSection(
             ) {
                 if (lastSelectedIndex < categories.size) {
                     val catName  = categories[lastSelectedIndex].first
-                    // ── סינון מורחב לפי קבוצת קטגוריה ──
                     val filtered = data.transactions.filter { tx ->
                         tx.category == catName ||
                                 CATEGORY_GROUP_MAP[tx.category] == catName
@@ -541,17 +591,7 @@ fun CategoryTransactionList(categoryName: String, transactions: List<StatsTransa
             )
         }
         transactions.forEach { tx ->
-            TransactionRow(
-                transaction = TransactionItem(
-                    id          = tx.id,
-                    title       = tx.title,
-                    date        = tx.date,
-                    amount      = tx.amount,
-                    isIrregular = tx.isIrregular,
-                    category    = tx.category
-                ),
-                variant = TransactionRowVariant.COMPACT
-            )
+            StaticTransactionRow(transaction = tx)
         }
     }
 }
@@ -669,7 +709,6 @@ fun BarChartSection(
                     }
                 }
             }
-            // ── Overview הוסר ──
         }
     }
 }

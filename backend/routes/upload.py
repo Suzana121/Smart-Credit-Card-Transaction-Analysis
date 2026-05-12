@@ -348,6 +348,45 @@ def update_transaction_status(transaction_id):
         return jsonify({"error": str(e)}), 500
 
 
+@upload_bp.route('/transactions/filter-options', methods=['GET'])
+@jwt_required()
+def get_filter_options():
+    try:
+        user_id = get_jwt_identity()
+        file_id = request.args.get('file_id', None)
+
+        if not file_id:
+            profile_doc = db.collection('user_profiles').document(user_id).get()
+            if profile_doc.exists:
+                file_id = profile_doc.to_dict().get('latest_file_id')
+
+        if not file_id:
+            return jsonify({"categories": [], "minAmount": 0, "maxAmount": 5000}), 200
+
+        col  = txn_col(user_id, file_id)
+        docs = col.stream()
+
+        categories = set()
+        amounts    = []
+
+        for doc in docs:
+            t = doc.to_dict()
+            cat = t.get('category', '')
+            if cat:
+                categories.add(cat)
+            amt = t.get('amount')
+            if isinstance(amt, (int, float)):
+                amounts.append(amt)
+
+        return jsonify({
+            "categories": sorted(list(categories)),
+            "minAmount":  round(min(amounts), 2) if amounts else 0,
+            "maxAmount":  round(max(amounts), 2) if amounts else 5000,
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # ─────────────────────────────────────────────
 # GET /api/shares
 # ─────────────────────────────────────────────

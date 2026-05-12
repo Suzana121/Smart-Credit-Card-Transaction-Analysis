@@ -69,15 +69,17 @@ fun getCategoryIcon(category: String): Int = when {
             category.contains("תחבורה", ignoreCase = true)      -> R.drawable.transport
     category.contains("Education", ignoreCase = true) ||
             category.contains("חינוך", ignoreCase = true)       -> R.drawable.education
-    else                                                -> R.drawable.other
+    else                                                        -> R.drawable.other
 }
 
 @Composable
 fun TransactionRow(
-    transaction: TransactionItem,
-    variant: TransactionRowVariant = TransactionRowVariant.FULL,
-    onShareClick: () -> Unit = {},
-    onStatusChange: (Boolean) -> Unit = {}
+    transaction:          TransactionItem,
+    variant:              TransactionRowVariant = TransactionRowVariant.FULL,
+    onShareClick:         () -> Unit = {},
+    onStatusChange:       (Boolean) -> Unit = {},
+    // ── תוכן נוסף אופציונלי שיוצג בתוך הפרטים המורחבים (לפני הכפתורים) ──
+    extraExpandedContent: (@Composable ColumnScope.() -> Unit)? = null
 ) {
     var isExpanded by remember { mutableStateOf(false) }
 
@@ -89,14 +91,14 @@ fun TransactionRow(
     val padV: Dp             = if (variant == TransactionRowVariant.FULL) 14.dp else 10.dp
 
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier          = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (variant == TransactionRowVariant.SHARED) {
             Image(
-                painter = painterResource(id = transaction.sharedWith?.photoResource ?: R.drawable.user),
+                painter            = painterResource(id = transaction.sharedWith?.photoResource ?: R.drawable.user),
                 contentDescription = transaction.sharedWith?.name,
-                modifier = Modifier
+                modifier           = Modifier
                     .size(36.dp)
                     .clip(androidx.compose.foundation.shape.CircleShape)
             )
@@ -108,7 +110,7 @@ fun TransactionRow(
                 .weight(1f)
                 .padding(vertical = 4.dp)
                 .clickable { isExpanded = !isExpanded },
-            shape = RoundedCornerShape(12.dp),
+            shape  = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
             border = BorderStroke(
                 1.dp,
@@ -117,54 +119,55 @@ fun TransactionRow(
         ) {
             Column {
                 Row(
-                    modifier = Modifier
+                    modifier          = Modifier
                         .padding(horizontal = padH, vertical = padV)
                         .fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Image(
-                        painter = painterResource(id = getCategoryIcon(transaction.category)),
+                        painter            = painterResource(id = getCategoryIcon(transaction.category)),
                         contentDescription = transaction.category,
-                        modifier = Modifier.size(iconSize)
+                        modifier           = Modifier.size(iconSize)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = transaction.title,
-                        fontSize = titleSize,
+                        text       = transaction.title,
+                        fontSize   = titleSize,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black,
-                        modifier = Modifier.weight(1f)
+                        color      = Color.Black,
+                        modifier   = Modifier.weight(1f)
                     )
                     Column(
                         horizontalAlignment = Alignment.End,
                         verticalArrangement = Arrangement.spacedBy(-9.dp)
                     ) {
                         Text(
-                            text = "₪${transaction.amount.toInt()}",
-                            fontSize = amountSize,
+                            text       = "₪${transaction.amount.toInt()}",
+                            fontSize   = amountSize,
                             fontWeight = FontWeight.Bold,
-                            color = Color.Black
+                            color      = Color.Black
                         )
                         Text(
-                            text = if (transaction.isIrregular) "Irregular" else "Regular",
-                            fontSize = statusSize,
+                            text       = if (transaction.isIrregular) "Irregular" else "Regular",
+                            fontSize   = statusSize,
                             fontWeight = FontWeight.Bold,
-                            color = if (transaction.isIrregular) Color(0xFFE23125) else Color(0xFF38D325)
+                            color      = if (transaction.isIrregular) Color(0xFFE23125) else Color(0xFF38D325)
                         )
                     }
                 }
 
                 AnimatedVisibility(
                     visible = isExpanded,
-                    enter = expandVertically() + fadeIn(),
-                    exit  = shrinkVertically() + fadeOut()
+                    enter   = expandVertically() + fadeIn(),
+                    exit    = shrinkVertically() + fadeOut()
                 ) {
                     ExpandedTransactionDetails(
-                        transaction = transaction,
-                        padH = padH,
-                        padV = padV,
-                        onShareClick = onShareClick,
-                        onStatusChange = onStatusChange
+                        transaction          = transaction,
+                        padH                 = padH,
+                        padV                 = padV,
+                        onShareClick         = onShareClick,
+                        onStatusChange       = onStatusChange,
+                        extraExpandedContent = extraExpandedContent
                     )
                 }
             }
@@ -174,11 +177,12 @@ fun TransactionRow(
 
 @Composable
 fun ExpandedTransactionDetails(
-    transaction: TransactionItem,
-    padH: Dp,
-    padV: Dp,
-    onShareClick: () -> Unit,
-    onStatusChange: (Boolean) -> Unit
+    transaction:          TransactionItem,
+    padH:                 Dp,
+    padV:                 Dp,
+    onShareClick:         () -> Unit,
+    onStatusChange:       (Boolean) -> Unit,
+    extraExpandedContent: (@Composable ColumnScope.() -> Unit)? = null
 ) {
     Column(
         modifier = Modifier
@@ -191,8 +195,8 @@ fun ExpandedTransactionDetails(
 
         Text(
             "Date Of Transaction: ${transaction.date}",
-            fontSize = 12.sp,
-            color = Color.Black,
+            fontSize   = 12.sp,
+            color      = Color.Black,
             fontWeight = FontWeight.SemiBold
         )
 
@@ -202,18 +206,24 @@ fun ExpandedTransactionDetails(
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 "Please Notice: Unrecognizable Transaction!",
-                color = Color(0xFFE23125),
-                fontSize = 11.sp,
+                color      = Color(0xFFE23125),
+                fontSize   = 11.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
+                modifier   = Modifier.fillMaxWidth(),
+                textAlign  = TextAlign.Center
             )
+        }
+
+        // ── תוכן נוסף (קטגוריה + הסבר) שמגיע מעמוד הטרנזקציות ──
+        if (extraExpandedContent != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            extraExpandedContent()
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier              = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
@@ -223,13 +233,13 @@ fun ExpandedTransactionDetails(
                     .background(Color(0xFFE8FCE8))
                     .clickable { onShareClick() }
                     .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment     = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
                 Icon(
                     Icons.Default.Share,
                     contentDescription = null,
-                    tint = Color(0xFF2E7D32),
+                    tint     = Color(0xFF2E7D32),
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
@@ -237,24 +247,20 @@ fun ExpandedTransactionDetails(
             }
 
             Button(
-                onClick = { onStatusChange(!transaction.isIrregular) },
-                modifier = Modifier
-                    .height(38.dp)
-                    .widthIn(min = 170.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006769)),
+                onClick        = { onStatusChange(!transaction.isIrregular) },
+                modifier       = Modifier.height(38.dp).widthIn(min = 170.dp),
+                shape          = RoundedCornerShape(12.dp),
+                colors         = ButtonDefaults.buttonColors(containerColor = Color(0xFF006769)),
                 contentPadding = PaddingValues(horizontal = 16.dp)
             ) {
                 Icon(
-                    imageVector = if (transaction.isIrregular)
-                        Icons.Default.CheckBox else Icons.Default.Warning,
+                    imageVector        = if (transaction.isIrregular) Icons.Default.CheckBox else Icons.Default.Warning,
                     contentDescription = null,
-                    modifier = Modifier.size(16.dp)
+                    modifier           = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = if (transaction.isIrregular)
-                        "Mark as \"Regular\"" else "Report as \"Irregular\"",
+                    text     = if (transaction.isIrregular) "Mark as \"Regular\"" else "Report as \"Irregular\"",
                     fontSize = 11.sp
                 )
             }

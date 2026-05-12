@@ -8,6 +8,9 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cardify.app.data.api.RetrofitClient
+import com.cardify.app.data.model.ActiveFilters
+import com.cardify.app.data.model.FilterOptions
+import com.cardify.app.data.model.STATIC_CATEGORIES
 import com.cardify.app.data.model.Friend
 import com.cardify.app.data.model.ShareRequest
 import com.cardify.app.data.model.Transaction
@@ -31,21 +34,20 @@ class TransactionsViewModel : ViewModel() {
     private val _searchQuery      = MutableStateFlow("")
     private val _isLoading        = MutableStateFlow(false)
     private val _isLoadingMore    = MutableStateFlow(false)
-    private val _hasMore          = MutableStateFlow(true)
+    private val _hasMore          = MutableStateFlow(false)
     private val _friends          = MutableStateFlow<List<Friend>>(emptyList())
     private val _isSendingShare   = MutableStateFlow(false)
     private val _isDownloadingPdf = MutableStateFlow(false)
     private val _pdfUri           = MutableStateFlow<Uri?>(null)
     private val _errorMessage     = MutableStateFlow<String?>(null)
     private val _manualOverrides  = MutableStateFlow<Map<String, String>>(emptyMap())
-
-    // ── קבצים שהועלו ──
-    private val _uploads         = MutableStateFlow<List<UploadedFile>>(emptyList())
-    private val _selectedFileId  = MutableStateFlow<String?>(null)  // null = הכל
+    private val _uploads          = MutableStateFlow<List<UploadedFile>>(emptyList())
+    private val _selectedFileId   = MutableStateFlow<String?>(null)
     private val _isLoadingUploads = MutableStateFlow(false)
 
-    private var nextCursor: String? = null
-    private val pageSize = 20
+    private val _filterOptions    = MutableStateFlow(FilterOptions())
+    private val _activeFilters    = MutableStateFlow(ActiveFilters())
+    private val _isLoadingFilters = MutableStateFlow(false)
 
     val activeFilter:      StateFlow<TransactionFilter>   = _activeFilter.asStateFlow()
     val searchQuery:       StateFlow<String>              = _searchQuery.asStateFlow()
@@ -61,15 +63,35 @@ class TransactionsViewModel : ViewModel() {
     val uploads:           StateFlow<List<UploadedFile>>  = _uploads.asStateFlow()
     val selectedFileId:    StateFlow<String?>             = _selectedFileId.asStateFlow()
     val isLoadingUploads:  StateFlow<Boolean>             = _isLoadingUploads.asStateFlow()
+    val filterOptions:     StateFlow<FilterOptions>       = _filterOptions.asStateFlow()
+    val activeFilters:     StateFlow<ActiveFilters>       = _activeFilters.asStateFlow()
+    val isLoadingFilters:  StateFlow<Boolean>             = _isLoadingFilters.asStateFlow()
 
-    // סינון בצד הלקוח — רק לחיפוש טקסט. סינון Regular/Irregular נעשה בשרת
+    // ── סינון בצד הלקוח — עם mapping נכון לקטגוריות ──
     val filteredTransactions: StateFlow<List<Transaction>> = combine(
-        _allTransactions, _searchQuery
-    ) { transactions, query ->
-        if (query.isBlank()) transactions
-        else transactions.filter { t ->
-            t.businessName.contains(query, ignoreCase = true)
-        }
+        _allTransactions, _searchQuery, _activeFilters
+    ) { transactions, query, filters ->
+        var result = transactions
+        if (query.isNotBlank())
+            result = result.filter { it.businessName.contains(query, ignoreCase = true) }
+        // ── סינון קטגוריה עם mapping ──
+        if (filters.selectedCategories.isNotEmpty())
+            result = result.filter { transaction ->
+                filters.selectedCategories.any { group ->
+                    categoryMatchesGroup(transaction.category, group)
+                }
+            }
+        if (filters.transactionType != null)
+            result = result.filter { it.status == filters.transactionType }
+        if (filters.minAmount != null)
+            result = result.filter { it.amount >= filters.minAmount }
+        if (filters.maxAmount != null)
+            result = result.filter { it.amount <= filters.maxAmount }
+        if (filters.dateFrom != null)
+            result = result.filter { it.date >= filters.dateFrom }
+        if (filters.dateTo != null)
+            result = result.filter { it.date <= filters.dateTo }
+        result
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
@@ -78,52 +100,28 @@ class TransactionsViewModel : ViewModel() {
         fetchUploads()
     }
 
-    // ── טעינת רשימת הקבצים ──
-    fun fetchUploads() {
-        viewModelScope.launch {
-            _isLoadingUploads.value = true
-            try {
-                val response = RetrofitClient.apiService.getUploads()
-                if (response.isSuccessful) {
-                    _uploads.value = response.body() ?: emptyList()
-                }
-            } catch (e: Exception) {
-                Log.e("TransactionsVM", "Uploads fetch error", e)
-            } finally {
-                _isLoadingUploads.value = false
-            }
-        }
-    }
-
-    // ── בחירת קובץ — מאפס ומביא עסקאות חדשות ──
-    fun selectFile(fileId: String?) {
-        if (_selectedFileId.value == fileId) return  // לא צריך לטעון מחדש
-        _selectedFileId.value = fileId
-        fetchTransactions()
-    }
-
     fun fetchTransactions() {
         viewModelScope.launch {
             _isLoading.value = true
-            nextCursor = null
-            _hasMore.value = true
+            _hasMore.value   = false
             try {
-                val statusFilter = when (_activeFilter.value) {
-                    TransactionFilter.REGULAR   -> "REGULAR"
-                    TransactionFilter.IRREGULAR -> "IRREGULAR"
-                    TransactionFilter.ALL       -> null
-                }
                 val response = RetrofitClient.apiService.getTransactions(
-                    limit  = pageSize,
+                    limit  = 9999,
                     cursor = null,
                     fileId = _selectedFileId.value,
-                    status = statusFilter
+                    status = null
                 )
                 if (response.isSuccessful) {
-                    val page = response.body()
-                    _allTransactions.value = page?.transactions ?: emptyList()
-                    nextCursor = page?.nextCursor
-                    _hasMore.value = page?.hasMore ?: false
+                    val transactions = response.body()?.transactions ?: emptyList()
+                    _allTransactions.value = transactions
+                    if (transactions.isNotEmpty()) {
+                        val amounts = transactions.map { it.amount }
+                        _filterOptions.value = _filterOptions.value.copy(
+                            categories = STATIC_CATEGORIES,
+                            minAmount  = amounts.min(),
+                            maxAmount  = amounts.max()
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("TransactionsVM", "Fetch error", e)
@@ -133,57 +131,67 @@ class TransactionsViewModel : ViewModel() {
         }
     }
 
-    fun loadMore() {
-        if (_isLoadingMore.value || !_hasMore.value) return
+    fun fetchFilterOptions() { /* no-op */ }
+
+    fun applyFilters(filters: ActiveFilters) {
+        _activeFilters.value = filters
+    }
+
+    fun clearFilters() {
+        _activeFilters.value = ActiveFilters()
+        _activeFilter.value  = TransactionFilter.ALL
+    }
+
+    fun setFilter(filter: TransactionFilter) {
+        if (_activeFilter.value == filter) return
+        _activeFilter.value  = filter
+        _activeFilters.value = _activeFilters.value.copy(
+            transactionType = when (filter) {
+                TransactionFilter.REGULAR   -> "REGULAR"
+                TransactionFilter.IRREGULAR -> "IRREGULAR"
+                TransactionFilter.ALL       -> null
+            }
+        )
+    }
+
+    fun fetchUploads() {
         viewModelScope.launch {
-            _isLoadingMore.value = true
+            _isLoadingUploads.value = true
             try {
-                val statusFilter = when (_activeFilter.value) {
-                    TransactionFilter.REGULAR   -> "REGULAR"
-                    TransactionFilter.IRREGULAR -> "IRREGULAR"
-                    TransactionFilter.ALL       -> null
-                }
-                val response = RetrofitClient.apiService.getTransactions(
-                    limit  = pageSize,
-                    cursor = nextCursor,
-                    fileId = _selectedFileId.value,
-                    status = statusFilter
-                )
-                if (response.isSuccessful) {
-                    val page = response.body()
-                    _allTransactions.value = _allTransactions.value + (page?.transactions ?: emptyList())
-                    nextCursor   = page?.nextCursor
-                    _hasMore.value = page?.hasMore ?: false
-                }
+                val response = RetrofitClient.apiService.getUploads()
+                if (response.isSuccessful) _uploads.value = response.body() ?: emptyList()
             } catch (e: Exception) {
-                Log.e("TransactionsVM", "LoadMore error", e)
+                Log.e("TransactionsVM", "Uploads fetch error", e)
             } finally {
-                _isLoadingMore.value = false
+                _isLoadingUploads.value = false
             }
         }
+    }
+
+    fun selectFile(fileId: String?) {
+        if (_selectedFileId.value == fileId) return
+        _selectedFileId.value = fileId
+        _activeFilters.value  = ActiveFilters()
+        _activeFilter.value   = TransactionFilter.ALL
+        fetchTransactions()
     }
 
     fun loadFriends() {
         viewModelScope.launch {
             try {
                 val response = RetrofitClient.apiService.getFriends()
-                if (response.isSuccessful) {
-                    _friends.value = response.body() ?: emptyList()
-                }
+                if (response.isSuccessful) _friends.value = response.body() ?: emptyList()
             } catch (e: Exception) {
                 Log.e("TransactionsVM", "Error loading friends", e)
             }
         }
     }
 
-    fun setFilter(filter: TransactionFilter) {
-        if (_activeFilter.value == filter) return
-        _activeFilter.value = filter
-        fetchTransactions()  // טוען מחדש מהשרת עם הסינון הנכון
-    }
-    fun setSearchQuery(query: String)        { _searchQuery.value = query }
-    fun clearError()                         { _errorMessage.value = null }
-    fun clearPdfUri()                        { _pdfUri.value = null }
+    fun loadMore() { /* הכל נטען בבת אחת */ }
+
+    fun setSearchQuery(query: String) { _searchQuery.value = query }
+    fun clearError()                  { _errorMessage.value = null }
+    fun clearPdfUri()                 { _pdfUri.value = null }
 
     fun updateTransactionStatus(transactionId: String, newStatus: String) {
         val previousList = _allTransactions.value
@@ -191,7 +199,6 @@ class TransactionsViewModel : ViewModel() {
             if (t.id == transactionId) t.copy(status = newStatus) else t
         }
         _manualOverrides.value = _manualOverrides.value + (transactionId to newStatus)
-
         viewModelScope.launch {
             try {
                 val response = RetrofitClient.apiService.updateTransactionStatus(
@@ -200,12 +207,10 @@ class TransactionsViewModel : ViewModel() {
                 if (!response.isSuccessful) {
                     _allTransactions.value = previousList
                     _manualOverrides.value = _manualOverrides.value - transactionId
-                    Log.e("TransactionsVM", "Failed: ${response.code()}")
                 }
             } catch (e: Exception) {
                 _allTransactions.value = previousList
                 _manualOverrides.value = _manualOverrides.value - transactionId
-                Log.e("TransactionsVM", "Error updating status", e)
             }
         }
     }
@@ -238,15 +243,13 @@ class TransactionsViewModel : ViewModel() {
                     val body = response.body() ?: return@launch
                     val file = File(context.cacheDir, "cardify_report.pdf")
                     FileOutputStream(file).use { it.write(body.bytes()) }
-                    val uri = FileProvider.getUriForFile(
+                    _pdfUri.value = FileProvider.getUriForFile(
                         context, "${context.packageName}.fileprovider", file
                     )
-                    _pdfUri.value = uri
                 } else {
                     _errorMessage.value = "Failed to download report: ${response.code()}"
                 }
             } catch (e: Exception) {
-                Log.e("TransactionsVM", "PDF error", e)
                 _errorMessage.value = "Error downloading report"
             } finally {
                 _isDownloadingPdf.value = false
@@ -268,7 +271,7 @@ class TransactionsViewModel : ViewModel() {
         if (_manualOverrides.value.isEmpty()) return
         viewModelScope.launch {
             try {
-                val body = mapOf<String, Any>("overrides" to _manualOverrides.value)
+                val body     = mapOf<String, Any>("overrides" to _manualOverrides.value)
                 val response = RetrofitClient.apiService.updateProfile(body)
                 if (response.isSuccessful) {
                     _manualOverrides.value = emptyMap()
@@ -277,7 +280,6 @@ class TransactionsViewModel : ViewModel() {
                     _errorMessage.value = "Profile update failed: ${response.code()}"
                 }
             } catch (e: Exception) {
-                Log.e("TransactionsVM", "Profile update error", e)
                 _errorMessage.value = "Network error during profile update"
             }
         }

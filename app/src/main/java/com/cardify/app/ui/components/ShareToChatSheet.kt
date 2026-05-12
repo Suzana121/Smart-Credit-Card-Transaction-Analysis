@@ -19,8 +19,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -44,85 +46,96 @@ fun ShareToChatSheet(
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState       = sheetState,
-        containerColor   = Color.White,
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp)
+    // ── כל ה-sheet ב-LTR ──
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState       = sheetState,
+            containerColor   = Color.White,
+            shape            = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 4.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 32.dp)
             ) {
-                Icon(Icons.Default.ChatBubbleOutline, null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Share to Chat", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            }
-            Text(
-                "Choose a friend or group to share this transaction",
-                fontSize = 13.sp, color = Color.Gray,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            if (!hasAnything) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier          = Modifier.padding(bottom = 4.dp)
                 ) {
-                    Icon(Icons.Default.People, null,
-                        tint = Color.LightGray, modifier = Modifier.size(52.dp))
-                    Spacer(Modifier.height(12.dp))
-                    Text("No friends or groups yet",
-                        color = Color.Gray, fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "Add approved friends or create a group chat\nto share transactions.",
-                        color = Color.LightGray, fontSize = 12.sp,
-                        textAlign = TextAlign.Center
+                    Icon(
+                        Icons.Default.ChatBubbleOutline, null,
+                        tint     = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
                     )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Share to Chat", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.heightIn(max = 460.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (approvedFriends.isNotEmpty()) {
-                        item {
-                            Text("Friends", fontSize = 12.sp, color = Color.Gray,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(bottom = 4.dp))
-                        }
-                        items(approvedFriends, key = { "f_${it.phone}" }) { friend ->
-                            val displayName = resolveDisplayName(friend, chats, currentUserId)
-                            FriendShareRow(
-                                friend       = friend,
-                                displayName  = displayName,
-                                originalName = friend.name,
-                                onSelect     = { onSelect(friend) }
-                            )
-                        }
-                    }
+                Text(
+                    "Choose a friend or group to share this transaction",
+                    fontSize = 13.sp, color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
 
-                    if (groupChats.isNotEmpty()) {
-                        item {
-                            Text("Groups", fontSize = 12.sp, color = Color.Gray,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
+                if (!hasAnything) {
+                    Column(
+                        modifier            = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(Icons.Default.People, null,
+                            tint = Color.LightGray, modifier = Modifier.size(52.dp))
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            "No friends or groups yet",
+                            color      = Color.Gray, fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Add approved friends or create a group chat\nto share transactions.",
+                            color     = Color.LightGray, fontSize = 12.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier            = Modifier.heightIn(max = 460.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (approvedFriends.isNotEmpty()) {
+                            item {
+                                Text(
+                                    "Friends", fontSize = 12.sp, color = Color.Gray,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier   = Modifier.padding(bottom = 4.dp)
+                                )
+                            }
+                            items(approvedFriends, key = { "f_${it.phone}" }) { friend ->
+                                val displayName = resolveDisplayName(friend, chats, currentUserId)
+                                FriendShareRow(
+                                    friend       = friend,
+                                    displayName  = displayName,
+                                    originalName = friend.name,
+                                    onSelect     = { onSelect(friend) }
+                                )
+                            }
                         }
-                        items(groupChats, key = { "g_${it.id}" }) { chat ->
-                            GroupShareRow(
-                                chat     = chat,
-                                onSelect = { onSelectGroup?.invoke(chat) ?: onDismiss() }
-                            )
+
+                        if (groupChats.isNotEmpty()) {
+                            item {
+                                Text(
+                                    "Groups", fontSize = 12.sp, color = Color.Gray,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier   = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                                )
+                            }
+                            items(groupChats, key = { "g_${it.id}" }) { chat ->
+                                GroupShareRow(
+                                    chat     = chat,
+                                    onSelect = { onSelectGroup?.invoke(chat) ?: onDismiss() }
+                                )
+                            }
                         }
                     }
                 }
@@ -162,9 +175,11 @@ private fun FriendShareRow(
                     modifier           = Modifier.fillMaxSize().clip(CircleShape)
                 )
             } else {
-                Text(displayName.take(1).uppercase(),
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(
+                    displayName.take(1).uppercase(),
+                    color      = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold, fontSize = 16.sp
+                )
             }
         }
         Spacer(Modifier.width(12.dp))
@@ -204,8 +219,11 @@ private fun GroupShareRow(
                 .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.Group, null,
-                tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+            Icon(
+                Icons.Default.Group, null,
+                tint     = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
+            )
         }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
