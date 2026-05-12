@@ -4,7 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.cardify.app.data.UserSession // הוספנו את הייבוא הזה!
+import com.cardify.app.data.UserSession
 import com.cardify.app.data.model.LoginResponse
 import com.cardify.app.data.repository.AuthRepository
 import kotlinx.coroutines.launch
@@ -16,22 +16,18 @@ class LoginViewModel : ViewModel() {
 
     private val repository = AuthRepository()
 
-    // LiveData for UI state
     private val _loginState = MutableLiveData<LoginState>()
     val loginState: LiveData<LoginState> = _loginState
 
     fun login(username: String, password: String) {
-        // Validate input
         val validationError = validateInput(username, password)
         if (validationError != null) {
-            _loginState.value = LoginState.Error(validationError)
+            _loginState.value = validationError
             return
         }
 
-        // Show loading
         _loginState.value = LoginState.Loading
 
-        // Make API call
         viewModelScope.launch {
             try {
                 val response = repository.login(username, password)
@@ -39,40 +35,34 @@ class LoginViewModel : ViewModel() {
                 if (response.isSuccessful) {
                     val loginResponse = response.body()
                     if (loginResponse?.success == true && loginResponse.token != null) {
-
-                        // --- התיקון החשוב כאן! ---
-                        // אנחנו שומרים את הטוקן והשם בסשן הגלובלי
                         UserSession.token = loginResponse.token
                         UserSession.username = username
-                        // ------------------------
-
                         _loginState.value = LoginState.Success(loginResponse)
                     } else {
-                        _loginState.value = LoginState.Error(
-                            loginResponse?.message ?: "Login failed"
-                        )
+                        _loginState.value = LoginState.Error(loginResponse?.message ?: "Login failed")
                     }
                 } else {
-                    val errorMessage = if (response.code() == 401) {
-                        "No account found with this email. Please check your details or register."
-                    } else {
-                        "Login failed: ${response.code()}"
+                    val errorBody = response.errorBody()?.string() ?: ""
+                    android.util.Log.d("LoginDebug", "code=${response.code()} body=$errorBody")
+                    val errorState = when {
+                        response.code() == 404 -> LoginState.UserNotFound
+                        response.code() == 401 -> LoginState.WrongPassword
+                        else -> LoginState.Error("Login failed: ${response.code()}")
                     }
-                    _loginState.value = LoginState.Error(errorMessage)
+                    _loginState.value = errorState
                 }
             } catch (e: Exception) {
-                _loginState.value = LoginState.Error(
-                    "Network error: ${e.localizedMessage}"
-                )
+                _loginState.value = LoginState.Error("Network error: ${e.localizedMessage}")
             }
         }
     }
 
-    private fun validateInput(username: String, password: String): String? {
+    private fun validateInput(username: String, password: String): LoginState? {
         return when {
-            username.isBlank() -> "Username cannot be empty"
-            password.isBlank() -> "Password cannot be empty"
-            password.length < 6 -> "Password must be at least 6 characters"
+            username.isBlank() && password.isBlank() -> LoginState.BothEmpty
+            username.isBlank() -> LoginState.UsernameEmpty
+            password.isBlank() -> LoginState.PasswordEmpty
+            password.length < 6 -> LoginState.PasswordTooShort
             else -> null
         }
     }
@@ -85,6 +75,12 @@ class LoginViewModel : ViewModel() {
 sealed class LoginState {
     object Idle : LoginState()
     object Loading : LoginState()
+    object BothEmpty : LoginState()
+    object UsernameEmpty : LoginState()
+    object PasswordEmpty : LoginState()
+    object PasswordTooShort : LoginState()
+    object UserNotFound : LoginState()
+    object WrongPassword : LoginState()
     data class Success(val response: LoginResponse) : LoginState()
     data class Error(val message: String) : LoginState()
 }

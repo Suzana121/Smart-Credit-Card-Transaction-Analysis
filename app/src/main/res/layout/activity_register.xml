@@ -13,62 +13,60 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingBottom="40dp">
-
-        <!-- Header circle background -->
         <ImageView
             android:id="@+id/imgHeader"
             android:layout_width="match_parent"
-            android:layout_height="260dp"
+            android:layout_height="250dp"
             android:src="@drawable/login_header"
             android:scaleType="fitXY"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent" />
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
-        <!-- Logo top-left -->
-        <ImageView
-            android:id="@+id/ivLogo"
-            android:layout_width="120dp"
-            android:layout_height="50dp"
-            android:src="@drawable/logo"
-            android:scaleType="fitStart"
-            android:layout_marginLeft="17dp"
-            android:layout_marginTop="32dp"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <!-- Title over header -->
         <TextView
-            android:id="@+id/tvRegisterTitle"
+            android:id="@+id/tvWelcome"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Sign up"
+            android:layout_marginTop="88dp"
+            android:fontFamily="@font/kelly_slab"
+            android:text="Sign Up"
             android:textColor="#FFFFFF"
             android:textSize="45sp"
-            android:fontFamily="@font/ibm_plex_sans_bold"
-            android:layout_marginTop="100dp"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.495"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
             android:id="@+id/tvSubtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="create your account"
+            android:layout_marginTop="4dp"
+            android:text="Create Your Account"
             android:textColor="#FFFFFF"
             android:textSize="18sp"
-            android:layout_marginTop="8dp"
-            app:layout_constraintTop_toBottomOf="@id/tvRegisterTitle"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvWelcome" />
+
+        <ImageView
+            android:id="@+id/ivLogo"
+            android:layout_width="120dp"
+            android:layout_height="50dp"
+            android:layout_marginLeft="144dp"
+            android:layout_marginTop="48dp"
+            android:scaleType="fitStart"
+            android:src="@drawable/logo"
             app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent" />
+            app:layout_constraintTop_toTopOf="parent" />
+
 
         <!-- Username -->
         <TextView
             android:id="@+id/tvUsernameLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Username"
+            android:text="User Name"
             android:textColor="#006769"
             android:textSize="18sp"
             android:fontFamily="@font/ibm_plex_sans_semibold"
@@ -80,12 +78,12 @@
         <EditText
             android:id="@+id/etUsername"
             android:layout_width="0dp"
-            android:layout_height="55dp"
+            android:layout_height="55dp"   
             android:layout_marginLeft="31dp"
             android:layout_marginRight="31dp"
             android:layout_marginTop="8dp"
             android:background="@drawable/input_field_rounded"
-            android:hint="Enter your username"
+            android:hint="Enter Your User Name"
             android:inputType="text"
             android:paddingLeft="15dp"
             android:layoutDirection="ltr"
@@ -226,7 +224,7 @@
             android:layout_marginRight="31dp"
             android:layout_marginTop="8dp"
             android:background="@drawable/input_field_rounded"
-            android:hint="shhh its a secret..."
+            android:hint="Enter Your Password"
             android:inputType="textPassword"
             android:paddingLeft="15dp"
             android:paddingRight="48dp"
@@ -287,7 +285,7 @@
             android:layout_marginRight="31dp"
             android:layout_marginTop="8dp"
             android:background="@drawable/input_field_rounded"
-            android:hint="Repeat your password"
+            android:hint="Repeat Your Password"
             android:inputType="textPassword"
             android:paddingLeft="15dp"
             android:paddingRight="48dp"
